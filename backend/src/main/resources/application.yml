@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: padelapp-backend
+  profiles:
+    active: dev # Perfil por defecto en desarrollo local
+  jackson:
+    serialization:
+      write_dates_as_timestamps: false
+    default-property-inclusion: non_null
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+    tagsSorter: alpha

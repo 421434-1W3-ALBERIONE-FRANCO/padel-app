@@ -1,0 +1,31 @@
+# =========================
+# Frontend (Angular / Node)
+# =========================
+node_modules/
+dist/
+.angular/
+npm-debug.log
+yarn-error.log
+
+# =========================
+# Backend (Spring Boot / Java)
+# =========================
+target/
+*.jar
+*.war
+*.log
+.mvn/
+
+# =========================
+# Entornos e IDEs (IntelliJ, VS Code)
+# =========================
+.idea/
+*.iml
+*.iws
+.vscode/
+
+# =========================
+# Sistema Operativo
+# =========================
+.DS_Store
+Thumbs.db

@@ -1,0 +1,34 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:padeldb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=KEY,VALUE,USER
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: validate # Flyway es la única fuente del esquema
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
+app:
+  jwt:
+    secret: 9a7261b4a6824147bc961726a45b8109d949b29c92cf8cfb183bfcaef296fa22
+    expiration-ms: 86400000 # 24 horas
+
+logging:
+  level:
+    org.springframework.security: INFO
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG

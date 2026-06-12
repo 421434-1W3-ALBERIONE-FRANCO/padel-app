@@ -1,0 +1,25 @@
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: validate # Flyway obligatorio en producción
+    show-sql: false
+  flyway:
+    enabled: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET}
+    expiration-ms: ${JWT_EXPIRATION:86400000}
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.springframework.web: INFO
+    org.hibernate.SQL: ERROR
