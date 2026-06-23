@@ -227,4 +227,32 @@ public class ReservaServiceImpl implements ReservaService {
             redisLockService.releaseLock(r.getCancha().getId(), r.getFecha(), r.getHoraInicio());
         }
     }
+
+    @Override
+    public ReservaResponse confirmarReserva(Long id) {
+        log.info("Iniciando confirmación de reserva ID {}", id);
+        Reserva reserva = reservaRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + id));
+
+        if (reserva.getEstadoReserva() == EstadoReserva.CONFIRMADA) {
+            log.info("La reserva ID {} ya se encuentra CONFIRMADA", id);
+            return reservaMapper.toResponse(reserva);
+        }
+
+        if (reserva.getEstadoReserva() != EstadoReserva.PENDIENTE_PAGO) {
+            throw new ReservaNoModificableException("No se puede confirmar una reserva en estado " + reserva.getEstadoReserva());
+        }
+
+        reserva.setEstadoReserva(EstadoReserva.CONFIRMADA);
+        Reserva updatedReserva = reservaRepository.save(reserva);
+
+        // Liberar el lock de Redis
+        redisLockService.releaseLock(reserva.getCancha().getId(), reserva.getFecha(), reserva.getHoraInicio());
+
+        // Enviar notificación asíncrona por WhatsApp
+        notificacionService.enviarConfirmacion(updatedReserva);
+
+        log.info("Reserva ID {} confirmada exitosamente", id);
+        return reservaMapper.toResponse(updatedReserva);
+    }
 }

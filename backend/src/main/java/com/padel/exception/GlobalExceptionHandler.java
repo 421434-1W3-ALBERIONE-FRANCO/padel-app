@@ -88,6 +88,18 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 
+    @ExceptionHandler(BonoNoDisponibleException.class)
+    public ResponseEntity<ApiError> handleBonoNoDisponibleException(BonoNoDisponibleException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                ex.getMessage(),
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(ReservaNoModificableException.class)
     public ResponseEntity<ApiError> handleReservaNoModificableException(ReservaNoModificableException ex, HttpServletRequest request) {
         ApiError error = new ApiError(

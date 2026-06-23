@@ -194,25 +194,59 @@
           </div>
         </div>
 
+        <!-- Información de Bono -->
+        <div class="bg-slate-950/40 border border-slate-800/60 rounded-xl p-4 mb-4 text-xs space-y-2">
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 font-semibold uppercase tracking-wider">Tu saldo de Bono:</span>
+            <span class="text-slate-100 font-bold text-sm bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">{{ saldoHoras() }} hs</span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="text-slate-400 font-semibold uppercase tracking-wider">Horas requeridas:</span>
+            <span class="text-slate-100 font-bold text-sm bg-slate-900 border border-slate-800 px-2 py-0.5 rounded">{{ horasRequeridas() }} hs</span>
+          </div>
+          
+          <div *ngIf="tieneSaldoBono()" class="mt-2 flex items-start gap-2 text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-3 py-2 rounded-lg">
+            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Tenés saldo de bono suficiente para este turno.</span>
+          </div>
+          <div *ngIf="!tieneSaldoBono()" class="mt-2 flex items-start gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2 rounded-lg">
+            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+            <span>No tenés saldo de bono suficiente para pagar con bono.</span>
+          </div>
+        </div>
+
         <!-- Alerta de error -->
         <div *ngIf="errorReserva()" class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl mb-4">
           {{ errorReserva() }}
         </div>
 
         <!-- Botones de Acción -->
-        <div class="flex gap-3 mt-6">
+        <div class="flex flex-col gap-3 mt-6">
+          <div class="flex gap-3">
+            <button 
+              (click)="cerrarModal()" 
+              [disabled]="cargandoReserva()"
+              class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 py-3 rounded-xl font-semibold text-sm transition duration-150">
+              Cancelar
+            </button>
+            <button 
+              (click)="confirmarReserva()"
+              [disabled]="cargandoReserva()"
+              [class]="tieneSaldoBono() 
+                ? 'flex-1 bg-slate-800 hover:bg-slate-750 border border-slate-700 disabled:opacity-50 py-3 rounded-xl font-semibold text-sm text-slate-300 transition duration-150 flex items-center justify-center gap-2'
+                : 'flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-50 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150 flex items-center justify-center gap-2'"
+              >
+              <svg *ngIf="cargandoReserva() && !tieneSaldoBono()" class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+              {{ cargandoReserva() ? 'Reservando...' : tieneSaldoBono() ? 'Reservar sin Bono' : 'Reservar Turno' }}
+            </button>
+          </div>
           <button 
-            (click)="cerrarModal()" 
+            *ngIf="tieneSaldoBono()"
+            (click)="confirmarYReservarConBono()"
             [disabled]="cargandoReserva()"
-            class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 py-3 rounded-xl font-semibold text-sm transition duration-150">
-            Cancelar
-          </button>
-          <button 
-            (click)="confirmarReserva()"
-            [disabled]="cargandoReserva()"
-            class="flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-50 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150 flex items-center justify-center gap-2">
+            class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-50 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150 flex items-center justify-center gap-2">
             <svg *ngIf="cargandoReserva()" class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            {{ cargandoReserva() ? 'Reservando...' : 'Reservar Turno' }}
+            Reservar y Pagar con Bono
           </button>
         </div>
       </div>
@@ -222,20 +256,31 @@
         <div class="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
           <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
         </div>
-        <h3 class="text-xl font-bold text-slate-100 mb-2">¡Pre-reserva Realizada!</h3>
+        <h3 class="text-xl font-bold text-slate-100 mb-2">
+          {{ pagadoConBono() ? '¡Reserva Confirmada!' : '¡Pre-reserva Realizada!' }}
+        </h3>
         <p class="text-slate-400 text-xs max-w-xs mx-auto mb-6">
-          Tu turno ha sido pre-reservado con éxito. Se ha enviado un mensaje de confirmación por WhatsApp a tu teléfono.
+          {{ pagadoConBono() 
+            ? 'Tu turno ha sido reservado y pagado con tu saldo de bono. Se ha enviado un mensaje de confirmación por WhatsApp.' 
+            : 'Tu turno ha sido pre-reservado con éxito. Recordá realizar el pago dentro de los próximos 10 minutos para confirmarlo.' }}
         </p>
 
         <div class="space-y-3">
+          <a 
+            *ngIf="!pagadoConBono() && reservaCreadaId()"
+            [routerLink]="['/pagos/checkout', reservaCreadaId()]"
+            (click)="cerrarModal()"
+            class="w-full block bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150 text-center">
+            Pagar Turno online
+          </a>
           <button 
             (click)="irAMisReservas()" 
-            class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150">
+            class="w-full bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-semibold text-sm transition duration-150">
             Ir a Mis Reservas
           </button>
           <button 
             (click)="cerrarModal()" 
-            class="w-full bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-semibold text-sm transition duration-150">
+            class="w-full bg-slate-900 border border-slate-800 hover:bg-slate-800 py-3 rounded-xl font-semibold text-sm text-slate-400 transition duration-150">
             Cerrar
           </button>
         </div>

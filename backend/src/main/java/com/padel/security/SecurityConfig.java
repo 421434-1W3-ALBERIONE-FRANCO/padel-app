@@ -43,6 +43,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(
                                 "/api/v1/auth/**", 
+                                "/api/v1/pagos/webhook/**",
                                 "/api/v1/health",
                                 "/h2-console/**",
                                 "/v3/api-docs/**",

@@ -116,6 +116,12 @@
 
         <!-- Acciones -->
         <div class="flex items-center gap-2 self-stretch md:self-auto justify-end">
+          <a 
+            *ngIf="r.estadoReserva === 'PENDIENTE_PAGO'"
+            [routerLink]="['/pagos/checkout', r.id]"
+            class="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 px-4 py-2 rounded-xl text-slate-950 font-bold text-xs shadow-md transition duration-150 text-center">
+            Pagar Turno
+          </a>
           <button 
             *ngIf="r.estadoReserva !== 'CANCELADA' && r.estadoReserva !== 'COMPLETADA'"
             (click)="abrirModalCancelacion(r)"

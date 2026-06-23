@@ -302,4 +302,42 @@ class ReservaServiceImplTest {
         verify(reservaRepository).save(expired);
         verify(redisLockService).releaseLock(eq(1L), eq(expired.getFecha()), eq(expired.getHoraInicio()));
     }
+
+    @Test
+    void confirmarReserva_HappyPath() {
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(reservaRepository.save(any(Reserva.class))).thenReturn(reservaMock);
+        when(reservaMapper.toResponse(any(Reserva.class))).thenReturn(responseMock);
+
+        ReservaResponse result = reservaService.confirmarReserva(1L);
+
+        assertNotNull(result);
+        verify(reservaRepository).save(reservaMock);
+        verify(redisLockService).releaseLock(eq(1L), any(LocalDate.class), any(LocalTime.class));
+        verify(notificacionService).enviarConfirmacion(any(Reserva.class));
+    }
+
+    @Test
+    void confirmarReserva_ShouldReturnResponse_WhenAlreadyConfirmed() {
+        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(reservaMapper.toResponse(any(Reserva.class))).thenReturn(responseMock);
+
+        ReservaResponse result = reservaService.confirmarReserva(1L);
+
+        assertNotNull(result);
+        verify(reservaRepository, never()).save(any());
+        verify(redisLockService, never()).releaseLock(anyLong(), any(), any());
+    }
+
+    @Test
+    void confirmarReserva_ShouldThrowReservaNoModificableException_WhenCancelled() {
+        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+
+        assertThrows(ReservaNoModificableException.class, () ->
+                reservaService.confirmarReserva(1L));
+
+        verify(reservaRepository, never()).save(any());
+    }
 }

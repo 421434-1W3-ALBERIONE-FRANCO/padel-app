@@ -12,4 +12,5 @@ public interface ReservaService {
     List<ReservaResponse> obtenerMisReservas(String usuarioEmail);
     List<ReservaResponse> obtenerTodas();
     void limpiarReservasExpiradas();
+    ReservaResponse confirmarReserva(Long id);
 }
