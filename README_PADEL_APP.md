@@ -445,7 +445,7 @@ RESEND_FROM=noreply@tudominio.com
 | Fase 2 — Canchas y Disponibilidad | ✅ Completo | CRUDs, Bloqueos, Disponibilidad, WS y Frontend |
 | Fase 3 — Reservas y WhatsApp | ✅ Completo | Locks Redis, Twilio WhatsApp, Scheduler, Modal, Historial y Cancelación |
 | Fase 4 — Pagos y Bonos | ✅ Completo | Integración de seña con MercadoPago y sistema de bonos prepagos |
-| Fase 5 — Tienda y Consumos | ⏳ Pendiente | Consumos a turnos y reportes POS |
+| Fase 5 — Tienda y Consumos | ✅ Completo | Consumos a turnos y reportes POS |
 | Fase 6 — Deploy y Dashboard | ⏳ Pendiente | Postgres físico, Docker y despliegue |
 
 ---

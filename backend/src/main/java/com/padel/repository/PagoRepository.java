@@ -14,4 +14,5 @@ public interface PagoRepository extends JpaRepository<Pago, Long> {
     Optional<Pago> findByMpPreferenceId(String mpPreferenceId);
     List<Pago> findByReservaId(Long reservaId);
     Optional<Pago> findByReservaIdAndEstado(Long reservaId, EstadoPago estado);
+    List<Pago> findByEstadoAndCreatedAtBetween(EstadoPago estado, java.time.LocalDateTime start, java.time.LocalDateTime end);
 }

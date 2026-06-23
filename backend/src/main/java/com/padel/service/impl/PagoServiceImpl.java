@@ -23,6 +23,7 @@ import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.service.PagoService;
 import com.padel.service.ReservaService;
+import com.padel.service.ConsumoService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -44,6 +45,7 @@ public class PagoServiceImpl implements PagoService {
     private final ReservaRepository reservaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ReservaService reservaService;
+    private final ConsumoService consumoService;
     private final PagoMapper pagoMapper;
 
     @Value("${mercadopago.access-token}")
@@ -168,9 +170,14 @@ public class PagoServiceImpl implements PagoService {
 
             if ("approved".equalsIgnoreCase(status)) {
                 pago.setEstado(EstadoPago.APROBADO);
-                pagoRepository.save(pago);
-                log.info("Pago aprobado registrado en DB. Procediendo a confirmar reserva ID {}", reservaId);
-                reservaService.confirmarReserva(reservaId);
+                Pago saved = pagoRepository.save(pago);
+                if (saved.getMetodo() == MetodoPago.MERCADOPAGO_POINT) {
+                    log.info("Pago presencial aprobado en DB. Procediendo a pagar consumos vinculados al Pago ID {}", saved.getId());
+                    consumoService.marcarConsumosComoPagados(saved.getId());
+                } else {
+                    log.info("Pago aprobado registrado en DB. Procediendo a confirmar reserva ID {}", reservaId);
+                    reservaService.confirmarReserva(reservaId);
+                }
             } else if ("rejected".equalsIgnoreCase(status) || "cancelled".equalsIgnoreCase(status)) {
                 pago.setEstado(EstadoPago.RECHAZADO);
                 pagoRepository.save(pago);

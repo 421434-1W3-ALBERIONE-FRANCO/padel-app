@@ -8,6 +8,9 @@ import { MisReservasComponent } from './features/reservas/mis-reservas/mis-reser
 import { CheckoutComponent } from './features/pagos/checkout/checkout.component';
 import { CompraBonoComponent } from './features/bonos/compra-bono/compra-bono.component';
 import { MisBonosComponent } from './features/bonos/mis-bonos/mis-bonos.component';
+import { ProductosAdminComponent } from './features/admin/productos/productos-admin.component';
+import { CargaConsumosComponent } from './features/recepcion/carga-consumos/carga-consumos.component';
+import { CierreCuentaComponent } from './features/recepcion/cierre-cuenta/cierre-cuenta.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -31,6 +34,24 @@ export const routes: Routes = [
     component: CanchasAdminComponent,
     canActivate: [authGuard],
     data: { roles: ['ADMIN'] }
+  },
+  {
+    path: 'admin/productos',
+    component: ProductosAdminComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN'] }
+  },
+  {
+    path: 'recepcion/carga-consumos',
+    component: CargaConsumosComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+  },
+  {
+    path: 'recepcion/cierre-cuenta/:reservaId',
+    component: CierreCuentaComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
   },
   {
     path: 'reservas/calendario',

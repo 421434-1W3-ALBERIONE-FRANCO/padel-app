@@ -21,6 +21,7 @@ import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.service.ReservaService;
+import com.padel.service.ConsumoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -53,6 +54,8 @@ class PagoServiceImplTest {
     private UsuarioRepository usuarioRepository;
     @Mock
     private ReservaService reservaService;
+    @Mock
+    private ConsumoService consumoService;
     @Mock
     private PagoMapper pagoMapper;
 
@@ -162,6 +165,40 @@ class PagoServiceImplTest {
             assertEquals("999", pagoMock.getMpPaymentId());
             verify(pagoRepository).save(pagoMock);
             verify(reservaService).confirmarReserva(1L);
+        }
+    }
+
+    @Test
+    void procesarWebhook_ApprovedPaymentPoint_FirstTime() {
+        Pago pagoPointMock = Pago.builder()
+                .id(2L)
+                .reserva(reservaMock)
+                .usuario(usuarioMock)
+                .monto(new BigDecimal("200.00"))
+                .metodo(MetodoPago.MERCADOPAGO_POINT)
+                .estado(EstadoPago.PENDIENTE)
+                .build();
+
+        Payment paymentMock = mock(Payment.class);
+        when(paymentMock.getStatus()).thenReturn("approved");
+        when(paymentMock.getExternalReference()).thenReturn("1");
+
+        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pagoPointMock));
+        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoPointMock);
+
+        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
+                (mock, context) -> {
+                    when(mock.get(999L)).thenReturn(paymentMock);
+                })) {
+
+            pagoService.procesarWebhook("payment", "999");
+
+            assertEquals(EstadoPago.APROBADO, pagoPointMock.getEstado());
+            assertEquals("999", pagoPointMock.getMpPaymentId());
+            verify(pagoRepository).save(pagoPointMock);
+            verify(consumoService).marcarConsumosComoPagados(2L);
+            verify(reservaService, never()).confirmarReserva(anyLong());
         }
     }
 

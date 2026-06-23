@@ -1,4 +1,4 @@
-export type MetodoPago = 'MERCADOPAGO' | 'BONO' | 'EFECTIVO';
+export type MetodoPago = 'MERCADOPAGO' | 'BONO' | 'EFECTIVO' | 'MERCADOPAGO_POINT';
 export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
 
 export interface PreferenciaRequest {

@@ -113,6 +113,18 @@
           class="w-full sm:w-auto text-center px-6 py-3 bg-slate-900 hover:bg-slate-850 text-slate-300 font-bold rounded-xl shadow-lg border border-slate-800 transform hover:-translate-y-0.5 transition duration-150 cursor-pointer">
           Administrar Canchas
         </a>
+        <a 
+          *ngIf="currentUser()?.rol === 'ADMIN'"
+          routerLink="/admin/productos"
+          class="w-full sm:w-auto text-center px-6 py-3 bg-slate-900 hover:bg-slate-850 text-slate-300 font-bold rounded-xl shadow-lg border border-slate-800 transform hover:-translate-y-0.5 transition duration-150 cursor-pointer">
+          Administrar Productos
+        </a>
+        <a 
+          *ngIf="currentUser()?.rol === 'ADMIN' || currentUser()?.rol === 'RECEPCIONISTA'"
+          routerLink="/recepcion/carga-consumos"
+          class="w-full sm:w-auto text-center px-6 py-3 bg-slate-900 hover:bg-slate-850 text-slate-300 font-bold rounded-xl shadow-lg border border-slate-800 transform hover:-translate-y-0.5 transition duration-150 cursor-pointer">
+          Cargar Consumos / Tienda
+        </a>
       </div>
 
     </div>

@@ -1,0 +1,204 @@
+<div class="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
+  
+  <div class="max-w-6xl mx-auto">
+    <!-- Botón volver -->
+    <a 
+      routerLink="/recepcion/carga-consumos" 
+      class="mb-6 inline-flex items-center gap-2 text-slate-400 hover:text-slate-100 transition text-sm font-semibold">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver a Carga de Consumos
+    </a>
+
+    <!-- Encabezado -->
+    <div class="mb-8">
+      <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        Cierre de Cuenta y Facturación
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">
+        Cierre final del tab del jugador. Verifique la lista de consumos y realice el cobro.
+      </p>
+    </div>
+
+    <!-- Banners de Alerta -->
+    <div class="mb-6" *ngIf="mensajeError()">
+      <div class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-start gap-3" role="alert">
+        <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+          <span class="font-semibold">Error:</span> {{ mensajeError() }}
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-6" *ngIf="mensajeExito()">
+      <div class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl flex items-start gap-3" role="alert">
+        <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <div>
+          {{ mensajeExito() }}
+        </div>
+      </div>
+    </div>
+
+    <!-- SKELETON LOADERS -->
+    <div *ngIf="cargando()" class="p-6 bg-slate-900/40 border border-slate-900 rounded-2xl animate-pulse space-y-4">
+      <div class="h-6 bg-slate-800 rounded w-1/4"></div>
+      <div class="h-10 bg-slate-800 rounded w-full"></div>
+      <div class="h-10 bg-slate-800 rounded w-full"></div>
+    </div>
+
+    <!-- MAIN VIEW -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8" *ngIf="!cargando() && reserva()">
+      
+      <!-- Listado de consumos -->
+      <div class="lg:col-span-2 space-y-6">
+        
+        <!-- Detalles del Turno -->
+        <div class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl">
+          <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-500 mb-3">Resumen de Turno</h3>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+            <div>
+              <span class="text-slate-400 block text-xs">Cancha</span>
+              <strong class="text-slate-100 font-bold block mt-0.5">{{ reserva()?.canchaNombre }}</strong>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-xs">Horario</span>
+              <strong class="text-slate-100 font-bold block mt-0.5">{{ reserva()?.horaInicio?.substring(0, 5) }} - {{ reserva()?.horaFin?.substring(0, 5) }}</strong>
+            </div>
+            <div>
+              <span class="text-slate-400 block text-xs">Jugador</span>
+              <strong class="text-slate-100 font-bold block mt-0.5">{{ reserva()?.usuarioEmail }}</strong>
+            </div>
+          </div>
+        </div>
+
+        <!-- Consumos PENDIENTES -->
+        <div class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl">
+          <h3 class="text-base font-bold text-slate-100 mb-4 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>
+            Consumos Pendientes de Cobro
+          </h3>
+
+          <div *ngIf="obtenerPendientes().length === 0" class="py-6 text-slate-500 text-xs text-center">
+            No hay consumos pendientes para cobrar en esta cuenta.
+          </div>
+
+          <div *ngIf="obtenerPendientes().length > 0" class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs" aria-label="Consumos pendientes">
+              <thead>
+                <tr class="border-b border-slate-850 text-slate-400 font-semibold bg-slate-950/20">
+                  <th class="px-4 py-3">Producto</th>
+                  <th class="px-4 py-3 text-center">Cant.</th>
+                  <th class="px-4 py-3 text-right">Unitario</th>
+                  <th class="px-4 py-3 text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-850/60">
+                <tr *ngFor="let c of obtenerPendientes()" class="hover:bg-slate-900/10">
+                  <td class="px-4 py-3 font-bold text-slate-200">{{ c.productoNombre }}</td>
+                  <td class="px-4 py-3 text-center font-semibold text-slate-300">{{ c.cantidad }}</td>
+                  <td class="px-4 py-3 text-right text-slate-400">${{ c.precioUnitario | number:'1.2-2' }}</td>
+                  <td class="px-4 py-3 text-right font-bold text-amber-400">${{ c.subtotal | number:'1.2-2' }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Consumos YA PAGADOS -->
+        <div class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl" *ngIf="obtenerPagados().length > 0">
+          <h3 class="text-base font-bold text-slate-400 mb-4 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 bg-emerald-500 rounded-full"></span>
+            Historial de Consumos Cobrados
+          </h3>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs opacity-70" aria-label="Consumos cobrados">
+              <thead>
+                <tr class="border-b border-slate-850 text-slate-400 font-semibold bg-slate-950/20">
+                  <th class="px-4 py-3">Producto</th>
+                  <th class="px-4 py-3 text-center">Cant.</th>
+                  <th class="px-4 py-3 text-right">Unitario</th>
+                  <th class="px-4 py-3 text-right">Subtotal</th>
+                  <th class="px-4 py-3 text-center">Pago ID</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-850/60">
+                <tr *ngFor="let c of obtenerPagados()" class="hover:bg-slate-900/10">
+                  <td class="px-4 py-3 font-semibold text-slate-300">{{ c.productoNombre }}</td>
+                  <td class="px-4 py-3 text-center text-slate-400">{{ c.cantidad }}</td>
+                  <td class="px-4 py-3 text-right text-slate-500">${{ c.precioUnitario | number:'1.2-2' }}</td>
+                  <td class="px-4 py-3 text-right font-bold text-slate-300">${{ c.subtotal | number:'1.2-2' }}</td>
+                  <td class="px-4 py-3 text-center text-slate-500 font-mono">#{{ c.pagoId }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Selector de Cobro -->
+      <div class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl flex flex-col justify-between min-h-[300px]">
+        <div>
+          <h3 class="text-lg font-bold text-slate-100 mb-4 flex items-center gap-2">
+            Cobro Presencial
+          </h3>
+          <p class="text-slate-400 text-xs mb-6">
+            Elegí el método de pago para saldar la cuenta del jugador en el mostrador.
+          </p>
+
+          <div class="space-y-3">
+            <!-- Metodo Efectivo -->
+            <label 
+              (click)="metodoSeleccionado.set('EFECTIVO')"
+              [class]="metodoSeleccionado() === 'EFECTIVO' ? 'border-teal-500/60 bg-teal-500/5' : 'border-slate-800 bg-slate-950/40'"
+              class="w-full border rounded-xl p-4 flex items-center gap-3 cursor-pointer transition select-none">
+              <input 
+                type="radio" 
+                name="metodo" 
+                value="EFECTIVO"
+                [checked]="metodoSeleccionado() === 'EFECTIVO'"
+                class="accent-teal-500" />
+              <div>
+                <strong class="text-sm text-slate-100 block">Efectivo</strong>
+                <span class="text-[10px] text-slate-400 block">Cobro presencial en mano. Asiento contable aprobado al instante.</span>
+              </div>
+            </label>
+
+            <!-- Metodo MP Point -->
+            <label 
+              (click)="metodoSeleccionado.set('MERCADOPAGO_POINT')"
+              [class]="metodoSeleccionado() === 'MERCADOPAGO_POINT' ? 'border-teal-500/60 bg-teal-500/5' : 'border-slate-800 bg-slate-950/40'"
+              class="w-full border rounded-xl p-4 flex items-center gap-3 cursor-pointer transition select-none">
+              <input 
+                type="radio" 
+                name="metodo" 
+                value="MERCADOPAGO_POINT"
+                [checked]="metodoSeleccionado() === 'MERCADOPAGO_POINT'"
+                class="accent-teal-500" />
+              <div>
+                <strong class="text-sm text-slate-100 block">MercadoPago Point</strong>
+                <span class="text-[10px] text-slate-400 block">Envía el monto a la terminal física del club. Consumos pendientes hasta aprobación.</span>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-6 border-t border-slate-800">
+          <div class="flex justify-between items-baseline mb-4">
+            <span class="text-slate-400 text-xs font-semibold uppercase tracking-wider">Total a Cobrar</span>
+            <span class="text-2xl font-extrabold text-teal-400">${{ calcularTotalPendiente() | number:'1.2-2' }}</span>
+          </div>
+
+          <button 
+            (click)="cerrarCuenta()"
+            [disabled]="cargandoOperacion() || calcularTotalPendiente() === 0"
+            class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-50 py-3.5 rounded-xl font-bold text-sm text-slate-950 transition duration-150 flex items-center justify-center gap-2">
+            <svg *ngIf="cargandoOperacion()" class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {{ cargandoOperacion() ? 'Procesando...' : 'Confirmar Cobro y Cerrar' }}
+          </button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
