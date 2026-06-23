@@ -440,14 +440,14 @@ RESEND_FROM=noreply@tudominio.com
 | Fase | Estado | Notas |
 |---|---|---|
 | Modelo de datos | ✅ Diseñado | ERD completo, 11 entidades |
-| Setup proyecto | 🔄 En progreso | Spring Initializr pendiente |
-| Fase 1 — Auth | ⏳ Pendiente | Próximo paso |
-| Fase 2 — Canchas | ⏳ Pendiente | — |
-| Fase 3 — Reservas | ⏳ Pendiente | — |
-| Fase 4 — Pagos | ⏳ Pendiente | — |
-| Fase 5 — Tienda | ⏳ Pendiente | — |
-| Fase 6 — Deploy | ⏳ Pendiente | — |
+| Setup proyecto | ✅ Completo | Spring Boot 3 + Angular 18 inicializados |
+| Fase 1 — Auth | ✅ Completo | JWT, H2, login/registro frontend y backend |
+| Fase 2 — Canchas y Disponibilidad | ✅ Completo | CRUDs, Bloqueos, Disponibilidad, WS y Frontend |
+| Fase 3 — Reservas y WhatsApp | ✅ Completo | Locks Redis, Twilio WhatsApp, Scheduler, Modal, Historial y Cancelación |
+| Fase 4 — Pagos y Bonos | ⏳ Pendiente | Integración de seña con MercadoPago |
+| Fase 5 — Tienda y Consumos | ⏳ Pendiente | Consumos a turnos y reportes POS |
+| Fase 6 — Deploy y Dashboard | ⏳ Pendiente | Postgres físico, Docker y despliegue |
 
 ---
 
-*Documento generado el 10/06/2026 — Actualizar estado al completar cada fase.*
+*Última actualización: 23/06/2026*
