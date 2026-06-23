@@ -1,0 +1,481 @@
+<div class="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
+  <!-- Encabezado de la página -->
+  <div class="max-w-7xl mx-auto mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+      <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        Panel de Administración
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">
+        Gestioná las canchas de pádel, configurá las franjas horarias y registrá bloqueos por mantenimiento.
+      </p>
+    </div>
+    <button 
+      (click)="showCanchaForm.set(true)"
+      *ngIf="!showCanchaForm()"
+      class="self-start sm:self-auto px-5 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-medium rounded-xl shadow-lg shadow-teal-500/10 hover:shadow-teal-500/20 transform hover:-translate-y-0.5 transition duration-200 flex items-center gap-2 cursor-pointer">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+      Nueva Cancha
+    </button>
+  </div>
+
+  <!-- Banners de Alerta -->
+  <div class="max-w-7xl mx-auto mb-6">
+    <div *ngIf="mensajeError()" class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-start gap-3 animate-fade-in">
+      <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div>
+        <span class="font-semibold">Error:</span> {{ mensajeError() }}
+      </div>
+    </div>
+    <div *ngIf="mensajeExito()" class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl flex items-start gap-3 animate-fade-in">
+      <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div>
+        <span class="font-semibold">¡Éxito!</span> {{ mensajeExito() }}
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+    
+    <!-- SECCIÓN IZQUIERDA: LISTADO Y FORMULARIO DE CANCHAS -->
+    <div class="lg:col-span-4 flex flex-col gap-6">
+      
+      <!-- FORMULARIO NUEVA/EDITAR CANCHA (INLINE COLLAPSIBLE) -->
+      <div *ngIf="showCanchaForm()" class="bg-slate-900/80 backdrop-blur-xl border border-slate-800 rounded-2xl p-6 shadow-xl animate-slide-down">
+        <h2 class="text-xl font-bold text-slate-100 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          {{ editCanchaId() ? 'Editar Cancha' : 'Nueva Cancha' }}
+        </h2>
+        
+        <form [formGroup]="canchaForm" (ngSubmit)="guardarCancha()" class="flex flex-col gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Nombre de la Cancha</label>
+            <input 
+              type="text" 
+              formControlName="nombre"
+              placeholder="Ej: Cancha Central, Cancha 2"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-600 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-200 text-sm" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Tipo de Suelo</label>
+            <select 
+              formControlName="tipoSuelo"
+              class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-200 text-sm cursor-pointer">
+              <option value="BLINDEX">Blindex / Cristal</option>
+              <option value="CEMENTO">Cemento / Concreto</option>
+              <option value="SINTETICO">Césped Sintético</option>
+            </select>
+          </div>
+
+          <div class="flex items-center gap-6 py-2">
+            <label class="flex items-center gap-2.5 text-sm font-medium text-slate-300 cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                formControlName="techada"
+                class="w-4 h-4 rounded border-slate-800 bg-slate-950 text-teal-500 focus:ring-teal-500 focus:ring-offset-slate-900 cursor-pointer" />
+              ¿Techada?
+            </label>
+
+            <label class="flex items-center gap-2.5 text-sm font-medium text-slate-300 cursor-pointer select-none">
+              <input 
+                type="checkbox" 
+                formControlName="tieneLuz"
+                class="w-4 h-4 rounded border-slate-800 bg-slate-950 text-teal-500 focus:ring-teal-500 focus:ring-offset-slate-900 cursor-pointer" />
+              ¿Tiene Luz Artificial?
+            </label>
+          </div>
+
+          <div class="flex items-center gap-3 mt-2">
+            <button 
+              type="button" 
+              (click)="cancelarEdicionCancha()"
+              class="flex-1 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-xl transition duration-200 text-sm cursor-pointer">
+              Cancelar
+            </button>
+            <button 
+              type="submit" 
+              [disabled]="canchaForm.invalid || cargando()"
+              class="flex-1 px-4 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-slate-800 disabled:text-slate-600 disabled:cursor-not-allowed text-slate-950 font-semibold rounded-xl shadow-lg shadow-teal-500/10 transition duration-200 text-sm cursor-pointer">
+              {{ editCanchaId() ? 'Guardar' : 'Crear' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- TARJETA LISTADO DE CANCHAS -->
+      <div class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl">
+        <h2 class="text-xl font-bold text-slate-100 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+          Nuestras Canchas
+        </h2>
+
+        <!-- Loader -->
+        <div *ngIf="cargando() && canchas().length === 0" class="flex flex-col items-center justify-center py-12 gap-3 text-slate-400">
+          <div class="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-sm">Cargando canchas...</span>
+        </div>
+
+        <!-- Empty State -->
+        <div *ngIf="!cargando() && canchas().length === 0" class="text-center py-12 text-slate-500">
+          No hay canchas registradas en el sistema.
+        </div>
+
+        <!-- Listado -->
+        <div class="flex flex-col gap-3 max-h-[500px] overflow-y-auto pr-1">
+          <div 
+            *ngFor="let cancha of canchas()"
+            [class.border-teal-500]="canchaSeleccionada()?.id === cancha.id"
+            [class.bg-slate-900]="canchaSeleccionada()?.id === cancha.id"
+            [class.hover:border-slate-800]="canchaSeleccionada()?.id !== cancha.id"
+            class="group p-4 bg-slate-900/50 hover:bg-slate-900/80 border border-slate-900 rounded-xl transition duration-200 flex items-center justify-between gap-4 cursor-pointer"
+            (click)="seleccionarCancha(cancha)">
+            
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2">
+                <h3 class="font-bold text-slate-100 truncate group-hover:text-teal-400 transition duration-200">
+                  {{ cancha.nombre }}
+                </h3>
+                <span 
+                  *ngIf="!cancha.activa"
+                  class="px-2 py-0.5 bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] font-semibold rounded uppercase tracking-wider">
+                  Inactiva
+                </span>
+              </div>
+              
+              <div class="flex flex-wrap gap-x-3 gap-y-1 mt-1 text-xs text-slate-400">
+                <span class="flex items-center gap-1">
+                  <svg class="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                  {{ cancha.tipoSuelo }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <span [class]="cancha.techada ? 'text-teal-400' : 'text-slate-500'">●</span>
+                  {{ cancha.techada ? 'Techada' : 'Descubierta' }}
+                </span>
+                <span class="flex items-center gap-1">
+                  <span [class]="cancha.tieneLuz ? 'text-teal-400' : 'text-slate-500'">●</span>
+                  {{ cancha.tieneLuz ? 'Con luz' : 'Sin luz' }}
+                </span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200" (click)="$event.stopPropagation()">
+              <button 
+                (click)="editarCancha(cancha)"
+                title="Editar Cancha"
+                class="p-2 hover:bg-slate-800 text-slate-400 hover:text-teal-400 rounded-lg transition duration-200 cursor-pointer">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              </button>
+              <button 
+                *ngIf="cancha.activa"
+                (click)="desactivarCancha(cancha.id)"
+                title="Desactivar Cancha"
+                class="p-2 hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-lg transition duration-200 cursor-pointer">
+                <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN DERECHA: CONFIGURACIÓN DETALLADA (FRANJAS Y BLOQUEOS) -->
+    <div class="lg:col-span-8">
+      
+      <!-- Blank State si no hay cancha seleccionada -->
+      <div 
+        *ngIf="!canchaSeleccionada()" 
+        class="bg-slate-900/10 border-2 border-dashed border-slate-900 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[450px]">
+        <div class="w-16 h-16 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4 shadow-inner">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        </div>
+        <h3 class="text-lg font-bold text-slate-300">Ninguna Cancha Seleccionada</h3>
+        <p class="text-sm text-slate-500 max-w-sm mt-1">
+          Hacé clic en una de las canchas del panel izquierdo para configurar sus tarifas horarias y ver los bloqueos de mantenimiento.
+        </p>
+      </div>
+
+      <!-- Detalle de la cancha activa -->
+      <div *ngIf="canchaSeleccionada()" class="flex flex-col gap-6">
+        
+        <!-- Cabecera de la cancha seleccionada -->
+        <div class="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-900 rounded-2xl p-6 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-teal-400 shadow shadow-teal-400/50"></span>
+              <h2 class="text-2xl font-extrabold text-slate-100">{{ canchaSeleccionada()?.nombre }}</h2>
+            </div>
+            <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest font-semibold">
+              Configuraciones Generales de la Cancha
+            </p>
+          </div>
+
+          <!-- Tabs de navegación interna -->
+          <div class="flex bg-slate-950 p-1 border border-slate-800 rounded-xl self-start sm:self-auto">
+            <button 
+              (click)="setTab('franjas')"
+              [class.bg-slate-800]="activeTab() === 'franjas'"
+              [class.text-teal-400]="activeTab() === 'franjas'"
+              [class.text-slate-400]="activeTab() !== 'franjas'"
+              class="px-4 py-1.5 text-xs font-semibold rounded-lg transition duration-200 cursor-pointer">
+              Franjas Horarias
+            </button>
+            <button 
+              (click)="setTab('bloqueos')"
+              [class.bg-slate-800]="activeTab() === 'bloqueos'"
+              [class.text-teal-400]="activeTab() === 'bloqueos'"
+              [class.text-slate-400]="activeTab() !== 'bloqueos'"
+              class="px-4 py-1.5 text-xs font-semibold rounded-lg transition duration-200 cursor-pointer">
+              Bloqueos de Cancha
+            </button>
+          </div>
+        </div>
+
+        <!-- LOADER DETALLES -->
+        <div *ngIf="cargandoDetalles()" class="flex flex-col items-center justify-center py-20 gap-3 text-slate-400 bg-slate-900/20 rounded-2xl border border-slate-900">
+          <div class="w-8 h-8 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
+          <span class="text-sm">Cargando datos...</span>
+        </div>
+
+        <div *ngIf="!cargandoDetalles()" class="flex flex-col gap-6">
+          
+          <!-- TAB 1: FRANJAS HORARIAS -->
+          <div *ngIf="activeTab() === 'franjas'" class="flex flex-col gap-6">
+            
+            <!-- Botón Agregar & Formulario Inline -->
+            <div class="bg-slate-900/40 border border-slate-900/50 rounded-2xl p-6">
+              <div class="flex items-center justify-between gap-4 mb-4">
+                <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  Grilla Horaria y Precios
+                </h3>
+                <button 
+                  (click)="showFranjaForm.set(true)"
+                  *ngIf="!showFranjaForm()"
+                  class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-teal-400 font-medium rounded-lg text-xs transition duration-200 cursor-pointer">
+                  + Agregar Franja
+                </button>
+              </div>
+
+              <!-- Formulario Franja (Inline) -->
+              <div *ngIf="showFranjaForm()" class="bg-slate-950 border border-slate-800 rounded-xl p-5 mb-6 animate-slide-down">
+                <h4 class="text-sm font-bold text-slate-300 mb-4 uppercase tracking-wider">
+                  {{ editFranjaId() ? 'Modificar Franja Horaria' : 'Crear Nueva Franja Horaria' }}
+                </h4>
+                
+                <form [formGroup]="franjaForm" (ngSubmit)="guardarFranja()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Hora Inicio</label>
+                    <input type="time" formControlName="horaInicio" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Hora Fin</label>
+                    <input type="time" formControlName="horaFin" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Precio Base ($)</label>
+                    <input type="number" formControlName="precioBase" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Precio Nocturno ($)</label>
+                    <input type="number" formControlName="precioNocturno" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+
+                  <!-- Checklist de Días Aplicables -->
+                  <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-400 mb-2">Días aplicables a este precio</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-7 gap-2">
+                      <label 
+                        *ngFor="let dia of diasSemana" 
+                        [ngClass]="{ 'border-teal-500 bg-teal-500/5': isDiaChecked(dia.value) }"
+                        class="flex flex-col items-center justify-center p-2 border border-slate-800 hover:border-slate-700 rounded-lg text-center cursor-pointer select-none transition duration-150">
+                        <input 
+                          type="checkbox" 
+                          [value]="dia.value"
+                          [checked]="isDiaChecked(dia.value)"
+                          (change)="onDiaChange($event)"
+                          class="sr-only" />
+                        <span class="text-xs font-semibold" [class.text-teal-400]="isDiaChecked(dia.value)">
+                          {{ dia.label }}
+                        </span>
+                      </label>
+                    </div>
+                  </div>
+
+                  <div class="md:col-span-2 flex items-center justify-end gap-3 mt-2">
+                    <button type="button" (click)="cancelarEdicionFranja()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs cursor-pointer">
+                      Cancelar
+                    </button>
+                    <button type="submit" [disabled]="franjaForm.invalid" class="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-semibold rounded-lg text-xs cursor-pointer">
+                      Guardar Franja
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Listado de Franjas -->
+              <div *ngIf="franjas().length === 0" class="text-center py-10 text-slate-500 text-sm">
+                No hay franjas horarias configuradas para esta cancha.
+              </div>
+
+              <div *ngIf="franjas().length > 0" class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                  <thead class="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Horario</th>
+                      <th class="py-3 px-4">Duración</th>
+                      <th class="py-3 px-4">Precio Base</th>
+                      <th class="py-3 px-4">Precio Noche</th>
+                      <th class="py-3 px-4">Días Habilitados</th>
+                      <th class="py-3 px-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-900">
+                    <tr *ngFor="let franja of franjas()" class="hover:bg-slate-900/35 transition duration-150">
+                      <td class="py-3.5 px-4 font-bold text-slate-200">
+                        {{ franja.horaInicio.substring(0, 5) }} - {{ franja.horaFin.substring(0, 5) }}
+                      </td>
+                      <td class="py-3.5 px-4 text-xs text-slate-400">
+                        {{ franja.duracionMin }} min
+                      </td>
+                      <td class="py-3.5 px-4 font-medium text-emerald-400">
+                        ${{ franja.precioBase | number:'1.2-2' }}
+                      </td>
+                      <td class="py-3.5 px-4 font-medium text-amber-400">
+                        ${{ franja.precioNocturno | number:'1.2-2' }}
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <div class="flex flex-wrap gap-1 max-w-[250px]">
+                          <span 
+                            *ngFor="let dia of franja.diasAplicables"
+                            class="px-1.5 py-0.5 bg-slate-950 border border-slate-800 text-slate-400 rounded text-[9px] uppercase font-bold tracking-tight">
+                            {{ dia.substring(0, 3) }}
+                          </span>
+                        </div>
+                      </td>
+                      <td class="py-3.5 px-4 text-right">
+                        <div class="flex items-center justify-end gap-1">
+                          <button (click)="editarFranja(franja)" title="Editar" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-teal-400 rounded-md transition duration-150 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                          </button>
+                          <button (click)="eliminarFranja(franja.id)" title="Eliminar" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-md transition duration-150 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: BLOQUEOS DE CANCHA -->
+          <div *ngIf="activeTab() === 'bloqueos'" class="flex flex-col gap-6">
+            
+            <!-- Botón Agregar & Formulario Inline -->
+            <div class="bg-slate-900/40 border border-slate-900/50 rounded-2xl p-6">
+              <div class="flex items-center justify-between gap-4 mb-4">
+                <h3 class="text-lg font-bold text-slate-100 flex items-center gap-2">
+                  <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                  Bloqueos Temporales Activos
+                </h3>
+                <button 
+                  (click)="showBloqueoForm.set(true)"
+                  *ngIf="!showBloqueoForm()"
+                  class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-teal-400 font-medium rounded-lg text-xs transition duration-200 cursor-pointer">
+                  + Bloquear Cancha
+                </button>
+              </div>
+
+              <!-- Formulario Bloqueo (Inline) -->
+              <div *ngIf="showBloqueoForm()" class="bg-slate-950 border border-slate-800 rounded-xl p-5 mb-6 animate-slide-down">
+                <h4 class="text-sm font-bold text-slate-300 mb-4 uppercase tracking-wider">
+                  {{ editBloqueoId() ? 'Modificar Bloqueo Temporal' : 'Registrar Nuevo Bloqueo' }}
+                </h4>
+                
+                <form [formGroup]="bloqueoForm" (ngSubmit)="guardarBloqueo()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha Desde</label>
+                    <input type="date" formControlName="fechaDesde" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500 cursor-pointer" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha Hasta</label>
+                    <input type="date" formControlName="fechaHasta" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500 cursor-pointer" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Hora Desde</label>
+                    <input type="time" formControlName="horaDesde" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Hora Hasta</label>
+                    <input type="time" formControlName="horaHasta" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+                  <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Motivo / Descripción</label>
+                    <input type="text" formControlName="motivo" placeholder="Ej: Mantenimiento de reflectores, Lluvia, Torneo local" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500" />
+                  </div>
+
+                  <div class="md:col-span-2 flex items-center justify-end gap-3 mt-2">
+                    <button type="button" (click)="cancelarEdicionBloqueo()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs cursor-pointer">
+                      Cancelar
+                    </button>
+                    <button type="submit" [disabled]="bloqueoForm.invalid" class="px-4 py-2 bg-teal-500 hover:bg-teal-600 disabled:bg-slate-800 disabled:text-slate-600 text-slate-950 font-semibold rounded-lg text-xs cursor-pointer">
+                      Bloquear Cancha
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <!-- Listado de Bloqueos -->
+              <div *ngIf="bloqueos().length === 0" class="text-center py-10 text-slate-500 text-sm">
+                No hay bloqueos activos registrados en esta cancha.
+              </div>
+
+              <div *ngIf="bloqueos().length > 0" class="overflow-x-auto">
+                <table class="w-full text-left text-sm text-slate-300">
+                  <thead class="text-xs text-slate-400 uppercase tracking-wider border-b border-slate-800">
+                    <tr>
+                      <th class="py-3 px-4">Período</th>
+                      <th class="py-3 px-4">Horas</th>
+                      <th class="py-3 px-4">Motivo del Bloqueo</th>
+                      <th class="py-3 px-4 text-right">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-slate-900">
+                    <tr *ngFor="let bloqueo of bloqueos()" class="hover:bg-slate-900/35 transition duration-150">
+                      <td class="py-3.5 px-4 font-bold text-slate-200">
+                        {{ bloqueo.fechaDesde | date:'dd/MM/yyyy' }} 
+                        <span *ngIf="bloqueo.fechaDesde !== bloqueo.fechaHasta" class="text-slate-500 font-normal"> al </span>
+                        <span *ngIf="bloqueo.fechaDesde !== bloqueo.fechaHasta">{{ bloqueo.fechaHasta | date:'dd/MM/yyyy' }}</span>
+                      </td>
+                      <td class="py-3.5 px-4 text-xs text-slate-400">
+                        {{ bloqueo.horaDesde.substring(0, 5) }} - {{ bloqueo.horaHasta.substring(0, 5) }}
+                      </td>
+                      <td class="py-3.5 px-4">
+                        <span class="px-2.5 py-1 bg-red-500/10 border border-red-500/10 text-red-400 text-xs font-medium rounded-full">
+                          {{ bloqueo.motivo }}
+                        </span>
+                      </td>
+                      <td class="py-3.5 px-4 text-right">
+                        <div class="flex items-center justify-end gap-1">
+                          <button (click)="editarBloqueo(bloqueo)" title="Editar" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-teal-400 rounded-md transition duration-150 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                          </button>
+                          <button (click)="eliminarBloqueo(bloqueo.id)" title="Eliminar" class="p-1.5 hover:bg-slate-800 text-slate-400 hover:text-red-400 rounded-md transition duration-150 cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

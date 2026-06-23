@@ -1,0 +1,245 @@
+<div class="min-h-screen bg-slate-950 text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
+  <!-- Encabezado de la página -->
+  <div class="max-w-6xl mx-auto mb-8">
+    <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+      Reserva tu Cancha
+    </h1>
+    <p class="text-slate-400 text-sm mt-1">
+      Consultá la disponibilidad en tiempo real y elegí el horario que mejor te convenga para jugar.
+    </p>
+  </div>
+
+  <!-- Banners de Alerta -->
+  <div class="max-w-6xl mx-auto mb-6" *ngIf="mensajeError()">
+    <div class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-start gap-3 animate-fade-in">
+      <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      <div>
+        <span class="font-semibold">Error:</span> {{ mensajeError() }}
+      </div>
+    </div>
+  </div>
+
+  <!-- SELECTORES (CANCHA Y FECHA) -->
+  <div class="max-w-6xl mx-auto bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl mb-8 flex flex-col sm:flex-row gap-6">
+    <!-- Selector Cancha -->
+    <div class="flex-1">
+      <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Seleccionar Cancha</label>
+      <div class="relative">
+        <select 
+          [ngModel]="canchaSeleccionadaId()" 
+          (ngModelChange)="onCanchaChange($event)"
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-200 text-sm cursor-pointer appearance-none">
+          <option *ngFor="let cancha of canchas()" [value]="cancha.id">{{ cancha.nombre }} ({{ cancha.tipoSuelo }})</option>
+        </select>
+        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selector Fecha -->
+    <div class="flex-1">
+      <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Seleccionar Fecha</label>
+      <input 
+        type="date" 
+        [ngModel]="fechaSeleccionada()"
+        (ngModelChange)="onFechaChange($event)"
+        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-200 text-sm cursor-pointer" />
+    </div>
+  </div>
+
+  <!-- GRILLA DE DISPONIBILIDAD -->
+  <div class="max-w-6xl mx-auto">
+    <!-- Titulo Grilla -->
+    <div class="flex items-center justify-between gap-4 mb-6">
+      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
+        <svg class="w-5 h-5 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        Horarios Disponibles
+      </h2>
+      <span class="text-xs text-slate-400 bg-slate-900 border border-slate-800 px-3 py-1 rounded-full flex items-center gap-1.5">
+        <span class="w-1.5 h-1.5 bg-teal-400 rounded-full animate-pulse"></span>
+        En tiempo real
+      </span>
+    </div>
+
+    <!-- SKELETON LOADERS -->
+    <div *ngIf="cargando()" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div *ngFor="let i of [1,2,3,4,5,6,7,8]" class="bg-slate-900/30 border border-slate-900 rounded-2xl p-5 flex flex-col gap-4 animate-pulse">
+        <div class="h-6 bg-slate-800 rounded-md w-2/3"></div>
+        <div class="h-4 bg-slate-800 rounded-md w-1/3"></div>
+        <div class="h-8 bg-slate-800 rounded-md w-full mt-2"></div>
+      </div>
+    </div>
+
+    <!-- EMPTY STATE -->
+    <div 
+      *ngIf="!cargando() && slots().length === 0" 
+      class="bg-slate-900/10 border border-slate-900/50 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+      <div class="w-14 h-14 bg-slate-900 border border-slate-800 rounded-full flex items-center justify-center text-slate-500 mb-4">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+      <h3 class="text-base font-bold text-slate-400">Sin Turnos Configurados</h3>
+      <p class="text-xs text-slate-500 max-w-xs mt-1">
+        No hay franjas horarias configuradas en la cancha para este día de la semana.
+      </p>
+    </div>
+
+    <!-- LISTADO DE SLOTS -->
+    <div 
+      *ngIf="!cargando() && slots().length > 0" 
+      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      
+      <div 
+        *ngFor="let slot of slots()"
+        [class]="slot.disponible 
+          ? 'bg-emerald-500/5 hover:bg-emerald-500/10 border-emerald-500/20 hover:border-emerald-500/40 cursor-pointer shadow-lg shadow-emerald-500/2' 
+          : slot.motivoBloqueo === 'Fecha pasada' || slot.motivoBloqueo === 'Horario pasado'
+            ? 'bg-slate-900/20 border-slate-900/80 text-slate-500 cursor-not-allowed opacity-50'
+            : 'bg-red-500/5 border-red-500/15 text-slate-400 cursor-not-allowed'"
+        class="border rounded-2xl p-5 flex flex-col justify-between gap-4 transition duration-200 group transform hover:-translate-y-0.5"
+        (click)="seleccionarSlot(slot)">
+        
+        <div>
+          <!-- Horas -->
+          <div class="flex items-center justify-between">
+            <span 
+              [class]="slot.disponible ? 'text-slate-100 font-bold text-lg group-hover:text-teal-400' : 'text-slate-500 font-semibold text-base'"
+              class="transition duration-150">
+              {{ slot.horaInicio.substring(0, 5) }} - {{ slot.horaFin.substring(0, 5) }}
+            </span>
+            <span 
+              *ngIf="slot.disponible"
+              class="px-2 py-0.5 bg-emerald-500/10 text-emerald-400 text-[10px] font-bold rounded uppercase tracking-wider">
+              Libre
+            </span>
+            <span 
+              *ngIf="!slot.disponible"
+              [class]="slot.motivoBloqueo === 'Fecha pasada' || slot.motivoBloqueo === 'Horario pasado' ? 'bg-slate-800 text-slate-400' : 'bg-red-500/10 text-red-400'"
+              class="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider">
+              No Disponible
+            </span>
+          </div>
+          
+          <!-- Duración -->
+          <span class="text-xs text-slate-500 block mt-1">
+            Duración: {{ slot.duracionMin }} min
+          </span>
+        </div>
+
+        <!-- Precio o Motivo de Bloqueo -->
+        <div class="mt-2 border-t border-slate-900 pt-3 flex items-center justify-between">
+          <div *ngIf="slot.disponible">
+            <span class="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">Precio Turno</span>
+            <span class="text-xl font-extrabold text-emerald-400 group-hover:scale-105 transition transform duration-150 block">
+              ${{ slot.precio | number:'1.2-2' }}
+            </span>
+          </div>
+          
+          <div *ngIf="!slot.disponible" class="w-full">
+            <span class="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">Detalle</span>
+            <span class="text-xs font-semibold text-slate-400 truncate block mt-0.5">
+              {{ slot.motivoBloqueo || 'Bloqueado' }}
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL DE RESERVA -->
+  <div *ngIf="slotParaReservar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+    <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative overflow-hidden text-slate-100">
+      <!-- Glow background decoration -->
+      <div class="absolute -top-24 -right-24 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+      <!-- Close button -->
+      <button 
+        (click)="cerrarModal()" 
+        [disabled]="cargandoReserva()"
+        class="absolute top-4 right-4 text-slate-400 hover:text-slate-100 disabled:opacity-50 transition">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+
+      <!-- CONTENT: Formulario / Resumen -->
+      <div *ngIf="!reservaExitosa()">
+        <h3 class="text-xl font-bold text-slate-100 mb-2 flex items-center gap-2">
+          Confirmar Reserva
+        </h3>
+        <p class="text-slate-400 text-xs mb-6">
+          Estás por reservar un turno. Tendrás 10 minutos para realizar el pago y confirmar tu turno.
+        </p>
+
+        <!-- Detalle de la reserva -->
+        <div class="space-y-4 bg-slate-950/50 border border-slate-950 rounded-xl p-4 mb-6 text-sm">
+          <div class="flex justify-between">
+            <span class="text-slate-500">Cancha</span>
+            <span class="text-slate-100 font-semibold">{{ obtenerNombreCanchaSeleccionada() }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Fecha</span>
+            <span class="text-slate-100 font-semibold">{{ fechaSeleccionada() | date:'dd/MM/yyyy' }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Horario</span>
+            <span class="text-slate-100 font-semibold">{{ slotParaReservar()?.horaInicio?.substring(0, 5) }} - {{ slotParaReservar()?.horaFin?.substring(0, 5) }}</span>
+          </div>
+          <div class="flex justify-between">
+            <span class="text-slate-500">Duración</span>
+            <span class="text-slate-100 font-semibold">{{ slotParaReservar()?.duracionMin }} min</span>
+          </div>
+          <div class="border-t border-slate-950 my-2 pt-2 flex justify-between items-baseline">
+            <span class="text-slate-400 font-bold">Total a Pagar</span>
+            <span class="text-xl font-extrabold text-teal-400">${{ slotParaReservar()?.precio | number:'1.2-2' }}</span>
+          </div>
+        </div>
+
+        <!-- Alerta de error -->
+        <div *ngIf="errorReserva()" class="bg-red-500/10 border border-red-500/20 text-red-400 text-xs p-3 rounded-xl mb-4">
+          {{ errorReserva() }}
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex gap-3 mt-6">
+          <button 
+            (click)="cerrarModal()" 
+            [disabled]="cargandoReserva()"
+            class="flex-1 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 py-3 rounded-xl font-semibold text-sm transition duration-150">
+            Cancelar
+          </button>
+          <button 
+            (click)="confirmarReserva()"
+            [disabled]="cargandoReserva()"
+            class="flex-1 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 disabled:opacity-50 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150 flex items-center justify-center gap-2">
+            <svg *ngIf="cargandoReserva()" class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+            {{ cargandoReserva() ? 'Reservando...' : 'Reservar Turno' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- CONTENT: Éxito -->
+      <div *ngIf="reservaExitosa()" class="text-center py-4">
+        <div class="w-16 h-16 bg-emerald-500/10 text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-500/20">
+          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <h3 class="text-xl font-bold text-slate-100 mb-2">¡Pre-reserva Realizada!</h3>
+        <p class="text-slate-400 text-xs max-w-xs mx-auto mb-6">
+          Tu turno ha sido pre-reservado con éxito. Se ha enviado un mensaje de confirmación por WhatsApp a tu teléfono.
+        </p>
+
+        <div class="space-y-3">
+          <button 
+            (click)="irAMisReservas()" 
+            class="w-full bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 py-3 rounded-xl font-bold text-sm text-slate-950 transition duration-150">
+            Ir a Mis Reservas
+          </button>
+          <button 
+            (click)="cerrarModal()" 
+            class="w-full bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-semibold text-sm transition duration-150">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
