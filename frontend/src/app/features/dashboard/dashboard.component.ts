@@ -3,11 +3,12 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { BonoService } from '../../core/services/bono.service';
+import { UiCardComponent } from '../../shared/components/ui-card/ui-card.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, RouterLink, UiCardComponent],
   templateUrl: './dashboard.component.html'
 })
 export class DashboardComponent implements OnInit {

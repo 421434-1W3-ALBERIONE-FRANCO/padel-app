@@ -11,11 +11,12 @@ import { CanchaResponse } from '../../../shared/models/cancha.model';
 import { SlotDisponibilidad } from '../../../shared/models/disponibilidad.model';
 
 import { RouterLink } from '@angular/router';
+import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
 
 @Component({
   selector: 'app-calendario',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, UiCardComponent],
   templateUrl: './calendario.component.html',
   styleUrls: ['./calendario.component.css']
 })

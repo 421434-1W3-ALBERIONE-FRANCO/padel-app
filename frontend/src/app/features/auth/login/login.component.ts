@@ -4,11 +4,13 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
+import { Scene3dComponent } from '../../../shared/components/scene-3d/scene-3d.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, UiCardComponent, Scene3dComponent],
   templateUrl: './login.component.html'
 })
 export class LoginComponent {
