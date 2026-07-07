@@ -1,1 +1,13 @@
 <router-outlet></router-outlet>
+
+<div *ngIf="inactivity.showWarning()" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+  <div class="card-glass p-8 max-w-sm w-full text-center border border-accent-500/30">
+    <div class="w-14 h-14 mx-auto rounded-2xl bg-accent-500/10 border border-accent-500/20 flex items-center justify-center mb-4">
+      <svg class="w-7 h-7 text-accent-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+    </div>
+    <h3 class="font-display font-bold text-lg text-slate-100 mb-2">¿Seguís ahí?</h3>
+    <p class="text-sm text-slate-400 mb-1">Por inactividad, tu sesión se cerrará en</p>
+    <p class="text-3xl font-bold font-display text-accent-400 mb-5">{{ inactivity.secondsRemaining() }}s</p>
+    <button (click)="seguirConectado()" class="btn-primary w-full">Seguir conectado</button>
+  </div>
+</div>

@@ -3,6 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
 import { CrearUsuarioRequest, LoginRequest, LoginResponse, UsuarioResponse } from '../../shared/models/usuario.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +12,7 @@ export class AuthService {
   private http = inject(HttpClient);
   private router = inject(Router);
 
-  private readonly API_URL = 'http://localhost:8080/api/v1';
+  private readonly API_URL = environment.apiUrl;
   private readonly TOKEN_KEY = 'padel_token';
   private readonly USER_KEY = 'padel_user';
 
@@ -61,12 +62,33 @@ export class AuthService {
     const userJson = localStorage.getItem(this.USER_KEY);
 
     if (token && userJson) {
+      if (this.isTokenExpired(token)) {
+        this.logout();
+        return;
+      }
       try {
         const usuario: UsuarioResponse = JSON.parse(userJson);
         this.currentUserSignal.set(usuario);
       } catch (e) {
         this.logout();
       }
+    }
+  }
+
+  /**
+   * Decodifica el claim `exp` del JWT (sin validar firma, eso lo hace el backend) para
+   * evitar restaurar en el front una sesión cuyo token ya venció. El token mock de
+   * desarrollo no es un JWT real (no tiene 3 segmentos), así que se lo asume no vencido.
+   */
+  private isTokenExpired(token: string): boolean {
+    const segmentos = token.split('.');
+    if (segmentos.length !== 3) return false;
+    try {
+      const payload = JSON.parse(atob(segmentos[1].replace(/-/g, '+').replace(/_/g, '/')));
+      if (typeof payload.exp !== 'number') return false;
+      return Date.now() >= payload.exp * 1000;
+    } catch {
+      return false;
     }
   }
 }

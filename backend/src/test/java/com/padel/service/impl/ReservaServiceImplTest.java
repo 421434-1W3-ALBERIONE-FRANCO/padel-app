@@ -17,6 +17,7 @@ import com.padel.service.RedisLockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -151,6 +152,26 @@ class ReservaServiceImplTest {
         assertEquals(EstadoReserva.PENDIENTE_PAGO, result.estadoReserva());
         verify(redisLockService).acquireLock(eq(1L), any(LocalDate.class), any(LocalTime.class));
         verify(reservaRepository).save(any(Reserva.class));
+    }
+
+    @Test
+    void crearReserva_DeberiaForzarOrigenAppParaJugadorSinImportarLoEnviado() {
+        ReservaRequest requestConOrigenFalseado = new ReservaRequest(1L, 1L, LocalDate.now().plusDays(1), OrigenReserva.RECEPCION);
+
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
+        when(franjaHorariaRepository.findById(1L)).thenReturn(Optional.of(franjaMock));
+        when(redisLockService.acquireLock(eq(1L), any(LocalDate.class), any(LocalTime.class))).thenReturn(true);
+        when(bloqueoCanchaRepository.findBlocksForDate(eq(1L), any(LocalDate.class))).thenReturn(Collections.emptyList());
+        when(reservaRepository.findActiveReservationsByCanchaAndDate(eq(1L), any(LocalDate.class))).thenReturn(Collections.emptyList());
+        when(reservaRepository.save(any(Reserva.class))).thenReturn(reservaMock);
+        when(reservaMapper.toResponse(any(Reserva.class))).thenReturn(responseMock);
+
+        reservaService.crearReserva(requestConOrigenFalseado, "juan@example.com"); // usuarioMock es JUGADOR
+
+        ArgumentCaptor<Reserva> captor = ArgumentCaptor.forClass(Reserva.class);
+        verify(reservaRepository).save(captor.capture());
+        assertEquals(OrigenReserva.APP, captor.getValue().getOrigen());
     }
 
     @Test

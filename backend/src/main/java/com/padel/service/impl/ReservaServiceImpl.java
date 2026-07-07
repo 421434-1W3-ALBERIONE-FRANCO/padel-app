@@ -2,6 +2,7 @@ package com.padel.service.impl;
 
 import com.padel.domain.entity.*;
 import com.padel.domain.enums.EstadoReserva;
+import com.padel.domain.enums.OrigenReserva;
 import com.padel.domain.enums.RolUsuario;
 import com.padel.dto.request.ReservaRequest;
 import com.padel.dto.response.ReservaResponse;
@@ -74,6 +75,9 @@ public class ReservaServiceImpl implements ReservaService {
         if (fecha.equals(today) && franja.getHoraInicio().isBefore(now)) {
             throw new SlotNoDisponibleException("La hora de inicio de la reserva no puede ser en el pasado");
         }
+        if (fecha.isAfter(calcularFechaMaximaReservable(today))) {
+            throw new SlotNoDisponibleException("Las reservas solo se habilitan dentro del mes en curso (o el siguiente, en la última semana del mes)");
+        }
 
         // Validar día aplicable
         DayOfWeek dayOfWeek = fecha.getDayOfWeek();
@@ -112,6 +116,10 @@ public class ReservaServiceImpl implements ReservaService {
             boolean esNocturno = !franja.getHoraInicio().isBefore(LocalTime.of(18, 0));
             BigDecimal precioTotal = esNocturno ? franja.getPrecioNocturno() : franja.getPrecioBase();
 
+            // El origen es un dato de auditoría: un JUGADOR reservando para sí mismo siempre es APP,
+            // sin importar lo que envíe el cliente. Sólo staff (admin/recepción) puede marcar RECEPCION.
+            OrigenReserva origen = usuario.getRol() == RolUsuario.JUGADOR ? OrigenReserva.APP : request.origen();
+
             Reserva reserva = Reserva.builder()
                     .usuario(usuario)
                     .cancha(cancha)
@@ -121,7 +129,7 @@ public class ReservaServiceImpl implements ReservaService {
                     .horaFin(franja.getHoraFin())
                     .precioTotal(precioTotal)
                     .estadoReserva(EstadoReserva.PENDIENTE_PAGO)
-                    .origen(request.origen())
+                    .origen(origen)
                     .build();
 
             Reserva savedReserva = reservaRepository.save(reserva);
@@ -134,6 +142,14 @@ public class ReservaServiceImpl implements ReservaService {
             redisLockService.releaseLock(cancha.getId(), fecha, franja.getHoraInicio());
             throw e;
         }
+    }
+
+    // Reservas habilitadas solo dentro del mes en curso; en la última semana del mes
+    // se habilita también el mes siguiente completo (ej. fin de diciembre -> reservas de enero).
+    private LocalDate calcularFechaMaximaReservable(LocalDate hoy) {
+        int diasParaFinDeMes = hoy.lengthOfMonth() - hoy.getDayOfMonth();
+        LocalDate mesLimite = diasParaFinDeMes <= 6 ? hoy.plusMonths(1) : hoy;
+        return mesLimite.withDayOfMonth(mesLimite.lengthOfMonth());
     }
 
     @Override

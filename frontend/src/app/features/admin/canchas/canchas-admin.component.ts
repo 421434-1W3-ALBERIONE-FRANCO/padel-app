@@ -1,6 +1,7 @@
 import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { CanchaAdminService } from '../../../core/services/cancha-admin.service';
 import { CanchaResponse, TipoSuelo } from '../../../shared/models/cancha.model';
 import { FranjaHorariaResponse } from '../../../shared/models/franja.model';
@@ -9,7 +10,7 @@ import { BloqueoCanchaResponse } from '../../../shared/models/bloqueo.model';
 @Component({
   selector: 'app-canchas-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './canchas-admin.component.html',
   styleUrls: ['./canchas-admin.component.css']
 })
@@ -72,7 +73,7 @@ export class CanchasAdminComponent implements OnInit {
       horaFin: ['', Validators.required],
       precioBase: [0, [Validators.required, Validators.min(0)]],
       precioNocturno: [0, [Validators.required, Validators.min(0)]],
-      diasAplicables: this.fb.array([], Validators.required)
+      diasAplicables: this.fb.control([] as string[], Validators.required)
     });
 
     this.bloqueoForm = this.fb.group({
@@ -81,7 +82,24 @@ export class CanchasAdminComponent implements OnInit {
       horaDesde: ['00:00', Validators.required],
       horaHasta: ['23:59', Validators.required],
       motivo: ['', [Validators.required, Validators.maxLength(255)]]
-    });
+    }, { validators: this.rangoBloqueoValidator });
+  }
+
+  // Espeja la regla del backend: fechaDesde no puede ser posterior a fechaHasta,
+  // y horaDesde debe ser estrictamente anterior a horaHasta.
+  private rangoBloqueoValidator(group: AbstractControl): ValidationErrors | null {
+    const fechaDesde = group.get('fechaDesde')?.value;
+    const fechaHasta = group.get('fechaHasta')?.value;
+    const horaDesde = group.get('horaDesde')?.value;
+    const horaHasta = group.get('horaHasta')?.value;
+
+    if (fechaDesde && fechaHasta && fechaDesde > fechaHasta) {
+      return { fechaRangoInvalido: true };
+    }
+    if (horaDesde && horaHasta && horaDesde >= horaHasta) {
+      return { horaRangoInvalido: true };
+    }
+    return null;
   }
 
   // Cargar datos
@@ -328,9 +346,10 @@ export class CanchasAdminComponent implements OnInit {
   }
 
   // Helpers para manejo de checkboxes de Días Aplicables
-  onDiaChange(event: any) {
-    const value = event.target.value;
-    const checked = event.target.checked;
+  onDiaChange(event: Event) {
+    const target = event.target as HTMLInputElement;
+    const value = target.value;
+    const checked = target.checked;
     const diasArray = this.franjaForm.get('diasAplicables')?.value as string[];
 
     if (checked) {

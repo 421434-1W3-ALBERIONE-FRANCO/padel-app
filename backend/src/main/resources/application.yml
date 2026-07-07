@@ -17,8 +17,11 @@ springdoc:
     tagsSorter: alpha
 
 jwt:
-  secret: ${JWT_SECRET:9a7261b4a6824147bc961726a45b8109d949b29c92cf8cfb183bfcaef296fa22}
-  expiration: ${JWT_EXPIRATION:86400000}
+  secret: ${JWT_SECRET}
+  # 4h por defecto (antes 24h): el token vive en localStorage en el frontend (vulnerable a robo
+  # vía XSS), así que se acota la ventana de uso de un token robado mientras no exista refresh token.
+  expiration: ${JWT_EXPIRATION:14400000}
 
 mercadopago:
-  access-token: ${MP_ACCESS_TOKEN:TEST-4573821038202931-112015-8947b744d0360a006c9a3a89047b72ba-248392091}
+  access-token: ${MP_ACCESS_TOKEN}
+  webhook-secret: ${MP_WEBHOOK_SECRET:}

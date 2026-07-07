@@ -39,7 +39,9 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::disable))
+                // sameOrigin (no disable): permite el iframe de /h2-console (mismo origen) sin abrir
+                // la API entera a clickjacking desde sitios de terceros.
+                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
                 .authorizeHttpRequests(req -> req
                         .requestMatchers(
                                 "/api/v1/auth/**", 

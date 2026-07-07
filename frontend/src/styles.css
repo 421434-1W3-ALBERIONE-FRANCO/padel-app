@@ -5,50 +5,80 @@
   --font-sans: 'Outfit', sans-serif;
   --font-display: 'Space Grotesk', sans-serif;
 
-  /* Depth Surfaces */
-  --color-surface-1: #0f1524;
-  --color-surface-2: #172033;
-  --color-surface-3: #212c47;
+  /* Neutral scale (overrides Tailwind's default blue-tinted slate) */
+  --color-slate-50: #f7f7fa;
+  --color-slate-100: #ebebf0;
+  --color-slate-200: #d4d4dc;
+  --color-slate-300: #b0b0bd;
+  --color-slate-400: #82828f;
+  --color-slate-500: #5c5c68;
+  --color-slate-600: #40404a;
+  --color-slate-700: #2a2a33;
+  --color-slate-800: #1b1b22;
+  --color-slate-900: #131317;
+  --color-slate-950: #0a0a0d;
 
-  /* Primary color lima */
-  --color-primary-50: #f4fce3;
-  --color-primary-100: #e2f9bc;
-  --color-primary-200: #c9f28f;
-  --color-primary-300: #a8e658;
-  --color-primary-400: #8ad32c;
-  --color-primary-500: #6eb713;
-  --color-primary-600: #54940b;
-  --color-primary-700: #3f710c;
-  --color-primary-800: #33590f;
-  --color-primary-900: #2c4b11;
+  /* Depth Surfaces (neutral, no blue cast) */
+  --color-surface-1: #0a0a0e;
+  --color-surface-2: #16161d;
+  --color-surface-3: #212129;
 
-  /* Accent color (Teal / Emerald scale) */
-  --color-accent-50: #f0fdf4;
-  --color-accent-100: #dcfce7;
-  --color-accent-200: #bbf7d0;
-  --color-accent-300: #86efac;
-  --color-accent-400: #4ade80;
-  --color-accent-500: #10b981;
-  --color-accent-600: #059669;
-  --color-accent-700: #047857;
-  --color-accent-800: #065f46;
-  --color-accent-900: #064e3b;
-  --color-accent-950: #022c22;
+  /* Primary color: neon green */
+  --color-primary-50: #f0fce4;
+  --color-primary-100: #dcf9bd;
+  --color-primary-200: #bff287;
+  --color-primary-300: #97e64f;
+  --color-primary-400: #72db28;
+  --color-primary-500: #52c41a;
+  --color-primary-600: #3fa112;
+  --color-primary-700: #327d10;
+  --color-primary-800: #2a6212;
+  --color-primary-900: #245113;
 
-  --color-dark-950: #0b0f19;
+  /* Accent color: neon violet */
+  --color-accent-50: #faf5ff;
+  --color-accent-100: #f3e8ff;
+  --color-accent-200: #e9d5ff;
+  --color-accent-300: #d8b4fe;
+  --color-accent-400: #c084fc;
+  --color-accent-500: #a855f7;
+  --color-accent-600: #9333ea;
+  --color-accent-700: #7e22ce;
+  --color-accent-800: #6b21a8;
+  --color-accent-900: #581c87;
+  --color-accent-950: #3b0764;
+
+  /* Secondary neon: turquoise, for extra highlights/states */
+  --color-turquoise-50: #ecfeff;
+  --color-turquoise-100: #cffafe;
+  --color-turquoise-200: #a5f3fc;
+  --color-turquoise-300: #67e8f9;
+  --color-turquoise-400: #22d3ee;
+  --color-turquoise-500: #06b6d4;
+  --color-turquoise-600: #0891b2;
+  --color-turquoise-700: #0e7490;
+  --color-turquoise-800: #155e75;
+  --color-turquoise-900: #164e63;
+
+  --color-dark-950: #0a0a0e;
 
   /* Radius tokens */
   --radius-card: 24px;
   --radius-pill: 9999px;
 
   /* Shadow glow */
-  --shadow-glow-primary: 0 0 20px rgba(110, 183, 19, 0.25);
-  --shadow-glow-accent: 0 0 20px rgba(16, 185, 129, 0.25);
+  --shadow-glow-primary: 0 0 20px rgba(82, 196, 26, 0.3);
+  --shadow-glow-accent: 0 0 20px rgba(168, 85, 247, 0.35);
+  --shadow-glow-turquoise: 0 0 20px rgba(6, 182, 212, 0.3);
 }
 
 body {
   font-family: 'Outfit', sans-serif;
-  background-color: #0b0f19; /* Deep dark background */
+  background-color: #0a0a0e; /* Neutral near-black, no blue cast */
+  background-image:
+    radial-gradient(ellipse 900px 500px at 15% -10%, rgba(82, 196, 26, 0.08), transparent 60%),
+    radial-gradient(ellipse 900px 500px at 85% 110%, rgba(168, 85, 247, 0.08), transparent 60%);
+  background-attachment: fixed;
   color: #f3f4f6;
   margin: 0;
   min-height: 100vh;
@@ -61,26 +91,26 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: #0a0a0e;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: var(--color-slate-700);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: var(--color-slate-600);
 }
 
 /* Design System Utilities using Tailwind v4 @utility */
 @utility card-glass {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  background-color: rgba(11, 15, 25, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  background-color: rgba(10, 10, 14, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-card);
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
 }
 
 @utility btn-primary {
@@ -90,8 +120,8 @@ body {
   padding: 0.875rem 1.5rem;
   font-weight: 700;
   font-size: 0.875rem;
-  color: #0b0f19 !important;
-  background-image: linear-gradient(to right, var(--color-primary-500), var(--color-accent-500));
+  color: #0a0a0e !important;
+  background-image: linear-gradient(to right, var(--color-primary-500), var(--color-turquoise-500));
   border-radius: 12px;
   box-shadow: var(--shadow-glow-primary);
   transition: all 0.2s ease-in-out;
@@ -103,7 +133,7 @@ body {
   &:hover {
     filter: brightness(1.1);
     transform: translateY(-1px);
-    box-shadow: 0 0 25px rgba(110, 183, 19, 0.35);
+    box-shadow: 0 0 28px rgba(82, 196, 26, 0.4), 0 0 28px rgba(6, 182, 212, 0.25);
   }
 
   &:active {
@@ -136,7 +166,8 @@ body {
 
   &:hover {
     background-color: var(--color-surface-3);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: rgba(168, 85, 247, 0.35);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.15);
     transform: translateY(-1px);
   }
 
@@ -148,5 +179,40 @@ body {
     opacity: 0.5;
     transform: none;
     cursor: not-allowed;
+  }
+}
+
+@utility btn-neon-violet {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.875rem 1.5rem;
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #fff !important;
+  background-image: linear-gradient(to right, var(--color-accent-600), var(--color-accent-400));
+  border-radius: 12px;
+  box-shadow: var(--shadow-glow-accent);
+  transition: all 0.2s ease-in-out;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  text-decoration: none;
+
+  &:hover {
+    filter: brightness(1.1);
+    transform: translateY(-1px);
+    box-shadow: 0 0 28px rgba(168, 85, 247, 0.45);
+  }
+
+  &:active {
+    transform: translateY(0px) scale(0.98);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    transform: none;
+    cursor: not-allowed;
+    box-shadow: none;
   }
 }

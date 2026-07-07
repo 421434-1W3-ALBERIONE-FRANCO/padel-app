@@ -1,6 +1,7 @@
 package com.padel.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -178,11 +180,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGenericException(Exception ex, HttpServletRequest request) {
+        // No exponer ex.getMessage() al cliente: puede filtrar detalles internos (SQL, stacktraces,
+        // configuración de terceros). El detalle completo queda solo en el log del servidor.
+        log.error("Error no controlado en {}: {}", request.getRequestURI(), ex.getMessage(), ex);
         ApiError error = new ApiError(
                 LocalDateTime.now(),
                 HttpStatus.INTERNAL_SERVER_ERROR.value(),
                 HttpStatus.INTERNAL_SERVER_ERROR.getReasonPhrase(),
-                ex.getMessage() != null ? ex.getMessage() : "Ocurrió un error interno no esperado",
+                "Ocurrió un error interno. Por favor intente nuevamente.",
                 request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);

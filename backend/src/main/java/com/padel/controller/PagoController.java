@@ -3,6 +3,7 @@ package com.padel.controller;
 import com.padel.dto.request.PreferenciaRequest;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
+import com.padel.security.MercadoPagoWebhookValidator;
 import com.padel.service.PagoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -27,6 +28,7 @@ import java.util.Map;
 public class PagoController {
 
     private final PagoService pagoService;
+    private final MercadoPagoWebhookValidator webhookValidator;
 
     @PostMapping("/preferencias")
     @SecurityRequirement(name = "Bearer Authentication")
@@ -54,13 +56,20 @@ public class PagoController {
             @RequestParam(value = "id", required = false) String queryId,
             @RequestParam(value = "topic", required = false) String queryTopic,
             @RequestParam(value = "data.id", required = false) String queryDataId,
+            @RequestHeader(value = "x-signature", required = false) String xSignature,
+            @RequestHeader(value = "x-request-id", required = false) String xRequestId,
             @RequestBody(required = false) Map<String, Object> body) {
-        
-        log.info("Webhook recibido. Query type: {}, Query id: {}, Query topic: {}, Query data.id: {}, Body: {}", 
+
+        log.info("Webhook recibido. Query type: {}, Query id: {}, Query topic: {}, Query data.id: {}, Body: {}",
                 queryType, queryId, queryTopic, queryDataId, body);
 
         String type = queryType != null ? queryType : (queryTopic != null ? queryTopic : null);
         String paymentId = queryDataId != null ? queryDataId : (queryId != null ? queryId : null);
+
+        if (!webhookValidator.esValida(xSignature, xRequestId, paymentId)) {
+            log.warn("Firma de webhook de MercadoPago inválida o ausente. Notificación descartada.");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
 
         if (body != null) {
             if (type == null && body.containsKey("type")) {

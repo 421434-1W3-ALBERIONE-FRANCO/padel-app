@@ -164,6 +164,23 @@
               </div>
             </label>
 
+            <!-- Metodo Tarjeta (Débito/Crédito) -->
+            <label
+              (click)="metodoSeleccionado.set('TARJETA')"
+              [class]="metodoSeleccionado() === 'TARJETA' ? 'border-teal-500/60 bg-teal-500/5' : 'border-slate-800 bg-slate-950/40'"
+              class="w-full border rounded-xl p-4 flex items-center gap-3 cursor-pointer transition select-none">
+              <input
+                type="radio"
+                name="metodo"
+                value="TARJETA"
+                [checked]="metodoSeleccionado() === 'TARJETA'"
+                class="accent-teal-500" />
+              <div>
+                <strong class="text-sm text-slate-100 block">Débito / Tarjeta</strong>
+                <span class="text-[10px] text-slate-400 block">Cobro con posnet propio del club. Asiento contable aprobado al instante.</span>
+              </div>
+            </label>
+
             <!-- Metodo MP Point -->
             <label 
               (click)="metodoSeleccionado.set('MERCADOPAGO_POINT')"
