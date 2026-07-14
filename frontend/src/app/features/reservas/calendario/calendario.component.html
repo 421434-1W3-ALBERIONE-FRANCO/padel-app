@@ -6,6 +6,10 @@
 
   <!-- Encabezado de la página -->
   <div class="max-w-6xl mx-auto mb-8 relative z-10">
+    <a routerLink="/dashboard" class="mb-4 inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm font-semibold transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver al Panel de Control
+    </a>
     <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent font-display">
       Reserva tu Cancha
     </h1>
@@ -46,11 +50,14 @@
       <!-- Selector Fecha -->
       <div class="flex-1">
         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Seleccionar Fecha</label>
-        <input 
-          type="date" 
+        <input
+          type="date"
           [ngModel]="fechaSeleccionada()"
           (ngModelChange)="onFechaChange($event)"
+          [min]="fechaMin"
+          [max]="fechaMax"
           class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition duration-200 text-sm cursor-pointer" />
+        <p class="text-[11px] text-slate-500 mt-1.5">Reservas disponibles hasta el {{ fechaMax | date:'dd/MM/yyyy' }}.</p>
       </div>
     </div>
   </ui-card>

@@ -16,6 +16,7 @@ import com.padel.domain.enums.RolUsuario;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
 import com.padel.exception.ResourceNotFoundException;
+import com.padel.exception.ReservaNoModificableException;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
@@ -130,6 +131,18 @@ class PagoServiceImplTest {
             assertEquals("http://initpoint.com", response.initPoint());
             verify(pagoRepository).save(any(Pago.class));
         }
+    }
+
+    @Test
+    void crearPreferencia_DeberiaLanzarReservaNoModificable_CuandoNoEstaPendienteDePago() {
+        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+
+        assertThrows(ReservaNoModificableException.class, () ->
+                pagoService.crearPreferencia(1L, "juan@example.com"));
+
+        verify(pagoRepository, never()).save(any());
     }
 
     @Test

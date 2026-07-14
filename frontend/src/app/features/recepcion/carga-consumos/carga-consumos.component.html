@@ -2,6 +2,10 @@
   
   <!-- VISTA 1: LISTADO DE RESERVAS DE HOY -->
   <div class="max-w-6xl mx-auto" *ngIf="!reservaSeleccionada()">
+    <a routerLink="/dashboard" class="mb-4 inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm font-semibold transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver al Panel de Control
+    </a>
     <div class="mb-8">
       <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
         Cargar Consumos de Cantina
@@ -204,8 +208,8 @@
                 id="producto"
                 formControlName="productoId"
                 class="w-full bg-slate-950 border border-slate-850 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition duration-200 text-sm cursor-pointer appearance-none">
-                <option [value]="null" disabled selected>Seleccioná un producto...</option>
-                <option *ngFor="let p of productos()" [value]="p.id">
+                <option [ngValue]="null" disabled selected>Seleccioná un producto...</option>
+                <option *ngFor="let p of productos()" [ngValue]="p.id">
                   {{ p.nombre }} - ${{ p.precio | number:'1.2-2' }} (Stock: {{ p.stock }})
                 </option>
               </select>

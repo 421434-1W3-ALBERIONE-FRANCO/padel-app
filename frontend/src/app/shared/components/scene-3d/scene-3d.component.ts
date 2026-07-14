@@ -1,12 +1,10 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, HostListener } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, HostListener, OnDestroy, ViewChild } from '@angular/core';
 import * as THREE from 'three';
 
 @Component({
   selector: 'app-scene-3d',
   standalone: true,
-  template: `
-    <canvas #canvas class="w-full h-full block"></canvas>
-  `,
+  template: `<canvas #canvas class="w-full h-full block"></canvas>`,
   styles: [`
     :host {
       display: block;
@@ -21,239 +19,342 @@ export class Scene3dComponent implements AfterViewInit, OnDestroy {
   private renderer!: THREE.WebGLRenderer;
   private scene!: THREE.Scene;
   private camera!: THREE.PerspectiveCamera;
-  private animationFrameId!: number;
-  private courtGroup!: THREE.Group;
-  private ballMesh!: THREE.Mesh;
-
-  // For parallax tilt
-  private mouseX = 0;
-  private mouseY = 0;
-  private targetX = 0;
-  private targetY = 0;
+  private animationFrameId = 0;
+  private ball!: THREE.Mesh;
+  private ballShadow!: THREE.Mesh;
+  private leftImpact!: THREE.Mesh;
+  private rightImpact!: THREE.Mesh;
 
   ngAfterViewInit() {
-    try {
-      this.initThree();
-      this.createCourt();
-      this.animate();
-    } catch (error) {
-      console.warn('WebGL or Three.js failed to initialize, using CSS fallback:', error);
-    }
+    this.initScene();
+    this.animate();
   }
 
   ngOnDestroy() {
-    this.cleanup();
-  }
-
-  @HostListener('document:mousemove', ['$event'])
-  onMouseMove(event: MouseEvent) {
-    // Normalize mouse coords between -1 and 1
-    this.mouseX = (event.clientX / window.innerWidth) * 2 - 1;
-    this.mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    cancelAnimationFrame(this.animationFrameId);
+    if (!this.scene) return;
+    this.scene.traverse((object: any) => {
+      object.geometry?.dispose?.();
+      if (Array.isArray(object.material)) {
+        object.material.forEach((material: THREE.Material) => material.dispose());
+      } else {
+        object.material?.dispose?.();
+      }
+    });
+    this.renderer?.dispose();
   }
 
   @HostListener('window:resize')
   onResize() {
-    if (!this.canvasRef || !this.camera || !this.renderer) return;
-    const width = this.canvasRef.nativeElement.clientWidth;
-    const height = this.canvasRef.nativeElement.clientHeight;
+    if (!this.renderer || !this.camera) return;
+    const canvas = this.canvasRef.nativeElement;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
     this.camera.aspect = width / height;
+    this.setResponsiveCamera(width, height);
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height, false);
+    this.renderScene();
   }
 
-  private initThree() {
+  private initScene() {
     const canvas = this.canvasRef.nativeElement;
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
 
     this.scene = new THREE.Scene();
-    // Soft fog for depth
-    this.scene.fog = new THREE.FogExp2(0x0b0f19, 0.015);
+    this.scene.background = new THREE.Color(0x050507);
+    this.scene.fog = new THREE.Fog(0x050507, 18, 44);
 
-    this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
-    // Position camera looking down at the court from an angle
-    this.camera.position.set(0, 11, 21);
-    this.camera.lookAt(0, 0, 0);
+    this.camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    this.setResponsiveCamera(width, height);
 
     this.renderer = new THREE.WebGLRenderer({
-      canvas: canvas,
+      canvas,
       antialias: true,
-      alpha: true,
       powerPreference: 'high-performance'
     });
     this.renderer.setSize(width, height, false);
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.2;
+
+    this.buildPadelCourt();
   }
 
-  private createCourt() {
-    this.courtGroup = new THREE.Group();
+  private buildPadelCourt() {
+    const court = new THREE.Group();
+    court.rotation.x = -0.02;
+    this.scene.add(court);
 
-    // Read brand colors
-    const style = getComputedStyle(document.documentElement);
-    const primaryHex = style.getPropertyValue('--color-primary-500').trim() || '#6eb713';
-    const accentHex = style.getPropertyValue('--color-accent-500').trim() || '#10b981';
+    this.scene.add(new THREE.HemisphereLight(0xf4fff8, 0x08080c, 1.55));
+    this.addAreaLight(-7, 8, 7, 0x52c41a, 3.2);
+    this.addAreaLight(7, 8, -6, 0x06b6d4, 2.9);
 
-    const courtColor = new THREE.Color(primaryHex);
-    const accentColor = new THREE.Color(accentHex);
-    const lineMaterial = new THREE.LineBasicMaterial({ color: courtColor, linewidth: 2 });
-    const netMaterial = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.35 });
-    const wallMaterial = new THREE.LineBasicMaterial({ color: accentColor, transparent: true, opacity: 0.18 });
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.2);
+    keyLight.position.set(-5, 10, 8);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(2048, 2048);
+    keyLight.shadow.camera.left = -15;
+    keyLight.shadow.camera.right = 15;
+    keyLight.shadow.camera.top = 12;
+    keyLight.shadow.camera.bottom = -12;
+    this.scene.add(keyLight);
 
-    // 1. Court boundaries (20m x 10m)
-    const courtGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-10, 0, -5),
-      new THREE.Vector3(10, 0, -5),
-      new THREE.Vector3(10, 0, 5),
-      new THREE.Vector3(-10, 0, 5),
-      new THREE.Vector3(-10, 0, -5)
-    ]);
-    const outerLines = new THREE.Line(courtGeo, lineMaterial);
-    this.courtGroup.add(outerLines);
+    const surface = new THREE.MeshStandardMaterial({
+      color: 0x1f8b66,
+      roughness: 0.82,
+      metalness: 0.02,
+      map: this.createTurfTexture(),
+      bumpMap: this.createTurfTexture(),
+      bumpScale: 0.025
+    });
+    const floor = new THREE.Mesh(new THREE.BoxGeometry(20, 0.08, 10), surface);
+    floor.receiveShadow = true;
+    court.add(floor);
 
-    // 2. Service lines (6.95m from the net on both sides)
-    const serviceGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-6.95, 0, -5),
-      new THREE.Vector3(-6.95, 0, 5),
-      new THREE.Vector3(-6.95, 0, 0), // center joint
-      new THREE.Vector3(6.95, 0, 0),
-      new THREE.Vector3(6.95, 0, 5),
-      new THREE.Vector3(6.95, 0, -5)
-    ]);
-    const serviceLines = new THREE.Line(serviceGeo, lineMaterial);
-    this.courtGroup.add(serviceLines);
+    const surround = new THREE.Mesh(
+      new THREE.PlaneGeometry(42, 30),
+      new THREE.MeshStandardMaterial({ color: 0x09090d, roughness: 0.92, metalness: 0.05 })
+    );
+    surround.rotation.x = -Math.PI / 2;
+    surround.position.y = -0.075;
+    surround.receiveShadow = true;
+    this.scene.add(surround);
 
-    // 3. Center service line (between the two service lines)
-    const centerServiceGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-6.95, 0, 0),
-      new THREE.Vector3(6.95, 0, 0)
-    ]);
-    const centerServiceLine = new THREE.Line(centerServiceGeo, lineMaterial);
-    this.courtGroup.add(centerServiceLine);
+    this.addLines(court);
+    this.addNet(court);
+    this.addGlass(court);
+    this.addLightPosts(court);
+    this.addBall();
+  }
 
-    // 4. Net (center x = 0, height = 0.92m, width = 10m)
-    const netPoints: THREE.Vector3[] = [];
-    netPoints.push(new THREE.Vector3(0, 0, -5));
-    netPoints.push(new THREE.Vector3(0, 1.0, -5)); // Pole
-    netPoints.push(new THREE.Vector3(0, 0.92, -5));
-    netPoints.push(new THREE.Vector3(0, 0.92, 5)); // Net top
-    netPoints.push(new THREE.Vector3(0, 1.0, 5)); // Pole
-    netPoints.push(new THREE.Vector3(0, 0, 5));
+  private addLines(court: THREE.Group) {
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      roughness: 0.38,
+      emissive: 0xffffff,
+      emissiveIntensity: 0.08
+    });
+    this.box(court, 0, 0.035, -5, 20, 0.018, 0.075, mat);
+    this.box(court, 0, 0.035, 5, 20, 0.018, 0.075, mat);
+    this.box(court, -10, 0.035, 0, 0.075, 0.018, 10, mat);
+    this.box(court, 10, 0.035, 0, 0.075, 0.018, 10, mat);
+    this.box(court, -6.95, 0.04, 0, 0.07, 0.018, 10, mat);
+    this.box(court, 6.95, 0.04, 0, 0.07, 0.018, 10, mat);
+    this.box(court, 0, 0.04, 0, 13.9, 0.018, 0.065, mat);
+  }
 
-    // Simple grid pattern for the net
-    for (let z = -5; z <= 5; z += 0.5) {
-      netPoints.push(new THREE.Vector3(0, 0, z));
-      netPoints.push(new THREE.Vector3(0, 0.92, z));
+  private addNet(court: THREE.Group) {
+    const netMat = new THREE.MeshStandardMaterial({
+      color: 0x111827,
+      transparent: true,
+      opacity: 0.58,
+      roughness: 0.7,
+      side: THREE.DoubleSide
+    });
+    const net = new THREE.Mesh(new THREE.PlaneGeometry(10, 0.95, 18, 5), netMat);
+    net.rotation.y = Math.PI / 2;
+    net.position.set(0, 0.5, 0);
+    court.add(net);
+
+    const band = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+    this.box(court, 0, 0.97, 0, 0.08, 0.08, 10.15, band);
+    this.box(court, 0, 0.5, -5.08, 0.1, 1, 0.1, band);
+    this.box(court, 0, 0.5, 5.08, 0.1, 1, 0.1, band);
+  }
+
+  private addGlass(court: THREE.Group) {
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: 0xc9f7ff,
+      transparent: true,
+      opacity: 0.18,
+      roughness: 0.04,
+      metalness: 0,
+      transmission: 0.42,
+      thickness: 0.16,
+      clearcoat: 0.8,
+      clearcoatRoughness: 0.06,
+      side: THREE.DoubleSide
+    });
+    const frame = new THREE.MeshStandardMaterial({ color: 0x12121a, metalness: 0.55, roughness: 0.32 });
+
+    this.box(court, -10.06, 1.52, 0, 0.08, 3.04, 10.08, glass);
+    this.box(court, 10.06, 1.52, 0, 0.08, 3.04, 10.08, glass);
+    this.box(court, 0, 1.52, -5.06, 20.12, 3.04, 0.08, glass);
+    this.box(court, 0, 1.52, 5.06, 20.12, 3.04, 0.08, glass);
+
+    for (const x of [-10.12, 10.12]) {
+      this.box(court, x, 3.07, 0, 0.07, 0.07, 10.16, frame);
+      this.box(court, x, 0.06, 0, 0.07, 0.07, 10.16, frame);
     }
-    const netGeo = new THREE.BufferGeometry().setFromPoints(netPoints);
-    const netLines = new THREE.Line(netGeo, netMaterial);
-    this.courtGroup.add(netLines);
+    for (const z of [-5.12, 5.12]) {
+      this.box(court, 0, 3.07, z, 20.16, 0.07, 0.07, frame);
+      this.box(court, 0, 0.06, z, 20.16, 0.07, 0.07, frame);
+    }
+    for (const x of [-10.12, -5.06, 0, 5.06, 10.12]) {
+      this.box(court, x, 1.54, -5.12, 0.045, 3.02, 0.045, frame);
+      this.box(court, x, 1.54, 5.12, 0.045, 3.02, 0.045, frame);
+    }
+    for (const z of [-5.12, -2.56, 0, 2.56, 5.12]) {
+      this.box(court, -10.12, 1.54, z, 0.045, 3.02, 0.045, frame);
+      this.box(court, 10.12, 1.54, z, 0.045, 3.02, 0.045, frame);
+    }
+  }
 
-    // 5. End glass walls (3m high)
-    const endWallLeftGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-10, 0, -5),
-      new THREE.Vector3(-10, 3, -5),
-      new THREE.Vector3(-10, 3, 5),
-      new THREE.Vector3(-10, 0, 5),
-      new THREE.Vector3(-10, 0, -5),
-      new THREE.Vector3(-10, 3, -2),
-      new THREE.Vector3(-10, 0, -2),
-      new THREE.Vector3(-10, 0, 2),
-      new THREE.Vector3(-10, 3, 2)
-    ]);
-    const endWallLeft = new THREE.Line(endWallLeftGeo, wallMaterial);
-    this.courtGroup.add(endWallLeft);
+  private addBall() {
+    const ballMat = new THREE.MeshStandardMaterial({
+      color: 0xd9ff42,
+      emissive: 0xb6ff2d,
+      emissiveIntensity: 0.38,
+      roughness: 0.42
+    });
+    this.ball = new THREE.Mesh(new THREE.SphereGeometry(0.18, 32, 32), ballMat);
+    this.ball.castShadow = true;
+    this.scene.add(this.ball);
 
-    const endWallRightGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(10, 0, -5),
-      new THREE.Vector3(10, 3, -5),
-      new THREE.Vector3(10, 3, 5),
-      new THREE.Vector3(10, 0, 5),
-      new THREE.Vector3(10, 0, -5),
-      new THREE.Vector3(10, 3, -2),
-      new THREE.Vector3(10, 0, -2),
-      new THREE.Vector3(10, 0, 2),
-      new THREE.Vector3(10, 3, 2)
-    ]);
-    const endWallRight = new THREE.Line(endWallRightGeo, wallMaterial);
-    this.courtGroup.add(endWallRight);
+    this.ballShadow = new THREE.Mesh(
+      new THREE.CircleGeometry(0.34, 32),
+      new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.3, depthWrite: false })
+    );
+    this.ballShadow.rotation.x = -Math.PI / 2;
+    this.ballShadow.position.y = 0.045;
+    this.scene.add(this.ballShadow);
 
-    // 6. Side glass/mesh return corners
-    const cornersGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(-10, 0, -5), new THREE.Vector3(-8, 0, -5),
-      new THREE.Vector3(-8, 3, -5), new THREE.Vector3(-10, 3, -5),
-      new THREE.Vector3(-10, 0, 5), new THREE.Vector3(-8, 0, 5),
-      new THREE.Vector3(-8, 3, 5), new THREE.Vector3(-10, 3, 5),
-      new THREE.Vector3(10, 0, -5), new THREE.Vector3(8, 0, -5),
-      new THREE.Vector3(8, 3, -5), new THREE.Vector3(10, 3, -5),
-      new THREE.Vector3(10, 0, 5), new THREE.Vector3(8, 0, 5),
-      new THREE.Vector3(8, 3, 5), new THREE.Vector3(10, 3, 5)
-    ]);
-    const corners = new THREE.LineSegments(cornersGeo, wallMaterial);
-    this.courtGroup.add(corners);
+    const impactMat = new THREE.MeshBasicMaterial({
+      color: 0xd9ff42,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    this.leftImpact = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.42, 36), impactMat.clone());
+    this.rightImpact = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.42, 36), impactMat.clone());
+    this.leftImpact.rotation.y = Math.PI / 2;
+    this.rightImpact.rotation.y = Math.PI / 2;
+    this.leftImpact.position.set(-10.11, 1.25, 0);
+    this.rightImpact.position.set(10.11, 1.25, 0);
+    this.scene.add(this.leftImpact, this.rightImpact);
+  }
 
-    this.scene.add(this.courtGroup);
+  private addLightPosts(court: THREE.Group) {
+    const metal = new THREE.MeshStandardMaterial({ color: 0x24242c, roughness: 0.36, metalness: 0.72 });
+    for (const [x, z] of [[-9.5, -5.8], [9.5, 5.8], [-9.5, 5.8], [9.5, -5.8]]) {
+      const mast = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.055, 5.6, 12), metal);
+      mast.position.set(x, 2.75, z);
+      mast.castShadow = true;
+      court.add(mast);
+    }
+  }
 
-    // 7. Bouncing Tennis/Padel Ball
-    const ballColor = new THREE.Color(accentHex);
-    const ballGeo = new THREE.SphereGeometry(0.18, 16, 16);
-    const ballMat = new THREE.MeshBasicMaterial({ color: ballColor });
-    this.ballMesh = new THREE.Mesh(ballGeo, ballMat);
-    this.scene.add(this.ballMesh);
+  private addAreaLight(x: number, y: number, z: number, color: number, intensity: number) {
+    const light = new THREE.PointLight(color, intensity * 6, 22, 1.8);
+    light.position.set(x, y, z);
+    this.scene.add(light);
+  }
 
-    // Shadows/Floor grid helper
-    const gridHelper = new THREE.GridHelper(30, 30, 0x1e293b, 0x111827);
-    gridHelper.position.y = -0.01;
-    this.scene.add(gridHelper);
+  private box(group: THREE.Group, x: number, y: number, z: number, w: number, h: number, d: number, material: THREE.Material) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
+    mesh.position.set(x, y, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+
+  private createTurfTexture() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#1f8b66';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    for (let i = 0; i < 16000; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      const alpha = 0.06 + Math.random() * 0.14;
+      ctx.strokeStyle = Math.random() > 0.48 ? `rgba(200,255,226,${alpha})` : `rgba(7,61,48,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + (Math.random() - 0.5) * 5, y + 3 + Math.random() * 7);
+      ctx.stroke();
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(12, 7);
+    texture.anisotropy = this.renderer.capabilities.getMaxAnisotropy();
+    texture.colorSpace = THREE.SRGBColorSpace;
+    return texture;
+  }
+
+  private renderScene() {
+    this.renderer.render(this.scene, this.camera);
   }
 
   private animate() {
     this.animationFrameId = requestAnimationFrame(() => this.animate());
-
-    const time = Date.now() * 0.002;
-
-    // Rally Physics Simulation:
-    // x travels cross court back and forth
-    this.ballMesh.position.x = Math.sin(time * 0.7) * 7.5;
-    // y bounces smoothly (cos amplitude, hitting the ground twice per full cycle)
-    this.ballMesh.position.y = Math.abs(Math.cos(time * 1.4)) * 2.2 + 0.18;
-    // z slides diagonally slightly
-    this.ballMesh.position.z = Math.sin(time * 0.35) * 2.5;
-
-    // Smooth tilt effect according to target mouse coordinates
-    this.targetX = this.mouseX * 0.05;
-    this.targetY = this.mouseY * 0.05;
-
-    if (this.courtGroup) {
-      this.courtGroup.rotation.y += (this.targetX - this.courtGroup.rotation.y) * 0.05;
-      this.courtGroup.rotation.x += (this.targetY - this.courtGroup.rotation.x) * 0.05;
-    }
-
-    if (this.renderer && this.scene && this.camera) {
-      this.renderer.render(this.scene, this.camera);
-    }
+    const time = performance.now() * 0.001;
+    this.animateBall(time);
+    this.renderScene();
   }
 
-  private cleanup() {
-    cancelAnimationFrame(this.animationFrameId);
+  private animateBall(time: number) {
+    const cycle = 4.8;
+    const t = (time % cycle) / cycle;
+    const forward = t < 0.5;
+    const half = forward ? t * 2 : (1 - t) * 2;
+    const eased = this.easeInOutSine(half);
+    const x = -9.58 + eased * 19.16;
+    const z = Math.sin(time * 1.55) * 1.85;
+    const bounce = Math.abs(Math.sin(t * Math.PI * 6));
+    const y = 0.2 + Math.pow(bounce, 0.72) * 1.45;
+    const wallHit = Math.max(
+      0,
+      1 - Math.min(Math.abs(x + 9.58), Math.abs(x - 9.58)) / 0.85
+    );
 
-    if (this.renderer) {
-      this.renderer.dispose();
-    }
+    this.ball.position.set(x, y + wallHit * 0.1, z);
+    this.ball.rotation.set(time * 6, time * 8, time * 3);
+    this.ball.scale.setScalar(1 + wallHit * 0.18);
 
-    if (this.scene) {
-      this.scene.traverse((object: any) => {
-        if (object.geometry) {
-          object.geometry.dispose();
-        }
-        if (object.material) {
-          if (Array.isArray(object.material)) {
-            object.material.forEach((material: any) => material.dispose());
-          } else {
-            object.material.dispose();
-          }
-        }
-      });
+    this.ballShadow.position.set(x, 0.05, z);
+    this.ballShadow.scale.setScalar(Math.max(0.45, 1.15 - y * 0.32));
+    (this.ballShadow.material as THREE.MeshBasicMaterial).opacity = Math.max(0.08, 0.34 - y * 0.1);
+
+    const leftOpacity = Math.max(0, 1 - Math.abs(x + 9.58) / 0.75);
+    const rightOpacity = Math.max(0, 1 - Math.abs(x - 9.58) / 0.75);
+    this.updateImpact(this.leftImpact, leftOpacity, z, y);
+    this.updateImpact(this.rightImpact, rightOpacity, z, y);
+  }
+
+  private updateImpact(ring: THREE.Mesh, opacity: number, z: number, y: number) {
+    ring.position.z = z;
+    ring.position.y = Math.max(0.75, Math.min(2.4, y));
+    ring.scale.setScalar(1 + opacity * 1.7);
+    (ring.material as THREE.MeshBasicMaterial).opacity = opacity * 0.55;
+  }
+
+  private setResponsiveCamera(width: number, height: number) {
+    const aspect = width / Math.max(height, 1);
+    if (aspect < 0.85) {
+      this.camera.fov = 50;
+      this.camera.position.set(0, 11.5, 24.5);
+    } else if (aspect < 1.35) {
+      this.camera.fov = 44;
+      this.camera.position.set(0, 9.8, 21);
+    } else {
+      this.camera.fov = 40;
+      this.camera.position.set(0, 8.4, 18.5);
     }
+    this.camera.lookAt(0, 0.45, 0);
+  }
+
+  private easeInOutSine(value: number) {
+    return -(Math.cos(Math.PI * value) - 1) / 2;
   }
 }

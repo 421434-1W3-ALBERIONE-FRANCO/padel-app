@@ -59,17 +59,23 @@ public class ConsumoServiceImpl implements ConsumoService {
         producto.setStock(producto.getStock() - request.cantidad());
         productoRepository.save(producto);
 
-        BigDecimal subtotal = producto.getPrecio().multiply(BigDecimal.valueOf(request.cantidad()));
-
-        Consumo consumo = Consumo.builder()
-                .reserva(reserva)
-                .usuario(reserva.getUsuario())
-                .producto(producto)
-                .cantidad(request.cantidad())
-                .precioUnitario(producto.getPrecio())
-                .subtotal(subtotal)
-                .estadoPago(EstadoConsumoPago.PENDIENTE)
-                .build();
+        // Si el producto ya tiene una fila pendiente en este tab, acumular cantidad en vez de duplicar fila
+        Consumo consumo = consumoRepository
+                .findByReserva_IdAndProducto_IdAndEstadoPago(reservaId, request.productoId(), EstadoConsumoPago.PENDIENTE)
+                .map(existente -> {
+                    existente.setCantidad(existente.getCantidad() + request.cantidad());
+                    existente.setSubtotal(producto.getPrecio().multiply(BigDecimal.valueOf(existente.getCantidad())));
+                    return existente;
+                })
+                .orElseGet(() -> Consumo.builder()
+                        .reserva(reserva)
+                        .usuario(reserva.getUsuario())
+                        .producto(producto)
+                        .cantidad(request.cantidad())
+                        .precioUnitario(producto.getPrecio())
+                        .subtotal(producto.getPrecio().multiply(BigDecimal.valueOf(request.cantidad())))
+                        .estadoPago(EstadoConsumoPago.PENDIENTE)
+                        .build());
 
         Consumo saved = consumoRepository.save(consumo);
         log.info("Consumo ID {} cargado exitosamente", saved.getId());
@@ -118,7 +124,8 @@ public class ConsumoServiceImpl implements ConsumoService {
                 .map(Consumo::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        EstadoPago estadoPago = request.metodo() == MetodoPago.EFECTIVO ? EstadoPago.APROBADO : EstadoPago.PENDIENTE;
+        boolean cobroPresencialInmediato = request.metodo() == MetodoPago.EFECTIVO || request.metodo() == MetodoPago.TARJETA;
+        EstadoPago estadoPago = cobroPresencialInmediato ? EstadoPago.APROBADO : EstadoPago.PENDIENTE;
 
         Pago pago = Pago.builder()
                 .reserva(reserva)
@@ -150,7 +157,7 @@ public class ConsumoServiceImpl implements ConsumoService {
 
         for (Consumo c : pendientes) {
             c.setPago(savedPago);
-            if (request.metodo() == MetodoPago.EFECTIVO) {
+            if (cobroPresencialInmediato) {
                 c.setEstadoPago(EstadoConsumoPago.PAGADO);
             }
         }

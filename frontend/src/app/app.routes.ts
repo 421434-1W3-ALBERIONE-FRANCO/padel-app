@@ -11,9 +11,14 @@ import { MisBonosComponent } from './features/bonos/mis-bonos/mis-bonos.componen
 import { ProductosAdminComponent } from './features/admin/productos/productos-admin.component';
 import { CargaConsumosComponent } from './features/recepcion/carga-consumos/carga-consumos.component';
 import { CierreCuentaComponent } from './features/recepcion/cierre-cuenta/cierre-cuenta.component';
+import { ExperienceComponent } from './features/experience/experience.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
+  {
+    path: 'experience',
+    component: ExperienceComponent
+  },
   {
     path: 'auth/login',
     component: LoginComponent,

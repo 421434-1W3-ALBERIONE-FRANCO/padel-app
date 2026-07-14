@@ -12,11 +12,13 @@ import com.padel.domain.entity.Pago;
 import com.padel.domain.entity.Reserva;
 import com.padel.domain.entity.Usuario;
 import com.padel.domain.enums.EstadoPago;
+import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.MetodoPago;
 import com.padel.domain.enums.RolUsuario;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
 import com.padel.exception.ResourceNotFoundException;
+import com.padel.exception.ReservaNoModificableException;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
@@ -71,6 +73,11 @@ public class PagoServiceImpl implements PagoService {
         boolean isAdminOrRecepcion = usuario.getRol() == RolUsuario.ADMIN || usuario.getRol() == RolUsuario.RECEPCIONISTA;
         if (!isAdminOrRecepcion && !reserva.getUsuario().getId().equals(usuario.getId())) {
             throw new ResourceNotFoundException("Reserva no encontrada para el usuario especificado");
+        }
+
+        // Sólo se puede generar un cobro para una reserva que sigue esperando pago
+        if (reserva.getEstadoReserva() != EstadoReserva.PENDIENTE_PAGO) {
+            throw new ReservaNoModificableException("No se puede generar un cobro para una reserva en estado " + reserva.getEstadoReserva());
         }
 
         try {

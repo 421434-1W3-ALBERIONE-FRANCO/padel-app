@@ -13,6 +13,29 @@ import { SlotDisponibilidad } from '../../../shared/models/disponibilidad.model'
 import { RouterLink } from '@angular/router';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
 
+function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+// Reservas habilitadas solo dentro del mes en curso; en la última semana del mes
+// se habilita también el mes siguiente completo (permite reservar, ej., enero
+// estando en la última semana de diciembre).
+function calcularRangoFechas(): { min: string; max: string } {
+  const hoy = new Date();
+  const anio = hoy.getFullYear();
+  const mes = hoy.getMonth();
+  const ultimoDiaMesActual = new Date(anio, mes + 1, 0).getDate();
+  const diasParaFinDeMes = ultimoDiaMesActual - hoy.getDate();
+
+  const mesLimite = diasParaFinDeMes <= 6 ? mes + 1 : mes;
+  const finRango = new Date(anio, mesLimite + 1, 0);
+
+  return { min: toIsoDate(hoy), max: toIsoDate(finRango) };
+}
+
 @Component({
   selector: 'app-calendario',
   standalone: true,
@@ -29,8 +52,14 @@ export class CalendarioComponent implements OnInit, OnDestroy {
 
   canchas = signal<CanchaResponse[]>([]);
   canchaSeleccionadaId = signal<number | null>(null);
-  fechaSeleccionada = signal<string>(new Date().toISOString().substring(0, 10)); // YYYY-MM-DD
+  fechaSeleccionada = signal<string>(toIsoDate(new Date())); // YYYY-MM-DD
   slots = signal<SlotDisponibilidad[]>([]);
+
+  // Ventana de reserva habilitada: mes en curso; en la última semana del mes
+  // se habilita también el mes siguiente (ej. fin de diciembre -> reservas de enero).
+  private readonly rangoFechas = calcularRangoFechas();
+  fechaMin = this.rangoFechas.min;
+  fechaMax = this.rangoFechas.max;
 
   cargando = signal<boolean>(false);
   mensajeError = signal<string | null>(null);
@@ -113,7 +142,9 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   }
 
   onFechaChange(fecha: string) {
-    this.fechaSeleccionada.set(fecha);
+    // Defensa extra ante entrada manual fuera de rango (min/max del input no siempre lo impiden).
+    const fechaClamped = fecha < this.fechaMin ? this.fechaMin : fecha > this.fechaMax ? this.fechaMax : fecha;
+    this.fechaSeleccionada.set(fechaClamped);
     this.cargarDisponibilidad();
   }
 
@@ -215,7 +246,6 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   private suscribirActualizacionesWS() {
     this.wsSubscription = this.disponibilidadService.updates$.subscribe((payload) => {
       if (payload && payload.canchaId === this.canchaSeleccionadaId()) {
-        console.log('WS Update received for current court, refreshing grid...');
         this.cargarDisponibilidad();
       }
     });

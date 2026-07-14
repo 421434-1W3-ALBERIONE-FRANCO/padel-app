@@ -3,13 +3,14 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 import { BonoResponse, CrearBonoRequest } from '../../shared/models/bono.model';
 import { PagoResponse } from '../../shared/models/pago.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class BonoService {
   private http = inject(HttpClient);
-  private readonly API_URL = 'http://localhost:8080/api/v1';
+  private readonly API_URL = environment.apiUrl;
 
   // Signals
   private bonosSignal = signal<BonoResponse[]>([]);

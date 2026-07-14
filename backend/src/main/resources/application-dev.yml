@@ -27,3 +27,10 @@ logging:
     org.springframework.security: INFO
     org.springframework.web: INFO
     org.hibernate.SQL: DEBUG
+
+# Defaults SOLO para desarrollo local (no producción). Sobreescribir siempre vía variable de entorno.
+jwt:
+  secret: ${JWT_SECRET:dev-only-local-secret-do-not-use-in-production-1234567890}
+
+mercadopago:
+  access-token: ${MP_ACCESS_TOKEN:TEST-0000000000000000-000000-0000000000000000000000000000000-000000000}

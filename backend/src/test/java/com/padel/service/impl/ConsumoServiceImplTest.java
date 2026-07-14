@@ -114,6 +114,23 @@ class ConsumoServiceImplTest {
     }
 
     @Test
+    void cargarConsumo_DeberiaAcumularCantidadEnFilaExistentePendiente() {
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(productoRepository.findById(1L)).thenReturn(Optional.of(productoMock));
+        when(productoRepository.save(any(Producto.class))).thenReturn(productoMock);
+        when(consumoRepository.findByReserva_IdAndProducto_IdAndEstadoPago(1L, 1L, EstadoConsumoPago.PENDIENTE))
+                .thenReturn(Optional.of(consumoMock)); // ya había 2 unidades cargadas
+        when(consumoRepository.save(any(Consumo.class))).thenReturn(consumoMock);
+        when(consumoMapper.toResponse(any(Consumo.class))).thenReturn(consumoResponse);
+
+        consumoService.cargarConsumo(1L, consumoRequest); // agrega 2 más
+
+        assertEquals(4, consumoMock.getCantidad()); // 2 + 2, misma fila
+        assertEquals(new BigDecimal("400.00"), consumoMock.getSubtotal());
+        verify(consumoRepository, times(1)).save(consumoMock);
+    }
+
+    @Test
     void cargarConsumo_DeberiaLanzarStockInsuficienteException() {
         productoMock.setStock(1);
         when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
@@ -162,6 +179,22 @@ class ConsumoServiceImplTest {
         assertNotNull(consumoMock.getPago());
         verify(pagoRepository, times(1)).save(any(Pago.class));
         verify(consumoRepository, times(1)).saveAll(anyList());
+    }
+
+    @Test
+    void cerrarCuenta_Tarjeta_DeberiaCrearPagoAprobadoYMarcarConsumosPagados() {
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        List<Consumo> pendientes = new ArrayList<>();
+        pendientes.add(consumoMock);
+        when(consumoRepository.findByReservaId(1L)).thenReturn(pendientes);
+
+        Pago pagoMock = Pago.builder().id(10L).reserva(reservaMock).usuario(usuarioMock).monto(new BigDecimal("200.00")).metodo(MetodoPago.TARJETA).estado(EstadoPago.APROBADO).build();
+        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+
+        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.TARJETA));
+
+        assertEquals(EstadoConsumoPago.PAGADO, consumoMock.getEstadoPago()); // cobro presencial, aprobado al instante
+        verify(pagoRepository, times(1)).save(any(Pago.class));
     }
 
     @Test

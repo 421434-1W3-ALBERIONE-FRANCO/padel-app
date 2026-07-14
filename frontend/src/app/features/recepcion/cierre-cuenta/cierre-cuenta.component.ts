@@ -103,6 +103,8 @@ export class CierreCuentaComponent implements OnInit {
         this.cargandoOperacion.set(false);
         if (metodo === 'EFECTIVO') {
           this.mensajeExito.set('¡Cuenta cobrada y cerrada exitosamente en efectivo!');
+        } else if (metodo === 'TARJETA') {
+          this.mensajeExito.set('¡Cuenta cobrada y cerrada exitosamente con tarjeta!');
         } else if (metodo === 'MERCADOPAGO_POINT') {
           this.mensajeExito.set('¡Solicitud enviada a la terminal MercadoPago Point! La cuenta se marcará como pagada al confirmarse la transacción presencial.');
         }

@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -26,7 +27,8 @@ public class CanchaController {
     private final CanchaService canchaService;
 
     @PostMapping
-    @Operation(summary = "Crear una nueva cancha", description = "Crea una cancha en el sistema. Requiere token de acceso Bearer.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Crear una nueva cancha", description = "Crea una cancha en el sistema. Sólo accesible por administradores.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Cancha creada exitosamente"),
         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o nombre duplicado"),
@@ -61,7 +63,8 @@ public class CanchaController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Actualizar una cancha", description = "Modifica los datos de una cancha activa existente.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualizar una cancha", description = "Modifica los datos de una cancha activa existente. Sólo accesible por administradores.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Cancha actualizada exitosamente"),
         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos o nombre de cancha ya utilizado por otra"),
@@ -74,7 +77,8 @@ public class CanchaController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Desactivar cancha (Soft Delete)", description = "Marca la cancha como inactiva (desactivada) sin eliminarla físicamente.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Desactivar cancha (Soft Delete)", description = "Marca la cancha como inactiva (desactivada) sin eliminarla físicamente. Sólo accesible por administradores.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "204", description = "Cancha desactivada exitosamente"),
         @ApiResponse(responseCode = "401", description = "No autorizado"),

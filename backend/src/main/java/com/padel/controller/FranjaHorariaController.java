@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +26,8 @@ public class FranjaHorariaController {
     private final FranjaHorariaService franjaHorariaService;
 
     @PostMapping("/api/v1/canchas/{canchaId}/franjas")
-    @Operation(summary = "Crear una nueva franja horaria para una cancha", description = "Asocia una franja horaria a una cancha activa. Valida que no se solape con franjas existentes.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Crear una nueva franja horaria para una cancha", description = "Asocia una franja horaria a una cancha activa. Sólo accesible por administradores. Valida que no se solape con franjas existentes.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Franja horaria creada exitosamente"),
         @ApiResponse(responseCode = "400", description = "Rango de horario inválido, días vacíos o solapamiento detectado"),
@@ -64,7 +66,8 @@ public class FranjaHorariaController {
     }
 
     @PutMapping("/api/v1/franjas-horarias/{id}")
-    @Operation(summary = "Actualizar una franja horaria", description = "Modifica los datos de una franja horaria existente. Revalida rangos y solapamientos.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualizar una franja horaria", description = "Modifica los datos de una franja horaria existente. Sólo accesible por administradores. Revalida rangos y solapamientos.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Franja horaria actualizada exitosamente"),
         @ApiResponse(responseCode = "400", description = "Rango de horario inválido o solapamiento con otras franjas"),
@@ -79,7 +82,8 @@ public class FranjaHorariaController {
     }
 
     @DeleteMapping("/api/v1/franjas-horarias/{id}")
-    @Operation(summary = "Eliminar una franja horaria", description = "Elimina físicamente la franja horaria de la base de datos.")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Eliminar una franja horaria", description = "Elimina físicamente la franja horaria de la base de datos. Sólo accesible por administradores.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "204", description = "Franja horaria eliminada exitosamente"),
         @ApiResponse(responseCode = "401", description = "No autorizado"),

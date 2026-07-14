@@ -12,6 +12,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +26,8 @@ public class BloqueoCanchaController {
     private final BloqueoCanchaService bloqueoCanchaService;
 
     @PostMapping("/api/v1/canchas/{canchaId}/bloqueos")
-    @Operation(summary = "Crear un nuevo bloqueo para una cancha", description = "Registra un bloqueo temporal para una cancha en un rango de fecha y hora. Valida que no se solape con otros bloqueos.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
+    @Operation(summary = "Crear un nuevo bloqueo para una cancha", description = "Registra un bloqueo temporal para una cancha en un rango de fecha y hora. Accesible por administradores y recepcionistas. Valida que no se solape con otros bloqueos.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Bloqueo creado exitosamente"),
         @ApiResponse(responseCode = "400", description = "Rango de fechas o de horas inválido, o solapamiento detectado"),
@@ -64,7 +66,8 @@ public class BloqueoCanchaController {
     }
 
     @PutMapping("/api/v1/bloqueos/{id}")
-    @Operation(summary = "Actualizar un bloqueo", description = "Modifica los datos de un bloqueo existente. Revalida rangos y solapamientos.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
+    @Operation(summary = "Actualizar un bloqueo", description = "Modifica los datos de un bloqueo existente. Accesible por administradores y recepcionistas. Revalida rangos y solapamientos.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Bloqueo actualizado exitosamente"),
         @ApiResponse(responseCode = "400", description = "Rango de fechas o de horas inválido, o solapamiento detectado"),
@@ -79,7 +82,8 @@ public class BloqueoCanchaController {
     }
 
     @DeleteMapping("/api/v1/bloqueos/{id}")
-    @Operation(summary = "Eliminar un bloqueo", description = "Elimina físicamente el bloqueo de la base de datos.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
+    @Operation(summary = "Eliminar un bloqueo", description = "Elimina físicamente el bloqueo de la base de datos. Accesible por administradores y recepcionistas.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "204", description = "Bloqueo eliminado exitosamente"),
         @ApiResponse(responseCode = "401", description = "No autorizado"),

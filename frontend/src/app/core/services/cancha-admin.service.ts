@@ -4,13 +4,14 @@ import { Observable } from 'rxjs';
 import { CanchaRequest, CanchaResponse } from '../../shared/models/cancha.model';
 import { FranjaHorariaRequest, FranjaHorariaResponse } from '../../shared/models/franja.model';
 import { BloqueoCanchaRequest, BloqueoCanchaResponse } from '../../shared/models/bloqueo.model';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class CanchaAdminService {
   private http = inject(HttpClient);
-  private readonly API_URL = 'http://localhost:8080/api/v1';
+  private readonly API_URL = environment.apiUrl;
 
   // Canchas CRUD
   getCanchas(): Observable<CanchaResponse[]> {

@@ -22,7 +22,12 @@ export class RegistroComponent {
     apellido: ['', [Validators.required, Validators.maxLength(100)]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(150)]],
     telefono: ['', [Validators.maxLength(50)]],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [
+      Validators.required,
+      Validators.minLength(8),
+      // Al menos una mayúscula, una minúscula y un número.
+      Validators.pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).+$/)
+    ]],
     rol: ['JUGADOR' as RolUsuario, [Validators.required]] // JUGADOR por defecto
   });
 

@@ -1,13 +1,14 @@
 import { Component, OnInit, signal, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ProductoResponse } from '../../../shared/models/producto.model';
 
 @Component({
   selector: 'app-productos-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule, ReactiveFormsModule],
+  imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './productos-admin.component.html',
   styleUrls: ['./productos-admin.component.css']
 })

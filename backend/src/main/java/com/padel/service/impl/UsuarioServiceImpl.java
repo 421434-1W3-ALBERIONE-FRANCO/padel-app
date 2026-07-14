@@ -1,6 +1,7 @@
 package com.padel.service.impl;
 
 import com.padel.domain.entity.Usuario;
+import com.padel.domain.enums.RolUsuario;
 import com.padel.dto.request.CrearUsuarioRequest;
 import com.padel.dto.request.LoginRequest;
 import com.padel.dto.response.LoginResponse;
@@ -38,6 +39,9 @@ public class UsuarioServiceImpl implements UsuarioService {
         Usuario usuario = usuarioMapper.toEntity(request);
         usuario.setPasswordHash(passwordEncoder.encode(request.password()));
         usuario.setActivo(true);
+        // El registro público siempre crea JUGADOR: el rol del request se ignora para evitar
+        // que un cliente se auto-asigne ADMIN/RECEPCIONISTA vía POST /auth/registro.
+        usuario.setRol(RolUsuario.JUGADOR);
 
         Usuario guardado = usuarioRepository.save(usuario);
         return usuarioMapper.toResponse(guardado);

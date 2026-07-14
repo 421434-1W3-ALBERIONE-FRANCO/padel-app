@@ -3,14 +3,16 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 import { Client } from '@stomp/stompjs';
 import { DisponibilidadResponse } from '../../shared/models/disponibilidad.model';
+import { MOCK_API_ENABLED } from '../mock/mock-config';
+import { environment } from '../../../environments/environment';
 
 @Injectable({
   providedIn: 'root'
 })
 export class DisponibilidadService {
   private http = inject(HttpClient);
-  private readonly API_URL = 'http://localhost:8080/api/v1';
-  private readonly WS_URL = 'ws://localhost:8080/ws';
+  private readonly API_URL = environment.apiUrl;
+  private readonly WS_URL = environment.wsUrl;
 
   private stompClient: Client | null = null;
   private updatesSubject = new Subject<any>();
@@ -19,7 +21,7 @@ export class DisponibilidadService {
   updates$ = this.updatesSubject.asObservable();
 
   constructor() {
-    this.initWebSocket();
+    if (!MOCK_API_ENABLED) this.initWebSocket();
   }
 
   getDisponibilidad(canchaId: number, fecha: string): Observable<DisponibilidadResponse> {
@@ -36,12 +38,12 @@ export class DisponibilidadService {
         heartbeatIncoming: 4000,
         heartbeatOutgoing: 4000,
         debug: (str) => {
-          console.log('STOMP DEBUG:', str);
+          if (!environment.production) console.log('STOMP DEBUG:', str);
         }
       });
 
       this.stompClient.onConnect = () => {
-        console.log('WebSocket connected successfully');
+        if (!environment.production) console.log('WebSocket connected successfully');
         this.stompClient?.subscribe('/topic/disponibilidad', (message) => {
           try {
             const payload = JSON.parse(message.body);
