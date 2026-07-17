@@ -23,11 +23,17 @@ function fechaMaximaReservable(): string {
 
 function seed() {
   return {
-    nextId: { cancha: 3, franja: 3, bloqueo: 1, reserva: 1, bono: 2, producto: 4, usuario: 4 },
+    nextId: { cancha: 3, franja: 3, bloqueo: 1, reserva: 1, bono: 2, producto: 4, usuario: 4, torneo: 1, inscripcionTorneo: 1, partidoTorneo: 1, ranking: 1, solicitud: 1, postulacion: 1 },
     usuarios: [
       { id: 1, nombre: 'Admin', apellido: 'Dev', email: 'admin@test.com', telefono: '', rol: 'ADMIN', activo: true, password: 'admin123' },
-      { id: 2, nombre: 'Juan', apellido: 'Jugador', email: 'juan@test.com', telefono: '', rol: 'JUGADOR', activo: true, password: 'test123' }
+      { id: 2, nombre: 'Juan', apellido: 'Jugador', email: 'juan@test.com', telefono: '', rol: 'JUGADOR', activo: true, password: 'test123' },
+      { id: 3, nombre: 'Lucía', apellido: 'Fernández', email: 'lucia@test.com', telefono: '', rol: 'JUGADOR', activo: true, password: 'test123' }
     ],
+    torneos: [] as any[],
+    inscripcionesTorneo: [] as any[],
+    partidosTorneo: [] as any[],
+    rankingJugadores: [] as any[],
+    solicitudesPartido: [] as any[],
     canchas: [
       { id: 1, nombre: 'Cancha Central', tipoSuelo: 'BLINDEX', techada: true, tieneLuz: true, activa: true },
       { id: 2, nombre: 'Cancha 2', tipoSuelo: 'SINTETICO', techada: false, tieneLuz: true, activa: true }
@@ -53,7 +59,12 @@ function seed() {
 function loadDb() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    // Merge sobre seed() para que las colecciones y contadores agregados en versiones nuevas
+    // del mock (ej. torneos) existan aunque el usuario tenga una sesión vieja en localStorage.
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...seed(), ...parsed, nextId: { ...seed().nextId, ...parsed.nextId } };
+    }
   } catch { /* ignore corrupt state, reseed */ }
   return seed();
 }
@@ -356,6 +367,318 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   }
   if (segs[0] === 'pagos' && segs.length === 2 && req.method === 'GET') {
     return ok({ id: +segs[1], reservaId: 1, usuarioId: 2, usuarioEmail: auth?.email ?? '', monto: 1000, metodo: 'MERCADOPAGO', estado: 'PENDIENTE', mpPreferenceId: 'mock-pref-123', mpPaymentId: null, createdAt: nowIso(), updatedAt: null });
+  }
+
+  // ---- TORNEOS ----
+  function nombreCompleto(u: any) { return `${u.nombre} ${u.apellido}`; }
+  function usuarioPorEmail(email: string) { return db.usuarios.find((u: any) => u.email === email); }
+  function parejasInscriptas(torneoId: number) {
+    return db.inscripcionesTorneo.filter((i: any) => i.torneoId === torneoId && i.estado === 'CONFIRMADA').length;
+  }
+  function torneoConCupo(t: any) { return { ...t, parejasInscriptas: parejasInscriptas(t.id) }; }
+  function nombreRondaEliminacion(cantidad: number): string {
+    if (cantidad <= 2) return 'Final';
+    if (cantidad <= 4) return 'Semifinal';
+    if (cantidad <= 8) return 'Cuartos de Final';
+    if (cantidad <= 16) return 'Octavos de Final';
+    return `Ronda de ${cantidad}`;
+  }
+  function actualizarRanking(jugadorId: number, categoria: string, gano: boolean) {
+    const jugador = db.usuarios.find((u: any) => u.id === jugadorId);
+    let r = db.rankingJugadores.find((x: any) => x.jugadorId === jugadorId && x.categoria === categoria);
+    if (!r) {
+      r = { id: db.nextId.ranking++, jugadorId, jugadorNombre: nombreCompleto(jugador), jugadorEmail: jugador.email, categoria, puntos: 0, partidosJugados: 0, partidosGanados: 0 };
+      db.rankingJugadores.push(r);
+    }
+    r.partidosJugados += 1;
+    if (gano) { r.partidosGanados += 1; r.puntos += 3; } else { r.puntos += 1; }
+  }
+
+  if (segs[0] === 'torneos' && segs.length === 1 && req.method === 'GET') {
+    let lista = db.torneos as any[];
+    const estado = req.params.get('estado'); const categoria = req.params.get('categoria'); const tipo = req.params.get('tipo');
+    if (estado) lista = lista.filter((t: any) => t.estado === estado);
+    if (categoria) lista = lista.filter((t: any) => t.categoria === categoria);
+    if (tipo) lista = lista.filter((t: any) => t.tipo === tipo);
+    lista = [...lista].sort((a: any, b: any) => (a.fechaInicio < b.fechaInicio ? 1 : -1));
+    return ok(lista.map(torneoConCupo));
+  }
+  if (segs[0] === 'torneos' && segs.length === 1 && req.method === 'POST') {
+    const denied = requireRol(auth, ['ADMIN']); if (denied) return denied;
+    const body = req.body as any;
+    if (body.fechaFin < body.fechaInicio) return err(400, 'La fecha de fin no puede ser anterior a la fecha de inicio');
+    const t = { id: db.nextId.torneo++, ...body, estado: 'INSCRIPCION_ABIERTA', createdAt: nowIso() };
+    db.torneos.push(t); persist();
+    return ok(torneoConCupo(t), 201);
+  }
+  if (segs[0] === 'torneos' && segs.length === 2 && !isNaN(+segs[1]) && req.method === 'GET') {
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    return t ? ok(torneoConCupo(t)) : err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+  }
+  if (segs[0] === 'torneos' && segs.length === 2 && req.method === 'PUT') {
+    const denied = requireRol(auth, ['ADMIN']); if (denied) return denied;
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    if (t.estado !== 'INSCRIPCION_ABIERTA') return err(409, 'Sólo se puede editar un torneo mientras la inscripción está abierta');
+    const body = req.body as any;
+    if (body.fechaFin < body.fechaInicio) return err(400, 'La fecha de fin no puede ser anterior a la fecha de inicio');
+    Object.assign(t, body); persist();
+    return ok(torneoConCupo(t));
+  }
+  if (segs[0] === 'torneos' && segs.length === 2 && req.method === 'DELETE') {
+    const denied = requireRol(auth, ['ADMIN']); if (denied) return denied;
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    if (t.estado === 'FINALIZADO') return err(409, 'No se puede cancelar un torneo ya finalizado');
+    t.estado = 'CANCELADO'; persist();
+    return ok(null, 204);
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'inscripciones' && segs.length === 3 && req.method === 'POST') {
+    if (!auth) return err(401, 'No autenticado');
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    if (t.estado !== 'INSCRIPCION_ABIERTA') return err(409, 'El torneo no admite inscripciones en su estado actual');
+    const companeroEmail = (req.body as any).companeroEmail;
+    if (companeroEmail.toLowerCase() === auth.email.toLowerCase()) return err(400, 'No podés inscribirte en pareja con vos mismo');
+    const jugador1 = usuarioPorEmail(auth.email);
+    const jugador2 = usuarioPorEmail(companeroEmail);
+    if (!jugador2) return err(404, 'No se encontró un jugador con email: ' + companeroEmail);
+    if (parejasInscriptas(t.id) >= t.maxParejas) return err(409, 'El torneo ya alcanzó el cupo máximo de parejas');
+    const yaInscriptos = db.inscripcionesTorneo.some((i: any) => i.torneoId === t.id && i.estado === 'CONFIRMADA' &&
+      ((i.jugador1Id === jugador1.id && i.jugador2Id === jugador2.id) || (i.jugador1Id === jugador2.id && i.jugador2Id === jugador1.id)));
+    if (yaInscriptos) return err(400, 'Esta pareja ya está inscripta en el torneo');
+    const i = {
+      id: db.nextId.inscripcionTorneo++, torneoId: t.id,
+      jugador1Id: jugador1.id, jugador1Nombre: nombreCompleto(jugador1), jugador1Email: jugador1.email,
+      jugador2Id: jugador2.id, jugador2Nombre: nombreCompleto(jugador2), jugador2Email: jugador2.email,
+      estado: 'CONFIRMADA'
+    };
+    db.inscripcionesTorneo.push(i); persist();
+    return ok(i, 201);
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'inscripciones' && segs.length === 3 && req.method === 'GET') {
+    return ok(db.inscripcionesTorneo.filter((i: any) => i.torneoId === +segs[1]));
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'inscripciones' && segs.length === 4 && req.method === 'DELETE') {
+    if (!auth) return err(401, 'No autenticado');
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    const i = db.inscripcionesTorneo.find((x: any) => x.id === +segs[3] && x.torneoId === +segs[1]);
+    if (!i) return err(404, 'Inscripción no encontrada con ID: ' + segs[3]);
+    const esJugador = i.jugador1Email === auth.email || i.jugador2Email === auth.email;
+    if (!esJugador && auth.rol !== 'ADMIN') return err(403, 'No tiene permisos para cancelar esta inscripción');
+    if (t.estado !== 'INSCRIPCION_ABIERTA') return err(409, 'No se puede cancelar la inscripción una vez iniciado el torneo');
+    i.estado = 'CANCELADA'; persist();
+    return ok(null, 204);
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'fixture' && segs.length === 3 && req.method === 'POST') {
+    const denied = requireRol(auth, ['ADMIN']); if (denied) return denied;
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    if (t.estado !== 'INSCRIPCION_ABIERTA') return err(409, 'El torneo no está en estado de inscripción abierta');
+    if (db.partidosTorneo.some((p: any) => p.torneoId === t.id)) return err(409, 'El fixture de este torneo ya fue generado');
+    const inscripciones = db.inscripcionesTorneo.filter((i: any) => i.torneoId === t.id && i.estado === 'CONFIRMADA');
+    if (inscripciones.length < 2) return err(400, 'Se necesitan al menos 2 parejas inscriptas para generar el fixture');
+
+    const nuevos: any[] = [];
+    if (t.formato === 'LIGA_TODOS_CONTRA_TODOS') {
+      for (let i = 0; i < inscripciones.length; i++) {
+        for (let j = i + 1; j < inscripciones.length; j++) {
+          nuevos.push({
+            id: db.nextId.partidoTorneo++, torneoId: t.id, ronda: 'Liga', numeroRonda: 1,
+            inscripcion1Id: inscripciones[i].id, inscripcion1Nombres: `${inscripciones[i].jugador1Nombre} / ${inscripciones[i].jugador2Nombre}`,
+            inscripcion2Id: inscripciones[j].id, inscripcion2Nombres: `${inscripciones[j].jugador1Nombre} / ${inscripciones[j].jugador2Nombre}`,
+            fechaHora: null, setsPareja1: null, setsPareja2: null, ganadorInscripcionId: null, estado: 'PENDIENTE'
+          });
+        }
+      }
+    } else {
+      const barajadas = [...inscripciones].sort(() => Math.random() - 0.5);
+      const ronda = nombreRondaEliminacion(barajadas.length);
+      for (let i = 0; i < barajadas.length; i += 2) {
+        const p1 = barajadas[i]; const p2 = barajadas[i + 1];
+        const esBye = !p2;
+        nuevos.push({
+          id: db.nextId.partidoTorneo++, torneoId: t.id, ronda, numeroRonda: 1,
+          inscripcion1Id: p1.id, inscripcion1Nombres: `${p1.jugador1Nombre} / ${p1.jugador2Nombre}`,
+          inscripcion2Id: p2 ? p2.id : null, inscripcion2Nombres: p2 ? `${p2.jugador1Nombre} / ${p2.jugador2Nombre}` : null,
+          fechaHora: null, setsPareja1: null, setsPareja2: null,
+          ganadorInscripcionId: esBye ? p1.id : null, estado: esBye ? 'FINALIZADO' : 'PENDIENTE'
+        });
+      }
+    }
+    db.partidosTorneo.push(...nuevos);
+    t.estado = 'EN_CURSO'; persist();
+    return ok(nuevos, 201);
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'partidos' && segs.length === 3 && req.method === 'GET') {
+    return ok(db.partidosTorneo.filter((p: any) => p.torneoId === +segs[1]).sort((a: any, b: any) => a.numeroRonda - b.numeroRonda || a.id - b.id));
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'partidos' && segs[4] === 'resultado' && segs.length === 5 && req.method === 'PUT') {
+    const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    const p = db.partidosTorneo.find((x: any) => x.id === +segs[3] && x.torneoId === +segs[1]);
+    if (!p) return err(404, 'Partido no encontrado con ID: ' + segs[3]);
+    if (p.estado === 'FINALIZADO') return err(409, 'El resultado de este partido ya fue cargado');
+    if (!p.inscripcion2Id) return err(409, 'Este partido es un bye y no admite carga de resultado');
+    const body = req.body as any;
+    if (body.setsPareja1 === body.setsPareja2) return err(400, 'El resultado no puede terminar en empate');
+
+    const ganadorEsP1 = body.setsPareja1 > body.setsPareja2;
+    const iGanadora = db.inscripcionesTorneo.find((x: any) => x.id === (ganadorEsP1 ? p.inscripcion1Id : p.inscripcion2Id));
+    const iPerdedora = db.inscripcionesTorneo.find((x: any) => x.id === (ganadorEsP1 ? p.inscripcion2Id : p.inscripcion1Id));
+
+    p.setsPareja1 = body.setsPareja1; p.setsPareja2 = body.setsPareja2;
+    p.ganadorInscripcionId = iGanadora.id; p.estado = 'FINALIZADO';
+
+    actualizarRanking(iGanadora.jugador1Id, t.categoria, true);
+    actualizarRanking(iGanadora.jugador2Id, t.categoria, true);
+    actualizarRanking(iPerdedora.jugador1Id, t.categoria, false);
+    actualizarRanking(iPerdedora.jugador2Id, t.categoria, false);
+    persist();
+    return ok(p);
+  }
+  if (segs[0] === 'torneos' && segs[2] === 'siguiente-ronda' && segs.length === 3 && req.method === 'POST') {
+    const denied = requireRol(auth, ['ADMIN']); if (denied) return denied;
+    const t = db.torneos.find((x: any) => x.id === +segs[1]);
+    if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    if (t.formato !== 'ELIMINACION_DIRECTA') return err(400, 'Sólo los torneos de eliminación directa avanzan por rondas');
+    const partidosDelTorneo = db.partidosTorneo.filter((p: any) => p.torneoId === t.id);
+    if (partidosDelTorneo.length === 0) return err(409, 'Primero hay que generar el fixture del torneo');
+    const ultimaRonda = Math.max(...partidosDelTorneo.map((p: any) => p.numeroRonda));
+    const partidosRondaActual = partidosDelTorneo.filter((p: any) => p.numeroRonda === ultimaRonda);
+    if (!partidosRondaActual.every((p: any) => p.estado === 'FINALIZADO')) return err(409, 'Aún hay partidos pendientes en la ronda actual');
+
+    if (partidosRondaActual.length === 1) {
+      t.estado = 'FINALIZADO'; persist();
+      return ok([], 201);
+    }
+
+    const ganadoresIds = partidosRondaActual.map((p: any) => p.ganadorInscripcionId);
+    const ganadores = ganadoresIds.map((id: number) => db.inscripcionesTorneo.find((i: any) => i.id === id));
+    const numeroRonda = ultimaRonda + 1;
+    const ronda = nombreRondaEliminacion(ganadores.length);
+    const nuevos: any[] = [];
+    for (let i = 0; i < ganadores.length; i += 2) {
+      const p1 = ganadores[i]; const p2 = ganadores[i + 1];
+      const esBye = !p2;
+      nuevos.push({
+        id: db.nextId.partidoTorneo++, torneoId: t.id, ronda, numeroRonda,
+        inscripcion1Id: p1.id, inscripcion1Nombres: `${p1.jugador1Nombre} / ${p1.jugador2Nombre}`,
+        inscripcion2Id: p2 ? p2.id : null, inscripcion2Nombres: p2 ? `${p2.jugador1Nombre} / ${p2.jugador2Nombre}` : null,
+        fechaHora: null, setsPareja1: null, setsPareja2: null,
+        ganadorInscripcionId: esBye ? p1.id : null, estado: esBye ? 'FINALIZADO' : 'PENDIENTE'
+      });
+    }
+    db.partidosTorneo.push(...nuevos); persist();
+    return ok(nuevos, 201);
+  }
+
+  // ---- RANKINGS ----
+  if (segs[0] === 'rankings' && segs.length === 3 && segs[2] === 'mi-posicion' && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    const r = db.rankingJugadores.find((x: any) => x.categoria === segs[1] && x.jugadorEmail === auth.email);
+    return r ? ok(r) : err(404, 'Todavía no tenés ranking en la categoría ' + segs[1]);
+  }
+  if (segs[0] === 'rankings' && segs.length === 2 && req.method === 'GET') {
+    const lista = db.rankingJugadores.filter((x: any) => x.categoria === segs[1])
+      .sort((a: any, b: any) => b.puntos - a.puntos || b.partidosGanados - a.partidosGanados);
+    return ok(lista);
+  }
+
+  // ---- SOLICITUDES DE PARTIDO ----
+  if (segs[0] === 'solicitudes-partido' && segs.length === 2 && segs[1] === 'mis-solicitudes' && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    return ok(db.solicitudesPartido.filter((s: any) => s.creadorEmail === auth.email).sort((a: any, b: any) => b.id - a.id));
+  }
+  if (segs[0] === 'solicitudes-partido' && segs.length === 2 && segs[1] === 'mis-postulaciones' && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    return ok(db.solicitudesPartido.filter((s: any) => s.postulaciones.some((p: any) => p.jugadorEmail === auth.email)).sort((a: any, b: any) => b.id - a.id));
+  }
+  if (segs[0] === 'solicitudes-partido' && segs.length === 1 && req.method === 'POST') {
+    if (!auth) return err(401, 'No autenticado');
+    const body = req.body as any;
+    const creador = usuarioPorEmail(auth.email);
+    let cancha: any = null;
+    if (body.canchaId) {
+      cancha = db.canchas.find((c: any) => c.id === +body.canchaId && c.activa);
+      if (!cancha) return err(404, 'Cancha no encontrada o inactiva');
+      const propuesta = new Date(body.fechaHoraPropuesta);
+      const dow = DIAS[propuesta.getDay()];
+      const hora = `${String(propuesta.getHours()).padStart(2, '0')}:${String(propuesta.getMinutes()).padStart(2, '0')}`;
+      const existeFranja = db.franjas.some((f: any) =>
+        f.canchaId === cancha.id && f.diasAplicables.includes(dow) && hora >= f.horaInicio && hora < f.horaFin);
+      if (!existeFranja) return err(400, 'La cancha seleccionada no tiene un horario habilitado para el día y la hora propuestos');
+    }
+    const s = {
+      id: db.nextId.solicitud++, creadorId: creador.id, creadorNombre: nombreCompleto(creador), creadorEmail: creador.email,
+      tipoSolicitud: body.tipoSolicitud, categoria: body.categoria, cantidadJugadoresFaltantes: body.cantidadJugadoresFaltantes,
+      fechaHoraPropuesta: body.fechaHoraPropuesta, canchaId: cancha?.id ?? null, canchaNombre: cancha?.nombre ?? null,
+      descripcion: body.descripcion ?? null, estado: 'ABIERTA', createdAt: nowIso(), postulaciones: [] as any[]
+    };
+    db.solicitudesPartido.push(s); persist();
+    return ok(s, 201);
+  }
+  if (segs[0] === 'solicitudes-partido' && segs.length === 1 && req.method === 'GET') {
+    const tipoSolicitud = req.params.get('tipoSolicitud'); const categoria = req.params.get('categoria'); const estadoParam = req.params.get('estado');
+    let lista = db.solicitudesPartido.filter((s: any) => s.estado === (estadoParam || 'ABIERTA'));
+    if (tipoSolicitud) lista = lista.filter((s: any) => s.tipoSolicitud === tipoSolicitud);
+    if (categoria) lista = lista.filter((s: any) => s.categoria === categoria);
+    lista = [...lista].sort((a: any, b: any) => (a.fechaHoraPropuesta < b.fechaHoraPropuesta ? -1 : 1));
+    return ok(lista);
+  }
+  if (segs[0] === 'solicitudes-partido' && segs.length === 2 && !isNaN(+segs[1]) && req.method === 'GET') {
+    const s = db.solicitudesPartido.find((x: any) => x.id === +segs[1]);
+    return s ? ok(s) : err(404, 'Solicitud no encontrada con ID: ' + segs[1]);
+  }
+  if (segs[0] === 'solicitudes-partido' && segs.length === 2 && req.method === 'DELETE') {
+    if (!auth) return err(401, 'No autenticado');
+    const s = db.solicitudesPartido.find((x: any) => x.id === +segs[1]);
+    if (!s) return err(404, 'Solicitud no encontrada con ID: ' + segs[1]);
+    if (s.creadorEmail !== auth.email) return err(403, 'No tiene permisos para operar sobre esta solicitud');
+    if (s.estado === 'CANCELADA') return err(409, 'La solicitud ya está cancelada');
+    s.estado = 'CANCELADA'; persist();
+    return ok(null, 204);
+  }
+  if (segs[0] === 'solicitudes-partido' && segs[2] === 'postulaciones' && segs.length === 3 && req.method === 'POST') {
+    if (!auth) return err(401, 'No autenticado');
+    const s = db.solicitudesPartido.find((x: any) => x.id === +segs[1]);
+    if (!s) return err(404, 'Solicitud no encontrada con ID: ' + segs[1]);
+    if (s.estado !== 'ABIERTA') return err(409, 'La solicitud ya no admite postulaciones');
+    if (s.creadorEmail === auth.email) return err(400, 'No podés postularte a tu propia solicitud');
+    const jugador = usuarioPorEmail(auth.email);
+    if (s.postulaciones.some((p: any) => p.jugadorEmail === auth.email)) return err(400, 'Ya te postulaste a esta solicitud');
+    s.postulaciones.push({
+      id: db.nextId.postulacion++, solicitudId: s.id, jugadorId: jugador.id, jugadorNombre: nombreCompleto(jugador),
+      jugadorEmail: jugador.email, mensaje: (req.body as any).mensaje ?? null, estado: 'PENDIENTE', createdAt: nowIso()
+    });
+    persist();
+    return ok(s, 201);
+  }
+  if (segs[0] === 'solicitudes-partido' && segs[2] === 'postulaciones' && (segs[4] === 'aceptar' || segs[4] === 'rechazar') && segs.length === 5 && req.method === 'PUT') {
+    if (!auth) return err(401, 'No autenticado');
+    const s = db.solicitudesPartido.find((x: any) => x.id === +segs[1]);
+    if (!s) return err(404, 'Solicitud no encontrada con ID: ' + segs[1]);
+    if (s.creadorEmail !== auth.email) return err(403, 'No tiene permisos para operar sobre esta solicitud');
+    const p = s.postulaciones.find((x: any) => x.id === +segs[3]);
+    if (!p) return err(404, 'Postulación no encontrada con ID: ' + segs[3]);
+    if (p.estado !== 'PENDIENTE') return err(409, 'Esta postulación ya fue resuelta');
+
+    if (segs[4] === 'rechazar') {
+      p.estado = 'RECHAZADA'; persist();
+      return ok(s);
+    }
+
+    if (s.estado !== 'ABIERTA') return err(409, 'La solicitud ya no está abierta');
+    p.estado = 'ACEPTADA';
+    const aceptadas = s.postulaciones.filter((x: any) => x.estado === 'ACEPTADA').length;
+    if (aceptadas >= s.cantidadJugadoresFaltantes) {
+      s.estado = 'COMPLETA';
+      s.postulaciones.filter((x: any) => x.estado === 'PENDIENTE').forEach((x: any) => x.estado = 'RECHAZADA');
+    }
+    persist();
+    return ok(s);
   }
 
   return err(404, `Mock no implementado para ${req.method} ${path}`);

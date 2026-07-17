@@ -1,0 +1,137 @@
+<div class="max-w-[230px] sm:max-w-[260px]">
+
+  <ng-container *ngFor="let oferta of ofertas; let i = index">
+    <a
+      *ngIf="activeIndex() === i"
+      [href]="oferta.ruta"
+      (click)="onSelect($event, oferta.ruta)"
+      class="group block rounded-2xl border border-white/10 bg-white/[0.03] backdrop-blur-sm overflow-hidden hover:border-white/25 transition-colors duration-300 animate-fade-in"
+    >
+      <div class="aspect-square flex items-center justify-center p-6">
+
+        <!-- Reservas: calendario con día seleccionado + badge de reloj -->
+        <svg *ngIf="i === 0" viewBox="0 0 240 240" class="w-full h-full" fill="none">
+          <defs>
+            <linearGradient id="gReservas" x1="20%" y1="0%" x2="80%" y2="100%">
+              <stop offset="0" stop-color="#52c41a"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+          <rect x="38" y="52" width="164" height="146" rx="18" fill="#111218" stroke="url(#gReservas)" stroke-width="2"/>
+          <rect x="42" y="58" width="156" height="30" rx="10" fill="url(#gReservas)" opacity="0.16"/>
+          <line x1="42" y1="92" x2="198" y2="92" stroke="url(#gReservas)" stroke-width="1.2" opacity="0.4"/>
+          <rect x="78" y="36" width="8" height="28" rx="4" fill="url(#gReservas)"/>
+          <rect x="154" y="36" width="8" height="28" rx="4" fill="url(#gReservas)"/>
+          <g fill="rgba(255,255,255,0.10)">
+            <rect x="54" y="104" width="24" height="18" rx="4"/>
+            <rect x="86" y="104" width="24" height="18" rx="4"/>
+            <rect x="118" y="104" width="24" height="18" rx="4"/>
+            <rect x="150" y="104" width="24" height="18" rx="4"/>
+            <rect x="54" y="130" width="24" height="18" rx="4"/>
+            <rect x="118" y="130" width="24" height="18" rx="4"/>
+            <rect x="150" y="130" width="24" height="18" rx="4"/>
+            <rect x="54" y="156" width="24" height="18" rx="4"/>
+            <rect x="86" y="156" width="24" height="18" rx="4"/>
+            <rect x="150" y="156" width="24" height="18" rx="4"/>
+          </g>
+          <rect x="86" y="130" width="24" height="18" rx="4" fill="url(#gReservas)"/>
+          <path d="M92 139 L96 143 L104 133" stroke="#0b0c10" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <circle cx="184" cy="176" r="22" fill="#0b0c10" stroke="url(#gReservas)" stroke-width="2"/>
+          <path d="M184 164 L184 176 L193 182" stroke="url(#gReservas)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        </svg>
+
+        <!-- Torneos: podio con copa y confeti -->
+        <svg *ngIf="i === 1" viewBox="0 0 240 240" class="w-full h-full" fill="none">
+          <defs>
+            <linearGradient id="gTorneos" x1="20%" y1="0%" x2="80%" y2="100%">
+              <stop offset="0" stop-color="#06b6d4"/>
+              <stop offset="1" stop-color="#52c41a"/>
+            </linearGradient>
+          </defs>
+          <g fill="url(#gTorneos)" opacity="0.55">
+            <circle cx="46" cy="60" r="3"/>
+            <circle cx="196" cy="52" r="2.4"/>
+            <rect x="60" y="40" width="5" height="5" transform="rotate(20 62 42)"/>
+            <rect x="176" y="76" width="5" height="5" transform="rotate(-15 178 78)"/>
+            <circle cx="30" cy="100" r="2.2"/>
+          </g>
+          <rect x="46" y="168" width="42" height="34" rx="4" fill="#14151c" stroke="url(#gTorneos)" stroke-width="1.6"/>
+          <rect x="150" y="158" width="42" height="44" rx="4" fill="#14151c" stroke="url(#gTorneos)" stroke-width="1.6"/>
+          <rect x="98" y="140" width="46" height="62" rx="4" fill="#14151c" stroke="url(#gTorneos)" stroke-width="1.8"/>
+          <text x="67" y="190" text-anchor="middle" fill="url(#gTorneos)" font-size="16" font-weight="700">2</text>
+          <text x="171" y="184" text-anchor="middle" fill="url(#gTorneos)" font-size="16" font-weight="700">3</text>
+          <text x="121" y="176" text-anchor="middle" fill="url(#gTorneos)" font-size="18" font-weight="800">1</text>
+          <path d="M104 96 Q104 118 121 122 Q138 118 138 96" stroke="url(#gTorneos)" stroke-width="4" stroke-linecap="round" fill="none"/>
+          <line x1="104" y1="96" x2="138" y2="96" stroke="url(#gTorneos)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M104 98 C90 98 90 116 106 114" stroke="url(#gTorneos)" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+          <path d="M138 98 C152 98 152 116 136 114" stroke="url(#gTorneos)" stroke-width="3.4" stroke-linecap="round" fill="none"/>
+          <line x1="121" y1="122" x2="121" y2="136" stroke="url(#gTorneos)" stroke-width="4" stroke-linecap="round"/>
+          <rect x="109" y="136" width="24" height="6" rx="3" fill="url(#gTorneos)"/>
+        </svg>
+
+        <!-- Ranking: tabla de posiciones con fila destacada -->
+        <svg *ngIf="i === 2" viewBox="0 0 240 240" class="w-full h-full" fill="none">
+          <defs>
+            <linearGradient id="gRanking" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0" stop-color="#52c41a"/>
+              <stop offset="1" stop-color="#06b6d4"/>
+            </linearGradient>
+          </defs>
+          <rect x="34" y="46" width="172" height="150" rx="16" fill="#111218" stroke="url(#gRanking)" stroke-width="2"/>
+          <rect x="48" y="62" width="144" height="32" rx="8" fill="url(#gRanking)" opacity="0.18"/>
+          <circle cx="66" cy="78" r="12" fill="url(#gRanking)"/>
+          <path d="M60 71 L66 65 L72 71" stroke="#0b0c10" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+          <rect x="86" y="72" width="54" height="6" rx="3" fill="rgba(255,255,255,0.75)"/>
+          <rect x="86" y="82" width="34" height="4" rx="2" fill="rgba(255,255,255,0.35)"/>
+          <rect x="160" y="70" width="24" height="16" rx="4" fill="url(#gRanking)"/>
+          <circle cx="66" cy="118" r="11" fill="#1c1d26"/>
+          <rect x="86" y="112" width="46" height="6" rx="3" fill="rgba(255,255,255,0.5)"/>
+          <rect x="86" y="122" width="28" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+          <rect x="164" y="111" width="20" height="14" rx="4" fill="rgba(255,255,255,0.12)"/>
+          <circle cx="66" cy="154" r="11" fill="#1c1d26"/>
+          <rect x="86" y="148" width="40" height="6" rx="3" fill="rgba(255,255,255,0.5)"/>
+          <rect x="86" y="158" width="24" height="4" rx="2" fill="rgba(255,255,255,0.25)"/>
+          <rect x="164" y="147" width="20" height="14" rx="4" fill="rgba(255,255,255,0.12)"/>
+        </svg>
+
+        <!-- Comunidad: red de jugadores -->
+        <svg *ngIf="i === 3" viewBox="0 0 240 240" class="w-full h-full" fill="none">
+          <defs>
+            <linearGradient id="gComunidad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0" stop-color="#06b6d4"/>
+              <stop offset="1" stop-color="#52c41a"/>
+            </linearGradient>
+          </defs>
+          <line x1="90" y1="100" x2="150" y2="100" stroke="url(#gComunidad)" stroke-width="1.6" opacity="0.5"/>
+          <line x1="90" y1="100" x2="120" y2="150" stroke="url(#gComunidad)" stroke-width="1.6" opacity="0.5"/>
+          <line x1="150" y1="100" x2="120" y2="150" stroke="url(#gComunidad)" stroke-width="1.6" opacity="0.5"/>
+          <circle cx="90" cy="100" r="20" fill="#14151c" stroke="url(#gComunidad)" stroke-width="2"/>
+          <circle cx="90" cy="94" r="7" fill="url(#gComunidad)"/>
+          <path d="M78 110 Q90 100 102 110" stroke="url(#gComunidad)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <circle cx="150" cy="100" r="20" fill="#14151c" stroke="url(#gComunidad)" stroke-width="2"/>
+          <circle cx="150" cy="94" r="7" fill="url(#gComunidad)"/>
+          <path d="M138 110 Q150 100 162 110" stroke="url(#gComunidad)" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+          <circle cx="120" cy="150" r="26" fill="#111218" stroke="url(#gComunidad)" stroke-width="2.4"/>
+          <circle cx="120" cy="142" r="9.5" fill="url(#gComunidad)"/>
+          <path d="M104 164 Q120 150 136 164" stroke="url(#gComunidad)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        </svg>
+
+      </div>
+
+      <div class="px-5 pb-5">
+        <h3 class="text-sm font-bold text-white group-hover:text-primary-400 transition-colors">{{ oferta.titulo }}</h3>
+        <p class="text-xs text-white/50 mt-1 leading-relaxed">{{ oferta.descripcion }}</p>
+      </div>
+    </a>
+  </ng-container>
+
+  <div class="flex items-center gap-2 mt-4">
+    <button
+      *ngFor="let oferta of ofertas; let i = index"
+      (click)="irA(i)"
+      [class]="'h-1.5 rounded-full transition-all duration-300 ' + (activeIndex() === i ? 'w-6 bg-primary-400' : 'w-1.5 bg-white/15')"
+      [attr.aria-label]="'Ver ' + oferta.titulo"
+    ></button>
+  </div>
+
+</div>

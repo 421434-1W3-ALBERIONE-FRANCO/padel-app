@@ -12,6 +12,10 @@ import { ProductosAdminComponent } from './features/admin/productos/productos-ad
 import { CargaConsumosComponent } from './features/recepcion/carga-consumos/carga-consumos.component';
 import { CierreCuentaComponent } from './features/recepcion/cierre-cuenta/cierre-cuenta.component';
 import { ExperienceComponent } from './features/experience/experience.component';
+import { ListaTorneosComponent } from './features/torneos/lista-torneos/lista-torneos.component';
+import { TorneoDetalleComponent } from './features/torneos/torneo-detalle/torneo-detalle.component';
+import { RankingJugadoresComponent } from './features/ranking/ranking-jugadores/ranking-jugadores.component';
+import { TablonSolicitudesComponent } from './features/solicitudes/tablon-solicitudes/tablon-solicitudes.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -84,12 +88,32 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
+    path: 'torneos',
+    component: ListaTorneosComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'torneos/:id',
+    component: TorneoDetalleComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'ranking',
+    component: RankingJugadoresComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'solicitudes-partido',
+    component: TablonSolicitudesComponent,
+    canActivate: [authGuard]
+  },
+  {
     path: '',
-    redirectTo: 'dashboard',
+    redirectTo: 'experience',
     pathMatch: 'full'
   },
   {
     path: '**',
-    redirectTo: 'dashboard'
+    redirectTo: 'experience'
   }
 ];

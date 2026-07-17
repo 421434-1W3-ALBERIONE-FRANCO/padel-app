@@ -1,5 +1,70 @@
 <div class="min-h-screen relative overflow-hidden bg-dark-950 flex items-center justify-center p-6">
+  <!-- Cancha 3D (Three.js) de fondo -->
   <app-scene-3d class="absolute inset-0"></app-scene-3d>
+
+  <!-- Pelotas de pádel (SVG + CSS keyframes) SOLO en los bordes/esquinas: rellenan
+       el espacio negro que la cancha 3D deja libre alrededor, sin taparla. -->
+  <svg class="absolute inset-0 w-full h-full" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <style>
+      @keyframes ball-float {
+        0%, 100% { transform: translateY(0) rotate(0deg); }
+        50% { transform: translateY(-26px) rotate(8deg); }
+      }
+      .ball { animation: ball-float 10s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+      .ball-1 { animation-duration: 9s; animation-delay: -1s; }
+      .ball-2 { animation-duration: 12s; animation-delay: -4s; }
+      .ball-3 { animation-duration: 8s; animation-delay: -2.5s; }
+      .ball-4 { animation-duration: 13s; animation-delay: -6s; }
+      .ball-5 { animation-duration: 10.5s; animation-delay: -3s; }
+      .ball-6 { animation-duration: 11s; animation-delay: -7s; }
+      .ball-7 { animation-duration: 9.5s; animation-delay: -5s; }
+      .ball-8 { animation-duration: 10s; animation-delay: -8s; }
+      .ball-blur { filter: blur(1.5px); }
+      .seam { stroke: rgba(255,255,255,0.45); fill: none; stroke-linecap: round; }
+    </style>
+    <defs>
+      <radialGradient id="ballGradient" cx="35%" cy="30%" r="75%">
+        <stop offset="0%" stop-color="#c3f278" />
+        <stop offset="55%" stop-color="#52c41a" />
+        <stop offset="100%" stop-color="#1f6b0d" />
+      </radialGradient>
+    </defs>
+
+    <!-- Solo cerca de bordes/esquinas (zona central libre para la cancha 3D y la tarjeta) -->
+    <g class="ball ball-1 ball-blur" style="opacity: 0.55">
+      <circle cx="65" cy="85" r="24" fill="url(#ballGradient)" />
+      <path class="seam" d="M 46 72 Q 65 87 49 104" stroke-width="2" />
+    </g>
+    <g class="ball ball-2" style="opacity: 0.75">
+      <circle cx="565" cy="70" r="36" fill="url(#ballGradient)" />
+      <path class="seam" d="M 540 50 Q 565 72 542 96" stroke-width="2.5" />
+    </g>
+    <g class="ball ball-3 ball-blur" style="opacity: 0.45">
+      <circle cx="28" cy="320" r="20" fill="url(#ballGradient)" />
+      <path class="seam" d="M 15 309 Q 28 321 17 334" stroke-width="1.6" />
+    </g>
+    <g class="ball ball-4" style="opacity: 0.6">
+      <circle cx="612" cy="330" r="30" fill="url(#ballGradient)" />
+      <path class="seam" d="M 590 313 Q 612 332 592 351" stroke-width="2.2" />
+    </g>
+    <g class="ball ball-5" style="opacity: 0.7">
+      <circle cx="78" cy="560" r="26" fill="url(#ballGradient)" />
+      <path class="seam" d="M 56 543 Q 78 562 58 582" stroke-width="2" />
+    </g>
+    <g class="ball ball-6 ball-blur" style="opacity: 0.5">
+      <circle cx="580" cy="590" r="34" fill="url(#ballGradient)" />
+      <path class="seam" d="M 554 570 Q 580 592 556 613" stroke-width="2.4" />
+    </g>
+    <g class="ball ball-7" style="opacity: 0.4">
+      <circle cx="320" cy="35" r="16" fill="url(#ballGradient)" />
+      <path class="seam" d="M 309 27 Q 320 36 311 47" stroke-width="1.4" />
+    </g>
+    <g class="ball ball-8" style="opacity: 0.5">
+      <circle cx="325" cy="615" r="18" fill="url(#ballGradient)" />
+      <path class="seam" d="M 313 606 Q 325 616 315 628" stroke-width="1.5" />
+    </g>
+  </svg>
+
   <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]"></div>
   <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(10,10,14,0.08),rgba(10,10,14,0.78)_72%)]"></div>
 

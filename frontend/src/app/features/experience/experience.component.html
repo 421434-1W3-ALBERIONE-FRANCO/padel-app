@@ -13,16 +13,23 @@
     <p class="mt-4 text-xs font-semibold tracking-[0.4em] uppercase text-white/40">Cargando experiencia</p>
   </div>
 
+  <!-- Overlay de transición de salida: fade corto antes de navegar a otra ruta -->
+  <div #transitionEl class="fixed inset-0 z-50 bg-[#06060a] opacity-0 pointer-events-none"></div>
+
   <!-- Canvas 3D fijo: siempre ocupa el viewport completo, el contenido scrollea por encima -->
   <div #canvasHost class="fixed inset-0 -z-10">
     <app-paddle-scene class="w-full h-full"></app-paddle-scene>
   </div>
 
-  <!-- Nav mínima -->
+  <!-- Nav mínima: el botón de ingresar vive acá para no depender del scroll -->
   <header class="fixed top-0 inset-x-0 z-20 flex items-center justify-between px-6 sm:px-10 py-6">
     <span class="text-sm font-semibold tracking-[0.3em] uppercase text-white/70">PadelApp</span>
-    <a routerLink="/auth/login" class="text-xs font-semibold tracking-widest uppercase text-white/60 hover:text-primary-400 transition-colors">
-      Volver
+    <a
+      href="/auth/login"
+      (click)="navigateAway('/auth/login', $event)"
+      class="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-slate-950 font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-colors"
+    >
+      Ingresar
     </a>
   </header>
 
@@ -31,7 +38,7 @@
     <!-- Sección 1: Hero -->
     <section class="min-h-screen flex flex-col justify-center px-6 sm:px-10 lg:px-24">
       <p class="hero-reveal text-xs sm:text-sm font-semibold tracking-[0.4em] uppercase text-primary-400 mb-4">Ingeniería de precisión</p>
-      <h1 class="hero-reveal text-5xl sm:text-7xl lg:text-8xl font-black leading-[0.95] max-w-3xl">
+      <h1 class="hero-reveal skew-text text-5xl sm:text-7xl lg:text-8xl font-black leading-[0.95] max-w-3xl">
         La paleta que<br />define tu juego.
       </h1>
       <p class="hero-reveal mt-6 max-w-md text-white/60 text-sm sm:text-base">
@@ -42,7 +49,7 @@
     <!-- Sección 2: Feature -->
     <section class="min-h-screen flex flex-col justify-center items-end text-right px-6 sm:px-10 lg:px-24">
       <p class="text-xs sm:text-sm font-semibold tracking-[0.4em] uppercase text-primary-400 mb-4">Núcleo de carbono</p>
-      <h2 class="text-4xl sm:text-6xl font-black leading-tight max-w-lg">
+      <h2 class="skew-text text-4xl sm:text-6xl font-black leading-tight max-w-lg">
         Rigidez y control<br />en cada golpe.
       </h2>
       <p class="mt-6 max-w-sm text-white/60 text-sm sm:text-base">
@@ -53,7 +60,7 @@
     <!-- Sección 3: Feature -->
     <section class="min-h-screen flex flex-col justify-center px-6 sm:px-10 lg:px-24">
       <p class="text-xs sm:text-sm font-semibold tracking-[0.4em] uppercase text-primary-400 mb-4">Grip premium</p>
-      <h2 class="text-4xl sm:text-6xl font-black leading-tight max-w-lg">
+      <h2 class="skew-text text-4xl sm:text-6xl font-black leading-tight max-w-lg">
         Agarre que no<br />te suelta.
       </h2>
       <p class="mt-6 max-w-sm text-white/60 text-sm sm:text-base">
@@ -61,36 +68,27 @@
       </p>
     </section>
 
-    <!-- Sección 4: Catálogo con distorsión líquida (shader GLSL, Bloque 2) -->
+    <!-- Sección 4: Catálogo — vitrina de ofertas del ecosistema, un producto a la
+         vez (como un e-commerce), ocupando solo la columna que la paleta 3D deja
+         libre en vez de superponerse a ella. -->
     <section class="min-h-screen flex flex-col justify-center px-6 sm:px-10 lg:px-24">
       <p class="text-xs sm:text-sm font-semibold tracking-[0.4em] uppercase text-primary-400 mb-4">Todo en un solo lugar</p>
-      <h2 class="text-4xl sm:text-6xl font-black leading-tight max-w-lg mb-10">
+      <h2 class="skew-text text-4xl sm:text-6xl font-black leading-tight max-w-lg mb-10">
         Explorá el ecosistema<br />PadelApp.
       </h2>
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 max-w-3xl">
-        <div class="aspect-square rounded-2xl overflow-hidden border border-white/10">
-          <app-liquid-image title="RESERVAS" glyph="📅" colorFrom="#52c41a" colorTo="#06b6d4"></app-liquid-image>
-        </div>
-        <div class="aspect-square rounded-2xl overflow-hidden border border-white/10">
-          <app-liquid-image title="TORNEOS" glyph="🏆" colorFrom="#06b6d4" colorTo="#52c41a"></app-liquid-image>
-        </div>
-        <div class="aspect-square rounded-2xl overflow-hidden border border-white/10">
-          <app-liquid-image title="RANKING" glyph="📊" colorFrom="#52c41a" colorTo="#06b6d4"></app-liquid-image>
-        </div>
-        <div class="aspect-square rounded-2xl overflow-hidden border border-white/10">
-          <app-liquid-image title="COMUNIDAD" glyph="👥" colorFrom="#06b6d4" colorTo="#52c41a"></app-liquid-image>
-        </div>
+      <div class="eco-reveal">
+        <app-ecosystem-carousel (navigateTo)="onEcosystemNavigate($event)"></app-ecosystem-carousel>
       </div>
-      <p class="mt-6 max-w-sm text-white/60 text-sm sm:text-base">Pasá el mouse por cada tarjeta.</p>
     </section>
 
     <!-- Sección 5: CTA -->
     <section class="min-h-screen flex flex-col justify-center items-center text-center px-6 sm:px-10">
-      <h2 class="text-4xl sm:text-6xl font-black leading-tight max-w-2xl">
+      <h2 class="skew-text text-4xl sm:text-6xl font-black leading-tight max-w-2xl">
         Reservá tu cancha<br />y llevala a la práctica.
       </h2>
       <a
-        routerLink="/auth/login"
+        href="/auth/login"
+        (click)="navigateAway('/auth/login', $event)"
         class="mt-10 inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-slate-950 font-bold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors"
       >
         Ir a reservar

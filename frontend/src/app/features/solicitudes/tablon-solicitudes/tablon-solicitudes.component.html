@@ -1,0 +1,200 @@
+<div class="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
+
+  <div class="max-w-5xl mx-auto mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div>
+      <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
+        Buscar Pareja / Jugadores
+      </h1>
+      <p class="text-slate-400 text-sm mt-1">Encontrá compañero para un torneo o completá tu cancha con desconocidos.</p>
+    </div>
+
+    <button (click)="toggleFormulario()"
+      class="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 px-5 py-2.5 rounded-xl text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/10 transition duration-150 flex items-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+      {{ mostrarFormulario() ? 'Cerrar' : 'Publicar Solicitud' }}
+    </button>
+  </div>
+
+  <div class="max-w-5xl mx-auto mb-6" *ngIf="error()">
+    <div class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl">{{ error() }}</div>
+  </div>
+
+  <div class="max-w-5xl mx-auto mb-6" *ngIf="mensajeExito()">
+    <div class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl">{{ mensajeExito() }}</div>
+  </div>
+
+  <!-- Formulario de creación -->
+  <div *ngIf="mostrarFormulario()" class="max-w-5xl mx-auto mb-8 bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6">
+    <h2 class="text-lg font-bold text-slate-100 mb-4">Nueva Solicitud</h2>
+    <form [formGroup]="solicitudForm" (ngSubmit)="crearSolicitud()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">¿Qué buscás?</label>
+        <select formControlName="tipoSolicitud" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+          <option value="BUSCA_PAREJA">Busco pareja para un torneo</option>
+          <option value="BUSCA_JUGADORES">Me falta gente para completar la cancha</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Categoría</label>
+        <select formControlName="categoria" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+          <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Jugadores que faltan</label>
+        <input formControlName="cantidadJugadoresFaltantes" type="number" min="1" max="3"
+          [class.border-red-500]="invalido('cantidadJugadoresFaltantes')"
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+        <p *ngIf="invalido('cantidadJugadoresFaltantes')" class="text-[11px] text-red-400 mt-1">Debe ser entre 1 y 3.</p>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha y hora propuesta</label>
+        <input formControlName="fechaHoraPropuesta" type="datetime-local"
+          [class.border-red-500]="invalido('fechaHoraPropuesta')"
+          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+        <p *ngIf="invalido('fechaHoraPropuesta')" class="text-[11px] text-red-400 mt-1">Elegí una fecha y hora futura.</p>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Cancha (opcional)</label>
+        <select formControlName="canchaId" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+          <option value="">Sin especificar</option>
+          <option *ngFor="let c of canchas()" [value]="c.id">{{ c.nombre }}</option>
+        </select>
+      </div>
+      <div class="md:col-span-2">
+        <label class="block text-xs font-semibold text-slate-400 mb-1">Descripción</label>
+        <textarea formControlName="descripcion" rows="2" placeholder="Ej: Buscamos nivel intermedio, cancha techada..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
+      </div>
+      <div *ngIf="solicitudForm.invalid && (solicitudForm.dirty || solicitudForm.touched)" class="md:col-span-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+        Completá los campos obligatorios marcados en rojo antes de publicar.
+      </div>
+      <div class="md:col-span-2 flex justify-end">
+        <button type="submit" [disabled]="procesando()" class="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 px-6 py-2.5 rounded-xl text-slate-950 font-bold text-sm transition">
+          {{ procesando() ? 'Publicando...' : 'Publicar' }}
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Vistas -->
+  <div class="max-w-5xl mx-auto mb-6 flex flex-wrap gap-2">
+    <button (click)="cambiarVista('tablon')"
+      [class.bg-teal-500]="vista() === 'tablon'" [class.text-slate-950]="vista() === 'tablon'"
+      [class.bg-slate-900]="vista() !== 'tablon'" [class.text-slate-400]="vista() !== 'tablon'"
+      class="px-4 py-2 rounded-xl text-xs font-bold transition border border-slate-800">
+      Tablón
+    </button>
+    <button (click)="cambiarVista('mis-solicitudes')"
+      [class.bg-teal-500]="vista() === 'mis-solicitudes'" [class.text-slate-950]="vista() === 'mis-solicitudes'"
+      [class.bg-slate-900]="vista() !== 'mis-solicitudes'" [class.text-slate-400]="vista() !== 'mis-solicitudes'"
+      class="px-4 py-2 rounded-xl text-xs font-bold transition border border-slate-800">
+      Mis Solicitudes
+    </button>
+    <button (click)="cambiarVista('mis-postulaciones')"
+      [class.bg-teal-500]="vista() === 'mis-postulaciones'" [class.text-slate-950]="vista() === 'mis-postulaciones'"
+      [class.bg-slate-900]="vista() !== 'mis-postulaciones'" [class.text-slate-400]="vista() !== 'mis-postulaciones'"
+      class="px-4 py-2 rounded-xl text-xs font-bold transition border border-slate-800">
+      Mis Postulaciones
+    </button>
+  </div>
+
+  <!-- Filtros (solo tablón) -->
+  <div *ngIf="vista() === 'tablon'" class="max-w-5xl mx-auto mb-6 bg-slate-900/30 border border-slate-900 rounded-2xl p-4 flex flex-wrap items-end gap-3" [formGroup]="filtroForm">
+    <div>
+      <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Tipo</label>
+      <select formControlName="tipoSolicitud" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+        <option value="">Todos</option>
+        <option value="BUSCA_PAREJA">Busca pareja</option>
+        <option value="BUSCA_JUGADORES">Busca jugadores</option>
+      </select>
+    </div>
+    <div>
+      <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Categoría</label>
+      <select formControlName="categoria" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+        <option value="">Todas</option>
+        <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
+      </select>
+    </div>
+    <button (click)="aplicarFiltros()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Filtrar</button>
+  </div>
+
+  <!-- Skeleton -->
+  <div *ngIf="cargando()" class="max-w-5xl mx-auto space-y-4 animate-pulse">
+    <div *ngFor="let i of [1,2,3]" class="h-24 bg-slate-900/30 border border-slate-900 rounded-2xl"></div>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="!cargando() && solicitudes().length === 0" class="max-w-5xl mx-auto bg-slate-900/10 border border-slate-900/50 rounded-3xl p-12 text-center">
+    <h3 class="text-base font-bold text-slate-400">No hay solicitudes para mostrar</h3>
+  </div>
+
+  <!-- Listado -->
+  <div *ngIf="!cargando() && solicitudes().length > 0" class="max-w-5xl mx-auto space-y-4">
+    <div *ngFor="let s of solicitudes()" class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-5">
+
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-extrabold text-slate-100">
+              {{ s.tipoSolicitud === 'BUSCA_PAREJA' ? 'Busca pareja' : 'Busca jugadores' }}
+            </span>
+            <span [class]="claseEstadoSolicitud(s.estado)" class="px-2 py-0.5 text-[10px] font-bold rounded-full uppercase">{{ s.estado }}</span>
+          </div>
+          <p class="text-xs text-slate-500 mt-1">Categoría {{ s.categoria }} · Faltan {{ s.cantidadJugadoresFaltantes }} jugador(es)</p>
+          <p class="text-xs text-slate-500">{{ s.fechaHoraPropuesta | date:'dd/MM/yyyy HH:mm' }} <span *ngIf="s.canchaNombre">· {{ s.canchaNombre }}</span></p>
+          <p class="text-xs text-slate-400 mt-1">Publicado por {{ s.creadorNombre }}</p>
+          <p *ngIf="s.descripcion" class="text-sm text-slate-300 mt-2">{{ s.descripcion }}</p>
+        </div>
+
+        <div class="flex flex-col items-end gap-2">
+          <button *ngIf="esCreador(s) && s.estado === 'ABIERTA'" (click)="cancelarSolicitud(s.id)" class="text-red-400 hover:text-red-300 text-xs font-bold transition">
+            Cancelar
+          </button>
+          <button (click)="toggleExpandido(s.id)" class="text-teal-400 hover:text-teal-300 text-xs font-bold transition">
+            {{ expandidoId() === s.id ? 'Ocultar' : 'Ver postulaciones (' + s.postulaciones.length + ')' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- Postularse -->
+      <div *ngIf="!esCreador(s) && s.estado === 'ABIERTA' && !yaMePostule(s)" class="mt-4 border-t border-slate-950 pt-4 flex flex-col sm:flex-row gap-3">
+        <input [(ngModel)]="postulacionMensaje[s.id]" type="text" placeholder="Mensaje opcional (nivel, disponibilidad...)"
+          class="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+        <button (click)="postularse(s.id)" [disabled]="procesando()" class="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 px-5 py-2 rounded-xl text-slate-950 font-bold text-xs transition whitespace-nowrap">
+          Postularme
+        </button>
+      </div>
+      <p *ngIf="!esCreador(s) && yaMePostule(s)" class="mt-4 border-t border-slate-950 pt-4 text-xs text-teal-400 font-semibold">
+        Ya te postulaste a esta solicitud.
+      </p>
+
+      <!-- Postulaciones (visible al expandir) -->
+      <div *ngIf="expandidoId() === s.id" class="mt-4 border-t border-slate-950 pt-4 space-y-3">
+        <div *ngIf="s.postulaciones.length === 0" class="text-xs text-slate-500">Todavía no hay postulaciones.</div>
+        <div *ngFor="let p of s.postulaciones" class="flex items-center justify-between gap-3 bg-slate-950/50 rounded-xl p-3">
+          <div>
+            <p class="text-sm font-semibold text-slate-200">{{ p.jugadorNombre }}</p>
+            <p class="text-xs text-slate-500">{{ p.mensaje || 'Sin mensaje' }}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <span [class]="'text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ' + clasePostulacion(p.estado)">
+              {{ p.estado }}
+            </span>
+            <ng-container *ngIf="esCreador(s) && p.estado === 'PENDIENTE' && s.estado === 'ABIERTA'">
+              <button (click)="aceptarPostulacion(s.id, p.id)" class="text-emerald-400 hover:text-emerald-300 text-xs font-bold transition">Aceptar</button>
+              <button (click)="rechazarPostulacion(s.id, p.id)" class="text-red-400 hover:text-red-300 text-xs font-bold transition">Rechazar</button>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-5xl mx-auto mt-8">
+    <a routerLink="/dashboard" class="text-slate-400 hover:text-slate-200 text-sm font-semibold flex items-center gap-1.5 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver al Panel de Control
+    </a>
+  </div>
+
+</div>

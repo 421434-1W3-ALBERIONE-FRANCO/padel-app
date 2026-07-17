@@ -106,12 +106,27 @@
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">
           Mis Reservas
         </a>
-        <a 
+        <a
           routerLink="/bonos/mis-bonos"
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">
           Mis Bonos
         </a>
-        <a 
+        <a
+          routerLink="/torneos"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Torneos y Ligas
+        </a>
+        <a
+          routerLink="/ranking"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Ranking de Jugadores
+        </a>
+        <a
+          routerLink="/solicitudes-partido"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Buscar Pareja / Jugadores
+        </a>
+        <a
           *ngIf="currentUser()?.rol === 'ADMIN'"
           routerLink="/admin/canchas"
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">

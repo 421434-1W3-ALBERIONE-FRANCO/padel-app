@@ -1,0 +1,185 @@
+<div class="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
+
+  <div class="max-w-5xl mx-auto mb-6" *ngIf="error()">
+    <div class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl">{{ error() }}</div>
+  </div>
+
+  <div class="max-w-5xl mx-auto mb-6" *ngIf="mensajeExito()">
+    <div class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl">{{ mensajeExito() }}</div>
+  </div>
+
+  <!-- Skeleton -->
+  <div *ngIf="cargando()" class="max-w-5xl mx-auto space-y-4 animate-pulse">
+    <div class="h-8 bg-slate-800 rounded-md w-1/2"></div>
+    <div class="h-40 bg-slate-900/40 rounded-2xl"></div>
+  </div>
+
+  <div *ngIf="!cargando() && torneo() as t" class="max-w-5xl mx-auto space-y-6">
+
+    <!-- Encabezado -->
+    <div class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-3xl p-6 sm:p-8">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-100">{{ t.nombre }}</h1>
+          <p class="text-sm text-slate-400 mt-1">{{ t.tipo }} · {{ t.formato }} · Categoría {{ t.categoria }}</p>
+        </div>
+        <div class="flex gap-2">
+          <span class="px-3 py-1 text-xs font-bold rounded-full uppercase bg-teal-500/10 text-teal-400 border border-teal-500/20">{{ t.estado }}</span>
+          <button *ngIf="esAdmin() && t.estado !== 'FINALIZADO' && t.estado !== 'CANCELADO'"
+            (click)="cancelarTorneo()"
+            class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1 rounded-full text-xs font-bold transition">
+            Cancelar Torneo
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 text-xs">
+        <div class="bg-slate-950/50 border border-slate-950 rounded-xl p-3">
+          <span class="text-[10px] text-slate-500 uppercase font-semibold block">Parejas</span>
+          <span class="text-sm font-bold text-slate-200">{{ t.parejasInscriptas }} / {{ t.maxParejas }}</span>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-950 rounded-xl p-3">
+          <span class="text-[10px] text-slate-500 uppercase font-semibold block">Precio</span>
+          <span class="text-sm font-bold text-teal-400">${{ t.precioInscripcion | number:'1.2-2' }}</span>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-950 rounded-xl p-3 col-span-2 sm:col-span-1">
+          <span class="text-[10px] text-slate-500 uppercase font-semibold block">Inicio</span>
+          <span class="text-sm font-bold text-slate-200">{{ t.fechaInicio | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div class="bg-slate-950/50 border border-slate-950 rounded-xl p-3 col-span-2 sm:col-span-1">
+          <span class="text-[10px] text-slate-500 uppercase font-semibold block">Fin</span>
+          <span class="text-sm font-bold text-slate-200">{{ t.fechaFin | date:'dd/MM/yyyy' }}</span>
+        </div>
+      </div>
+
+      <p *ngIf="t.descripcion" class="text-sm text-slate-400 mt-4 border-t border-slate-950 pt-4">{{ t.descripcion }}</p>
+
+      <!-- Acciones admin -->
+      <div *ngIf="esAdmin()" class="flex flex-wrap gap-3 mt-6 border-t border-slate-950 pt-4">
+        <button *ngIf="t.estado === 'INSCRIPCION_ABIERTA'" [disabled]="procesando()"
+          (click)="generarFixture()"
+          class="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 px-4 py-2 rounded-xl text-slate-950 font-bold text-xs transition">
+          Generar Fixture
+        </button>
+        <button *ngIf="t.estado === 'EN_CURSO' && t.formato === 'ELIMINACION_DIRECTA' && todosLosPartidosDeLaUltimaRondaFinalizados()" [disabled]="procesando()"
+          (click)="generarSiguienteRonda()"
+          class="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 px-4 py-2 rounded-xl text-slate-950 font-bold text-xs transition">
+          Generar Siguiente Ronda
+        </button>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 border-b border-slate-900">
+      <button (click)="setTab('inscripciones')"
+        [class.text-teal-400]="activeTab() === 'inscripciones'"
+        [class.border-teal-400]="activeTab() === 'inscripciones'"
+        class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 transition">
+        Inscripciones ({{ inscripciones().length }})
+      </button>
+      <button (click)="setTab('fixture')"
+        [class.text-teal-400]="activeTab() === 'fixture'"
+        [class.border-teal-400]="activeTab() === 'fixture'"
+        class="px-4 py-2 text-sm font-bold border-b-2 border-transparent text-slate-400 transition">
+        Fixture / Partidos ({{ partidos().length }})
+      </button>
+    </div>
+
+    <!-- Tab Inscripciones -->
+    <div *ngIf="activeTab() === 'inscripciones'" class="space-y-4">
+
+      <form *ngIf="t.estado === 'INSCRIPCION_ABIERTA'" [formGroup]="inscripcionForm" (ngSubmit)="inscribirPareja()"
+        class="bg-slate-900/30 border border-slate-900 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 sm:items-end">
+        <div class="flex-1">
+          <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Email de tu compañero/a</label>
+          <input formControlName="companeroEmail" type="email" placeholder="companero@email.com"
+            [class.border-red-500]="invalidoInscripcion('companeroEmail')"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+          <p *ngIf="invalidoInscripcion('companeroEmail')" class="text-[11px] text-red-400 mt-1">Ingresá un email válido.</p>
+        </div>
+        <button type="submit" [disabled]="procesando()" class="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 px-5 py-2.5 rounded-xl text-slate-950 font-bold text-xs transition">
+          Inscribir Pareja
+        </button>
+      </form>
+
+      <div *ngIf="inscripciones().length === 0" class="bg-slate-900/10 border border-slate-900/50 rounded-3xl p-8 text-center text-sm text-slate-500">
+        Todavía no hay parejas inscriptas.
+      </div>
+
+      <div *ngFor="let i of inscripciones()" class="bg-slate-900/40 border border-slate-900 rounded-2xl p-4 flex items-center justify-between gap-4">
+        <div>
+          <p class="text-sm font-bold text-slate-200">{{ i.jugador1Nombre }} / {{ i.jugador2Nombre }}</p>
+          <p class="text-xs text-slate-500">{{ i.estado }}</p>
+        </div>
+        <button *ngIf="(esMiInscripcion(i) || esAdmin()) && i.estado === 'CONFIRMADA' && t.estado === 'INSCRIPCION_ABIERTA'"
+          (click)="cancelarInscripcion(i.id)"
+          class="text-red-400 hover:text-red-300 text-xs font-bold transition">
+          Cancelar
+        </button>
+      </div>
+    </div>
+
+    <!-- Tab Fixture -->
+    <div *ngIf="activeTab() === 'fixture'" class="space-y-4">
+      <div *ngIf="partidos().length === 0" class="bg-slate-900/10 border border-slate-900/50 rounded-3xl p-8 text-center text-sm text-slate-500">
+        El fixture todavía no fue generado.
+      </div>
+
+      <div *ngFor="let p of partidos()" class="bg-slate-900/40 border border-slate-900 rounded-2xl p-4">
+        <div class="flex items-center justify-between gap-3">
+          <span class="text-[10px] uppercase font-bold text-slate-500">{{ p.ronda }}</span>
+          <span [class]="'px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ' + claseEstadoPartido(p.estado)">
+            {{ p.estado }}
+          </span>
+        </div>
+
+        <div class="flex items-center justify-between mt-3 text-sm">
+          <span class="font-semibold text-slate-200" [class.text-teal-400]="p.ganadorInscripcionId === p.inscripcion1Id">
+            {{ p.inscripcion1Nombres || '—' }}
+          </span>
+          <span class="text-slate-500 font-bold text-xs" *ngIf="p.estado === 'FINALIZADO'">{{ p.setsPareja1 }} - {{ p.setsPareja2 }}</span>
+          <span class="font-semibold text-slate-200" [class.text-teal-400]="p.ganadorInscripcionId === p.inscripcion2Id">
+            {{ p.inscripcion2Nombres || 'BYE' }}
+          </span>
+        </div>
+
+        <div *ngIf="esAdminORecepcion() && p.estado === 'PENDIENTE' && p.inscripcion2Id" class="mt-4 border-t border-slate-950 pt-4">
+          <div *ngIf="editandoResultadoId() !== p.id">
+            <button (click)="editarResultado(p)" class="text-xs font-bold text-teal-400 hover:text-teal-300 transition">
+              Cargar Resultado
+            </button>
+          </div>
+          <form *ngIf="editandoResultadoId() === p.id" [formGroup]="resultadoForm" (ngSubmit)="guardarResultado(p.id)" class="flex items-end gap-3">
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Sets Pareja 1</label>
+              <input formControlName="setsPareja1" type="number" min="0"
+                [class.border-red-500]="invalidoResultado('setsPareja1')"
+                class="w-20 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Sets Pareja 2</label>
+              <input formControlName="setsPareja2" type="number" min="0"
+                [class.border-red-500]="invalidoResultado('setsPareja2')"
+                class="w-20 bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+            </div>
+            <button type="submit" [disabled]="procesando()" class="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 px-4 py-2 rounded-xl text-slate-950 font-bold text-xs transition">
+              Guardar
+            </button>
+            <button type="button" (click)="cancelarEdicionResultado()" class="text-slate-400 hover:text-slate-200 text-xs font-bold transition">
+              Cancelar
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="max-w-5xl mx-auto mt-8">
+    <a routerLink="/torneos" class="text-slate-400 hover:text-slate-200 text-sm font-semibold flex items-center gap-1.5 transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver a Torneos
+    </a>
+  </div>
+
+</div>
