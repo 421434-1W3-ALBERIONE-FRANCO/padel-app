@@ -446,8 +446,10 @@ RESEND_FROM=noreply@tudominio.com
 | Fase 3 — Reservas y WhatsApp | ✅ Completo | Locks Redis, Twilio WhatsApp, Scheduler, Modal, Historial y Cancelación |
 | Fase 4 — Pagos y Bonos | ✅ Completo | Integración de seña con MercadoPago y sistema de bonos prepagos |
 | Fase 5 — Tienda y Consumos | ✅ Completo | Consumos a turnos y reportes POS |
-| Fase 6 — Deploy y Dashboard | ⏳ Pendiente | Postgres físico, Docker y despliegue |
+| Fase 6 — Deploy y Dashboard | 🚧 En progreso | ✅ Postgres físico + Docker (compose full-stack). ⏳ Falta CI/CD, despliegue y dashboard con gráficos |
+
+**Adicional (fuera de fases originales):** gestión de staff (turnos, banco de horas, comisiones, liquidaciones), notificaciones in-app + email, recuperación/cambio de password y configuración parametrizable del sistema.
 
 ---
 
-*Última actualización: 23/06/2026*
+*Última actualización: 24/07/2026*
