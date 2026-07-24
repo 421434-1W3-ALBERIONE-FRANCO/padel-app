@@ -1,20 +1,34 @@
+# Perfil de produccion. TODOS los valores sensibles se inyectan por variable de
+# entorno; no hay defaults locales. Pensado para correr en contenedor (docker-compose
+# o plataforma de deploy) contra Postgres y Redis externos.
 spring:
   datasource:
     url: ${DB_URL}
+    driver-class-name: org.postgresql.Driver
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
-  h2:
-    console:
-      enabled: false
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate # Flyway obligatorio en producción
+      ddl-auto: validate # Flyway es la unica fuente del esquema
     show-sql: false
+    open-in-view: false
   flyway:
     enabled: true
+    baseline-on-migrate: false
+    out-of-order: false
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+
+server:
+  port: ${SERVER_PORT:8080}
+  forward-headers-strategy: framework # respeta X-Forwarded-* detras de un proxy/nginx
 
 logging:
   level:
+    root: INFO
     org.springframework.security: WARN
-    org.springframework.web: INFO
-    org.hibernate.SQL: ERROR
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
