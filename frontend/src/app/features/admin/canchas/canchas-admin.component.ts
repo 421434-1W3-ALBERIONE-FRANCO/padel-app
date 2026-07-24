@@ -6,6 +6,7 @@ import { CanchaAdminService } from '../../../core/services/cancha-admin.service'
 import { CanchaResponse, TipoSuelo } from '../../../shared/models/cancha.model';
 import { FranjaHorariaResponse } from '../../../shared/models/franja.model';
 import { BloqueoCanchaResponse } from '../../../shared/models/bloqueo.model';
+import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-canchas-admin',
@@ -45,6 +46,11 @@ export class CanchasAdminComponent implements OnInit {
   showFranjaForm = signal<boolean>(false);
   showBloqueoForm = signal<boolean>(false);
 
+  // El bloqueo nunca puede arrancar antes de hoy (el día en que se crea) y el año
+  // no puede irse de un rango razonable (evita typos como "20260" en vez de "2026").
+  fechaMin = todayIsoDate();
+  fechaMax = maxIsoDate();
+
   diasSemana = [
     { value: 'MONDAY', label: 'Lunes' },
     { value: 'TUESDAY', label: 'Martes' },
@@ -77,8 +83,8 @@ export class CanchasAdminComponent implements OnInit {
     });
 
     this.bloqueoForm = this.fb.group({
-      fechaDesde: ['', Validators.required],
-      fechaHasta: ['', Validators.required],
+      fechaDesde: [this.fechaMin, [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
+      fechaHasta: ['', [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
       horaDesde: ['00:00', Validators.required],
       horaHasta: ['23:59', Validators.required],
       motivo: ['', [Validators.required, Validators.maxLength(255)]]
@@ -287,7 +293,12 @@ export class CanchasAdminComponent implements OnInit {
 
   // CRUD Bloqueos
   guardarBloqueo() {
-    if (this.bloqueoForm.invalid || !this.canchaSeleccionada()) {
+    if (!this.canchaSeleccionada()) {
+      return;
+    }
+    if (this.bloqueoForm.invalid) {
+      this.bloqueoForm.markAllAsTouched();
+      this.mostrarError('Completá los campos obligatorios marcados en rojo antes de guardar.');
       return;
     }
 
@@ -342,7 +353,12 @@ export class CanchasAdminComponent implements OnInit {
   cancelarEdicionBloqueo() {
     this.showBloqueoForm.set(false);
     this.editBloqueoId.set(null);
-    this.bloqueoForm.reset({ horaDesde: '00:00', horaHasta: '23:59' });
+    this.bloqueoForm.reset({ fechaDesde: this.fechaMin, horaDesde: '00:00', horaHasta: '23:59' });
+  }
+
+  invalidoBloqueo(campo: string): boolean {
+    const control = this.bloqueoForm.get(campo);
+    return !!control && control.invalid && (control.touched || control.dirty);
   }
 
   // Helpers para manejo de checkboxes de Días Aplicables

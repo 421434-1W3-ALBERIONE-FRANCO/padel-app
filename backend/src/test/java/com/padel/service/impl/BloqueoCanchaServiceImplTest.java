@@ -11,11 +11,13 @@ import com.padel.exception.SolapamientoBloqueoException;
 import com.padel.mapper.BloqueoCanchaMapper;
 import com.padel.repository.BloqueoCanchaRepository;
 import com.padel.repository.CanchaRepository;
+import com.padel.util.FechaHoraUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
@@ -44,6 +46,9 @@ class BloqueoCanchaServiceImplTest {
 
     @Mock
     private SimpMessagingTemplate messagingTemplate;
+
+    @Spy
+    private FechaHoraUtil fechaHoraUtil = new FechaHoraUtil();
 
     @InjectMocks
     private BloqueoCanchaServiceImpl bloqueoCanchaService;

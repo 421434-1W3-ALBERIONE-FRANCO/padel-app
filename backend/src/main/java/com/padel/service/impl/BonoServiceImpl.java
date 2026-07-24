@@ -6,6 +6,7 @@ import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.MetodoPago;
 import com.padel.domain.enums.RolUsuario;
+import com.padel.domain.enums.TipoNotificacion;
 import com.padel.dto.request.CrearBonoRequest;
 import com.padel.dto.response.BonoResponse;
 import com.padel.dto.response.PagoResponse;
@@ -16,7 +17,11 @@ import com.padel.mapper.BonoMapper;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.*;
 import com.padel.service.BonoService;
+import com.padel.service.ComisionService;
+import com.padel.service.ConfiguracionSistemaService;
+import com.padel.service.NotificacionInAppService;
 import com.padel.service.ReservaService;
+import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,13 +45,21 @@ public class BonoServiceImpl implements BonoService {
     private final ReservaService reservaService;
     private final BonoMapper bonoMapper;
     private final PagoMapper pagoMapper;
+    private final FechaHoraUtil fechaHoraUtil;
+    private final ConfiguracionSistemaService configuracionSistemaService;
+    private final NotificacionInAppService notificacionInAppService;
+    private final ComisionService comisionService;
 
     @Override
-    public BonoResponse asignarBono(CrearBonoRequest request) {
-        log.info("Asignando bono de tipo {} al usuario {}", request.tipo(), request.usuarioEmail());
+    public BonoResponse asignarBono(CrearBonoRequest request, String staffEmail) {
+        log.info("Asignando bono de tipo {} al usuario {} (vendido por {})", request.tipo(), request.usuarioEmail(), staffEmail);
+        fechaHoraUtil.validarAnioRazonable(request.fechaVencimiento(), "la fecha de vencimiento");
 
         Usuario usuario = usuarioRepository.findByEmail(request.usuarioEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + request.usuarioEmail()));
+
+        Usuario staff = usuarioRepository.findByEmail(staffEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + staffEmail));
 
         LocalDate hoy = LocalDate.now();
         EstadoBono estado = request.fechaVencimiento().isBefore(hoy) ? EstadoBono.VENCIDO : EstadoBono.ACTIVO;
@@ -59,10 +72,16 @@ public class BonoServiceImpl implements BonoService {
                 .precioPagado(request.precioPagado())
                 .fechaVencimiento(request.fechaVencimiento())
                 .estado(estado)
+                .vendidoPor(staff)
                 .build();
 
         Bono saved = bonoRepository.save(bono);
         log.info("Bono ID {} asignado correctamente", saved.getId());
+
+        if (staff.getRol() == RolUsuario.RECEPCIONISTA && configuracionSistemaService.obtenerEntidad().isComisionesHabilitadas()) {
+            comisionService.registrarComisionBono(staff, saved);
+        }
+
         return bonoMapper.toResponse(saved);
     }
 
@@ -191,5 +210,31 @@ public class BonoServiceImpl implements BonoService {
             bonoRepository.save(b);
             log.info("Bono ID {} del usuario {} marcado como VENCIDO", b.getId(), b.getUsuario().getEmail());
         }
+    }
+
+    @Override
+    public void notificarVencimientosProximos() {
+        int diasAviso = configuracionSistemaService.obtenerEntidad().getDiasAvisoVencimientoBono();
+        LocalDate hoy = LocalDate.now();
+        LocalDate limite = hoy.plusDays(diasAviso);
+        log.info("Buscando bonos activos que vencen entre {} y {} sin aviso enviado", hoy, limite);
+
+        List<Bono> porVencer = bonoRepository.findByEstadoAndFechaVencimientoBetweenAndAvisoVencimientoEnviadoFalse(
+                EstadoBono.ACTIVO, hoy, limite);
+
+        for (Bono b : porVencer) {
+            int saldoDisponible = b.getHorasTotales() - b.getHorasUsadas();
+            notificacionInAppService.crear(
+                    b.getUsuario(),
+                    TipoNotificacion.VENCIMIENTO_BONO,
+                    "Tu bono está por vencer",
+                    String.format("Tu bono %s vence el %s. Te quedan %d horas disponibles por usar.",
+                            b.getTipo(), b.getFechaVencimiento(), saldoDisponible),
+                    b.getId()
+            );
+            b.setAvisoVencimientoEnviado(true);
+            bonoRepository.save(b);
+        }
+        log.info("Avisos de vencimiento de bono enviados: {}", porVencer.size());
     }
 }

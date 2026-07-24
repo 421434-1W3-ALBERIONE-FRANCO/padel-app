@@ -22,6 +22,7 @@
           <span class="w-1.5 h-1.5 rounded-full bg-accent-400 animate-pulse"></span>
           <span class="font-display">Bono: {{ saldoHoras() }} hs</span>
         </a>
+        <app-notification-bell></app-notification-bell>
         <div class="hidden sm:flex flex-col text-right">
           <span class="text-sm font-medium text-white">{{ currentUser()?.nombre }} {{ currentUser()?.apellido }}</span>
           <span class="text-[10px] text-slate-400 uppercase tracking-wider font-bold">{{ currentUser()?.rol }}</span>
@@ -127,16 +128,45 @@
           Buscar Pareja / Jugadores
         </a>
         <a
+          routerLink="/perfil/password"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Cambiar Contraseña
+        </a>
+        <a
           *ngIf="currentUser()?.rol === 'ADMIN'"
           routerLink="/admin/canchas"
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">
           Administrar Canchas
         </a>
-        <a 
+        <a
           *ngIf="currentUser()?.rol === 'ADMIN'"
           routerLink="/admin/productos"
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">
           Administrar Productos
+        </a>
+        <a
+          *ngIf="currentUser()?.rol === 'ADMIN'"
+          routerLink="/admin/configuracion"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Configuración del Sistema
+        </a>
+        <a
+          *ngIf="currentUser()?.rol === 'ADMIN'"
+          routerLink="/admin/comisiones"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Reporte de Comisiones
+        </a>
+        <a
+          *ngIf="currentUser()?.rol === 'ADMIN'"
+          routerLink="/admin/control-horario"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Control Horario y Liquidación
+        </a>
+        <a
+          *ngIf="currentUser()?.rol === 'ADMIN' || currentUser()?.rol === 'RECEPCIONISTA'"
+          routerLink="/bonos/comprar"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Vender Bono
         </a>
         <a 
           *ngIf="currentUser()?.rol === 'ADMIN' || currentUser()?.rol === 'RECEPCIONISTA'"

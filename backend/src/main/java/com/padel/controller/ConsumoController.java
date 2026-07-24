@@ -50,8 +50,9 @@ public class ConsumoController {
     @Operation(summary = "Cerrar la cuenta de consumos", description = "Registra el cobro de consumos pendientes y los marca como pagados. Genera el registro de pago respectivo. Accesible por administradores y recepcionistas.")
     public ResponseEntity<Void> cerrarCuenta(
             @PathVariable Long id,
-            @Valid @RequestBody CerrarCuentaRequest request) {
-        consumoService.cerrarCuenta(id, request);
+            @Valid @RequestBody CerrarCuentaRequest request,
+            Principal principal) {
+        consumoService.cerrarCuenta(id, request, principal.getName());
         return ResponseEntity.ok().build();
     }
 }

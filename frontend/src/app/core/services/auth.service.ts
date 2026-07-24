@@ -2,7 +2,7 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { Observable, tap } from 'rxjs';
-import { CrearUsuarioRequest, LoginRequest, LoginResponse, UsuarioResponse } from '../../shared/models/usuario.model';
+import { CrearUsuarioRequest, LoginRequest, LoginResponse, ResetearPasswordRequest, SolicitarRecuperacionRequest, UsuarioResponse } from '../../shared/models/usuario.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -40,7 +40,20 @@ export class AuthService {
     );
   }
 
+  solicitarRecuperacionPassword(request: SolicitarRecuperacionRequest): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/auth/recuperar-password`, request);
+  }
+
+  resetearPassword(request: ResetearPasswordRequest): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/auth/resetear-password`, request);
+  }
+
   logout(): void {
+    // Cierra la sesión de trabajo del staff en el backend (fire-and-forget: un error de red
+    // no debe impedir el cierre local). Cubre tanto el botón manual como el timeout de inactividad.
+    if (this.getToken()) {
+      this.http.post<void>(`${this.API_URL}/auth/logout`, {}).subscribe({ next: () => {}, error: () => {} });
+    }
     localStorage.removeItem(this.TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
     this.currentUserSignal.set(null);

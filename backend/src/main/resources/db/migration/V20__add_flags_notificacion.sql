@@ -1,0 +1,2 @@
+ALTER TABLE reservas ADD COLUMN recordatorio_enviado BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE bonos ADD COLUMN aviso_vencimiento_enviado BOOLEAN NOT NULL DEFAULT FALSE;

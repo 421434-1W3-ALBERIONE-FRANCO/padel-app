@@ -14,12 +14,16 @@ import com.padel.exception.ReservaNoModificableException;
 import com.padel.mapper.BonoMapper;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.*;
+import com.padel.service.ConfiguracionSistemaService;
+import com.padel.service.NotificacionInAppService;
 import com.padel.service.ReservaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import com.padel.util.FechaHoraUtil;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.math.BigDecimal;
@@ -53,6 +57,14 @@ class BonoServiceImplTest {
     private BonoMapper bonoMapper;
     @Mock
     private PagoMapper pagoMapper;
+    @Mock
+    private ConfiguracionSistemaService configuracionSistemaService;
+    @Mock
+    private NotificacionInAppService notificacionInAppService;
+    @Mock
+    private com.padel.service.ComisionService comisionService;
+    @Spy
+    private FechaHoraUtil fechaHoraUtil = new FechaHoraUtil();
 
     @InjectMocks
     private BonoServiceImpl bonoService;
@@ -118,17 +130,42 @@ class BonoServiceImplTest {
 
     @Test
     void asignarBono_HappyPath() {
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
         CrearBonoRequest request = new CrearBonoRequest("juan@example.com", "10HS", 10, new BigDecimal("8000.00"), LocalDate.now().plusDays(30));
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
         when(bonoRepository.save(any(Bono.class))).thenReturn(bonoMock1);
         BonoResponse responseDto = new BonoResponse(101L, 1L, "juan@example.com", "10HS", 10, 0, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), EstadoBono.ACTIVO, LocalDateTime.now(), LocalDateTime.now());
         when(bonoMapper.toResponse(bonoMock1)).thenReturn(responseDto);
 
-        BonoResponse result = bonoService.asignarBono(request);
+        BonoResponse result = bonoService.asignarBono(request, "admin@example.com");
 
         assertNotNull(result);
         assertEquals("10HS", result.tipo());
         verify(bonoRepository).save(any(Bono.class));
+        verify(notificacionInAppService, never()).crear(any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void asignarBono_ShouldRegisterCommission_WhenSoldByRecepcionistaWithCommissionsEnabled() {
+        Usuario recepcionistaMock = Usuario.builder().id(9L).email("recepcion@example.com").rol(RolUsuario.RECEPCIONISTA).build();
+        CrearBonoRequest request = new CrearBonoRequest("juan@example.com", "10HS", 10, new BigDecimal("8000.00"), LocalDate.now().plusDays(30));
+        com.padel.domain.entity.ConfiguracionSistema configuracionMock = com.padel.domain.entity.ConfiguracionSistema.builder()
+                .id(1L)
+                .comisionesHabilitadas(true)
+                .porcentajeComisionRecepcion(new BigDecimal("10.00"))
+                .build();
+
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcionistaMock));
+        when(bonoRepository.save(any(Bono.class))).thenReturn(bonoMock1);
+        when(configuracionSistemaService.obtenerEntidad()).thenReturn(configuracionMock);
+        BonoResponse responseDto = new BonoResponse(101L, 1L, "juan@example.com", "10HS", 10, 0, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), EstadoBono.ACTIVO, LocalDateTime.now(), LocalDateTime.now());
+        when(bonoMapper.toResponse(bonoMock1)).thenReturn(responseDto);
+
+        bonoService.asignarBono(request, "recepcion@example.com");
+
+        verify(comisionService).registrarComisionBono(recepcionistaMock, bonoMock1);
     }
 
     @Test
@@ -204,5 +241,42 @@ class BonoServiceImplTest {
 
         assertEquals(EstadoBono.VENCIDO, bonoMock1.getEstado());
         verify(bonoRepository).save(bonoMock1);
+    }
+
+    @Test
+    void notificarVencimientosProximos_ShouldCreateNotificationAndMarkFlag() {
+        com.padel.domain.entity.ConfiguracionSistema configuracionMock =
+                com.padel.domain.entity.ConfiguracionSistema.builder()
+                        .id(1L)
+                        .diasAvisoVencimientoBono(7)
+                        .build();
+        when(configuracionSistemaService.obtenerEntidad()).thenReturn(configuracionMock);
+        when(bonoRepository.findByEstadoAndFechaVencimientoBetweenAndAvisoVencimientoEnviadoFalse(
+                eq(EstadoBono.ACTIVO), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of(bonoMock1));
+
+        bonoService.notificarVencimientosProximos();
+
+        assertTrue(bonoMock1.isAvisoVencimientoEnviado());
+        verify(notificacionInAppService).crear(eq(usuarioMock), any(), any(), any(), eq(101L));
+        verify(bonoRepository).save(bonoMock1);
+    }
+
+    @Test
+    void notificarVencimientosProximos_ShouldDoNothing_WhenNoBonosFound() {
+        com.padel.domain.entity.ConfiguracionSistema configuracionMock =
+                com.padel.domain.entity.ConfiguracionSistema.builder()
+                        .id(1L)
+                        .diasAvisoVencimientoBono(7)
+                        .build();
+        when(configuracionSistemaService.obtenerEntidad()).thenReturn(configuracionMock);
+        when(bonoRepository.findByEstadoAndFechaVencimientoBetweenAndAvisoVencimientoEnviadoFalse(
+                eq(EstadoBono.ACTIVO), any(LocalDate.class), any(LocalDate.class)))
+                .thenReturn(List.of());
+
+        bonoService.notificarVencimientosProximos();
+
+        verify(notificacionInAppService, never()).crear(any(), any(), any(), any(), any());
+        verify(bonoRepository, never()).save(any());
     }
 }

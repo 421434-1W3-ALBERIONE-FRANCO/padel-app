@@ -1,5 +1,6 @@
 package com.padel.dto.request;
 
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import java.math.BigDecimal;
@@ -10,5 +11,7 @@ public record CrearBonoRequest(
     @NotBlank(message = "El tipo de bono es obligatorio") String tipo,
     @NotNull(message = "Las horas totales son obligatorias") Integer horasTotales,
     @NotNull(message = "El precio pagado es obligatorio") BigDecimal precioPagado,
-    @NotNull(message = "La fecha de vencimiento es obligatoria") LocalDate fechaVencimiento
+    @NotNull(message = "La fecha de vencimiento es obligatoria")
+    @Future(message = "La fecha de vencimiento debe ser posterior a hoy")
+    LocalDate fechaVencimiento
 ) {}

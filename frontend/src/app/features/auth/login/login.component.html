@@ -146,6 +146,11 @@
           <p *ngIf="isFieldInvalid('password')" class="mt-1.5 text-xs text-red-400">
             La contraseña debe tener al menos 6 caracteres.
           </p>
+          <div class="mt-2 text-right">
+            <a routerLink="/auth/recuperar-password" class="text-xs text-slate-400 hover:text-primary-300 hover:underline transition duration-150 cursor-pointer">
+              ¿Olvidaste tu contraseña?
+            </a>
+          </div>
         </div>
 
         <button type="submit" [disabled]="isLoading()" class="w-full btn-primary py-3.5">

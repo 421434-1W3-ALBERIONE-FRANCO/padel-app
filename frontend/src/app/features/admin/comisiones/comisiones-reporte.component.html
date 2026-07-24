@@ -1,0 +1,88 @@
+<div class="min-h-screen bg-dark-950 text-white relative overflow-hidden">
+  <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] rounded-full bg-primary-500/5 blur-[120px] pointer-events-none"></div>
+
+  <main class="max-w-3xl mx-auto px-4 py-12 relative z-10">
+    <ui-card class="p-6 sm:p-10">
+      <h1 class="text-2xl font-extrabold text-white font-display mb-1">Reporte de Comisiones</h1>
+      <p class="text-slate-400 text-sm mb-8">Comisiones generadas por el staff de recepción en un período.</p>
+
+      <div *ngIf="error()" class="mb-5 p-4 rounded-xl bg-red-950/50 border border-red-800/50 text-red-100 text-sm">
+        {{ error() }}
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Recepcionista</label>
+          <select
+            [(ngModel)]="recepcionistaId"
+            name="recepcionistaId"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-primary-500 transition text-xs cursor-pointer">
+            <option [ngValue]="null" disabled>Seleccionar...</option>
+            <option *ngFor="let r of recepcionistas()" [ngValue]="r.id">{{ r.nombre }} {{ r.apellido }} ({{ r.email }})</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Desde</label>
+          <input type="date" [(ngModel)]="desde" name="desde"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-primary-500 transition text-xs" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Hasta</label>
+          <input type="date" [(ngModel)]="hasta" name="hasta"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-primary-500 transition text-xs" />
+        </div>
+      </div>
+
+      <button (click)="generarReporte()" [disabled]="cargando()" class="btn-primary py-3 px-6 mb-8">
+        <span *ngIf="!cargando()">Generar Reporte</span>
+        <span *ngIf="cargando()">Generando...</span>
+      </button>
+
+      <div *ngIf="reporte() as rep">
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 mb-6 flex items-center justify-between">
+          <div>
+            <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total del período</span>
+            <span class="text-2xl font-black text-emerald-400 font-display">${{ rep.totalComisiones | number:'1.2-2' }}</span>
+          </div>
+          <span class="text-xs text-slate-400">{{ rep.detalle.length }} comisiones</span>
+        </div>
+
+        <div *ngIf="rep.detalle.length === 0" class="text-slate-400 text-sm text-center py-6">
+          No hay comisiones registradas en este período.
+        </div>
+
+        <table *ngIf="rep.detalle.length > 0" class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5">
+              <th class="pb-2">Fecha</th>
+              <th class="pb-2">Origen</th>
+              <th class="pb-2 text-right">Base</th>
+              <th class="pb-2 text-right">%</th>
+              <th class="pb-2 text-right">Comisión</th>
+              <th class="pb-2 text-right">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let c of rep.detalle" class="border-b border-white/5">
+              <td class="py-2 text-slate-300">{{ c.createdAt | date:'short' }}</td>
+              <td class="py-2 text-slate-300">{{ c.origen }}</td>
+              <td class="py-2 text-right text-slate-300">${{ c.montoBase | number:'1.2-2' }}</td>
+              <td class="py-2 text-right text-slate-400">{{ c.porcentajeAplicado }}%</td>
+              <td class="py-2 text-right font-semibold text-emerald-400">${{ c.montoComision | number:'1.2-2' }}</td>
+              <td class="py-2 text-right">
+                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                  [ngClass]="c.estado === 'PENDIENTE' ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'">
+                  {{ c.estado }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="mt-8">
+        <a routerLink="/dashboard" class="btn-secondary py-2.5 px-5 text-xs">Volver al Panel</a>
+      </div>
+    </ui-card>
+  </main>
+</div>

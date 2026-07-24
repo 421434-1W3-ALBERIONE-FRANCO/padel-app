@@ -13,4 +13,5 @@ public interface ReservaService {
     List<ReservaResponse> obtenerTodas();
     void limpiarReservasExpiradas();
     ReservaResponse confirmarReserva(Long id);
+    void notificarReservasDeHoy();
 }

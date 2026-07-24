@@ -44,6 +44,10 @@ class ConsumoServiceImplTest {
     private PagoRepository pagoRepository;
     @Mock
     private ConsumoMapper consumoMapper;
+    @Mock
+    private com.padel.service.ConfiguracionSistemaService configuracionSistemaService;
+    @Mock
+    private com.padel.service.ComisionService comisionService;
 
     @InjectMocks
     private ConsumoServiceImpl consumoService;
@@ -165,7 +169,9 @@ class ConsumoServiceImplTest {
 
     @Test
     void cerrarCuenta_Efectivo_DeberiaCrearPagoAprobadoYMarcarConsumosPagados() {
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
         when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
         List<Consumo> pendientes = new ArrayList<>();
         pendientes.add(consumoMock);
         when(consumoRepository.findByReservaId(1L)).thenReturn(pendientes);
@@ -173,17 +179,44 @@ class ConsumoServiceImplTest {
         Pago pagoMock = Pago.builder().id(10L).reserva(reservaMock).usuario(usuarioMock).monto(new BigDecimal("200.00")).metodo(MetodoPago.EFECTIVO).estado(EstadoPago.APROBADO).build();
         when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
 
-        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.EFECTIVO));
+        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.EFECTIVO), "admin@example.com");
 
         assertEquals(EstadoConsumoPago.PAGADO, consumoMock.getEstadoPago());
         assertNotNull(consumoMock.getPago());
         verify(pagoRepository, times(1)).save(any(Pago.class));
         verify(consumoRepository, times(1)).saveAll(anyList());
+        verify(comisionService, never()).registrarComisionConsumo(any(), any(), any());
+    }
+
+    @Test
+    void cerrarCuenta_DeberiaRegistrarComision_CuandoAtiendeRecepcionistaConComisionesHabilitadas() {
+        Usuario recepcionistaMock = Usuario.builder().id(9L).email("recepcion@example.com").rol(RolUsuario.RECEPCIONISTA).build();
+        com.padel.domain.entity.ConfiguracionSistema configuracionMock = com.padel.domain.entity.ConfiguracionSistema.builder()
+                .id(1L)
+                .comisionesHabilitadas(true)
+                .porcentajeComisionRecepcion(new BigDecimal("10.00"))
+                .build();
+
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcionistaMock));
+        when(configuracionSistemaService.obtenerEntidad()).thenReturn(configuracionMock);
+        List<Consumo> pendientes = new ArrayList<>();
+        pendientes.add(consumoMock);
+        when(consumoRepository.findByReservaId(1L)).thenReturn(pendientes);
+
+        Pago pagoMock = Pago.builder().id(10L).reserva(reservaMock).usuario(usuarioMock).monto(new BigDecimal("200.00")).metodo(MetodoPago.EFECTIVO).estado(EstadoPago.APROBADO).build();
+        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+
+        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.EFECTIVO), "recepcion@example.com");
+
+        verify(comisionService).registrarComisionConsumo(recepcionistaMock, pagoMock, new BigDecimal("200.00"));
     }
 
     @Test
     void cerrarCuenta_Tarjeta_DeberiaCrearPagoAprobadoYMarcarConsumosPagados() {
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
         when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
         List<Consumo> pendientes = new ArrayList<>();
         pendientes.add(consumoMock);
         when(consumoRepository.findByReservaId(1L)).thenReturn(pendientes);
@@ -191,7 +224,7 @@ class ConsumoServiceImplTest {
         Pago pagoMock = Pago.builder().id(10L).reserva(reservaMock).usuario(usuarioMock).monto(new BigDecimal("200.00")).metodo(MetodoPago.TARJETA).estado(EstadoPago.APROBADO).build();
         when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
 
-        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.TARJETA));
+        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.TARJETA), "admin@example.com");
 
         assertEquals(EstadoConsumoPago.PAGADO, consumoMock.getEstadoPago()); // cobro presencial, aprobado al instante
         verify(pagoRepository, times(1)).save(any(Pago.class));
@@ -199,7 +232,9 @@ class ConsumoServiceImplTest {
 
     @Test
     void cerrarCuenta_MercadoPagoPoint_DeberiaCrearPagoPendienteYDejarConsumosPendiente() {
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
         when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
         List<Consumo> pendientes = new ArrayList<>();
         pendientes.add(consumoMock);
         when(consumoRepository.findByReservaId(1L)).thenReturn(pendientes);
@@ -207,7 +242,7 @@ class ConsumoServiceImplTest {
         Pago pagoMock = Pago.builder().id(10L).reserva(reservaMock).usuario(usuarioMock).monto(new BigDecimal("200.00")).metodo(MetodoPago.MERCADOPAGO_POINT).estado(EstadoPago.PENDIENTE).build();
         when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
 
-        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.MERCADOPAGO_POINT));
+        consumoService.cerrarCuenta(1L, new CerrarCuentaRequest(MetodoPago.MERCADOPAGO_POINT), "admin@example.com");
 
         assertEquals(EstadoConsumoPago.PENDIENTE, consumoMock.getEstadoPago()); // Continúa pendiente hasta webhook
         assertNotNull(consumoMock.getPago());

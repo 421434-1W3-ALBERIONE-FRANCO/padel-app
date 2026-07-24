@@ -24,6 +24,7 @@ import com.padel.repository.PostulacionSolicitudRepository;
 import com.padel.repository.SolicitudPartidoRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.service.SolicitudPartidoService;
+import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
@@ -51,10 +52,12 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
     private final FranjaHorariaRepository franjaHorariaRepository;
     private final SolicitudPartidoMapper solicitudPartidoMapper;
     private final PostulacionSolicitudMapper postulacionSolicitudMapper;
+    private final FechaHoraUtil fechaHoraUtil;
 
     @Override
     public SolicitudPartidoResponse crear(SolicitudPartidoRequest request, String creadorEmail) {
         log.info("Creando solicitud de partido para {} en categoría {}", creadorEmail, request.categoria());
+        fechaHoraUtil.validarAnioRazonable(request.fechaHoraPropuesta().toLocalDate(), "la fecha propuesta");
         Usuario creador = usuarioRepository.findByEmail(creadorEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + creadorEmail));
 

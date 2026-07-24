@@ -4,11 +4,12 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { BonoService } from '../../core/services/bono.service';
 import { UiCardComponent } from '../../shared/components/ui-card/ui-card.component';
+import { NotificationBellComponent } from '../../shared/components/notification-bell/notification-bell.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, UiCardComponent],
+  imports: [CommonModule, RouterLink, UiCardComponent, NotificationBellComponent],
   templateUrl: './dashboard.component.html'
 })
 export class DashboardComponent implements OnInit {

@@ -21,6 +21,7 @@ import com.padel.mapper.PagoMapper;
 import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
+import com.padel.service.EmailService;
 import com.padel.service.ReservaService;
 import com.padel.service.ConsumoService;
 import org.junit.jupiter.api.BeforeEach;
@@ -59,6 +60,8 @@ class PagoServiceImplTest {
     private ConsumoService consumoService;
     @Mock
     private PagoMapper pagoMapper;
+    @Mock
+    private EmailService emailService;
 
     @InjectMocks
     private PagoServiceImpl pagoService;

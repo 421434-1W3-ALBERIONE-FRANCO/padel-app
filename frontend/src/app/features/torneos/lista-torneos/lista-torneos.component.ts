@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TorneoService } from '../../../core/services/torneo.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CategoriaJugador, EstadoTorneo, TipoTorneo, TorneoResponse } from '../../../shared/models/torneo.model';
+import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-lista-torneos',
@@ -31,6 +32,12 @@ export class ListaTorneosComponent implements OnInit {
   tipos: TipoTorneo[] = ['LIGA', 'TORNEO', 'TORNEO_EXPRESS'];
   estados: EstadoTorneo[] = ['INSCRIPCION_ABIERTA', 'EN_CURSO', 'FINALIZADO', 'CANCELADO'];
 
+  // La fecha de inicio nunca puede ser anterior a hoy (el día en que se crea el
+  // torneo) y el año no puede irse de un rango razonable (evita typos como
+  // escribir "20260" en vez de "2026" en el input de fecha).
+  fechaMin = todayIsoDate();
+  fechaMax = maxIsoDate();
+
   filtroForm: FormGroup = this.fb.group({
     categoria: [''],
     tipo: [''],
@@ -42,8 +49,8 @@ export class ListaTorneosComponent implements OnInit {
     tipo: ['TORNEO', Validators.required],
     formato: ['ELIMINACION_DIRECTA', Validators.required],
     categoria: ['CUARTA', Validators.required],
-    fechaInicio: ['', Validators.required],
-    fechaFin: ['', Validators.required],
+    fechaInicio: [todayIsoDate(), [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
+    fechaFin: ['', [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
     maxParejas: [8, [Validators.required, Validators.min(2)]],
     precioInscripcion: [0, [Validators.required, Validators.min(0)]],
     descripcion: ['', Validators.maxLength(500)]
@@ -97,7 +104,7 @@ export class ListaTorneosComponent implements OnInit {
       next: () => {
         this.guardando.set(false);
         this.mostrarFormulario.set(false);
-        this.torneoForm.reset({ tipo: 'TORNEO', formato: 'ELIMINACION_DIRECTA', categoria: 'CUARTA', maxParejas: 8, precioInscripcion: 0 });
+        this.torneoForm.reset({ tipo: 'TORNEO', formato: 'ELIMINACION_DIRECTA', categoria: 'CUARTA', fechaInicio: todayIsoDate(), maxParejas: 8, precioInscripcion: 0 });
         this.mensajeExito.set('Torneo creado exitosamente');
         setTimeout(() => this.mensajeExito.set(null), 4000);
         this.cargarTorneos();

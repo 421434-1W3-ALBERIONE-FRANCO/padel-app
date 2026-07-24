@@ -8,6 +8,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { CategoriaJugador } from '../../../shared/models/torneo.model';
 import { CanchaResponse } from '../../../shared/models/cancha.model';
 import { SolicitudPartidoResponse, TipoSolicitud } from '../../../shared/models/solicitud-partido.model';
+import { maxIsoDateTimeLocal, nowIsoDateTimeLocal, rangoDeFechaValidator } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-tablon-solicitudes',
@@ -36,6 +37,11 @@ export class TablonSolicitudesComponent implements OnInit {
   mostrarFormulario = signal<boolean>(false);
   expandidoId = signal<number | null>(null);
 
+  // La fecha propuesta debe ser futura (no puede ser anterior a este mismo momento)
+  // y el año no puede irse de un rango razonable (evita typos como "20260").
+  fechaMin = nowIsoDateTimeLocal();
+  fechaMax = maxIsoDateTimeLocal();
+
   filtroForm: FormGroup = this.fb.group({
     tipoSolicitud: [''],
     categoria: ['']
@@ -45,7 +51,7 @@ export class TablonSolicitudesComponent implements OnInit {
     tipoSolicitud: ['BUSCA_PAREJA' as TipoSolicitud, Validators.required],
     categoria: ['CUARTA', Validators.required],
     cantidadJugadoresFaltantes: [1, [Validators.required, Validators.min(1), Validators.max(3)]],
-    fechaHoraPropuesta: ['', Validators.required],
+    fechaHoraPropuesta: ['', [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
     canchaId: [''],
     descripcion: ['', Validators.maxLength(500)]
   });

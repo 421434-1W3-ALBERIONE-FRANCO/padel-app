@@ -29,7 +29,7 @@
       </div>
 
       <!-- PLAYER INFO -->
-      <div *ngIf="!isAdmin()" class="bg-teal-500/5 border border-teal-500/10 rounded-2xl p-6 flex items-start gap-4">
+      <div *ngIf="!puedeVenderBonos()" class="bg-teal-500/5 border border-teal-500/10 rounded-2xl p-6 flex items-start gap-4">
         <div class="w-10 h-10 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center flex-shrink-0 border border-teal-500/20">
           <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
         </div>
@@ -53,9 +53,9 @@
         </div>
 
         <!-- Mode: Non-Admin Message -->
-        <div *ngIf="!isAdmin()" class="text-center py-10 space-y-4">
+        <div *ngIf="!puedeVenderBonos()" class="text-center py-10 space-y-4">
           <p class="text-xs text-slate-500 leading-relaxed">
-            Área de administración. Iniciá sesión con cuenta de Administrador para asignar o vender bonos directamente a los usuarios.
+            Área de administración/recepción. Iniciá sesión con una cuenta de Administrador o Recepción para asignar o vender bonos directamente a los usuarios.
           </p>
           <a routerLink="/auth/login" class="inline-block text-xs font-bold text-teal-400 hover:text-teal-300 transition">
             Iniciar como Admin &rarr;
@@ -63,7 +63,7 @@
         </div>
 
         <!-- Mode: Admin Form -->
-        <form *ngIf="isAdmin()" (submit)="asignarBono(); $event.preventDefault();" class="space-y-4 text-xs">
+        <form *ngIf="puedeVenderBonos()" (submit)="asignarBono(); $event.preventDefault();" class="space-y-4 text-xs">
           <div>
             <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Email del Usuario</label>
             <input 
@@ -108,10 +108,12 @@
 
           <div>
             <label class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Fecha Vencimiento</label>
-            <input 
-              type="date" 
-              [(ngModel)]="fechaVencimiento" 
+            <input
+              type="date"
+              [(ngModel)]="fechaVencimiento"
               name="fechaVencimiento"
+              [min]="fechaVencimientoMin"
+              [max]="fechaVencimientoMax"
               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-teal-500 transition text-xs" />
           </div>
 

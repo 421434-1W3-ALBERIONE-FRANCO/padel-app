@@ -29,8 +29,8 @@ public class BonoController {
     private final BonoService bonoService;
 
     @PostMapping("/bonos")
-    @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Asignar un bono a un usuario (Admin)", description = "Permite a un administrador crear y vender un bono de horas a un usuario.")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
+    @Operation(summary = "Asignar un bono a un usuario (Admin/Recepción)", description = "Permite a un administrador o recepcionista crear y vender un bono de horas a un usuario. Si las comisiones están habilitadas, genera la comisión correspondiente para quien lo vende.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Bono asignado correctamente"),
         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
@@ -38,8 +38,8 @@ public class BonoController {
         @ApiResponse(responseCode = "403", description = "Permisos insuficientes"),
         @ApiResponse(responseCode = "404", description = "Usuario no encontrado")
     })
-    public ResponseEntity<BonoResponse> asignarBono(@Valid @RequestBody CrearBonoRequest request) {
-        BonoResponse response = bonoService.asignarBono(request);
+    public ResponseEntity<BonoResponse> asignarBono(@Valid @RequestBody CrearBonoRequest request, Principal principal) {
+        BonoResponse response = bonoService.asignarBono(request, principal.getName());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 

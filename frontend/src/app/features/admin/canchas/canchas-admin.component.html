@@ -402,11 +402,17 @@
                 <form [formGroup]="bloqueoForm" (ngSubmit)="guardarBloqueo()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha Desde</label>
-                    <input type="date" formControlName="fechaDesde" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500 cursor-pointer" />
+                    <input type="date" formControlName="fechaDesde" [min]="fechaMin" [max]="fechaMax"
+                      [class.border-red-500]="invalidoBloqueo('fechaDesde')"
+                      class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500 cursor-pointer" />
+                    <p *ngIf="invalidoBloqueo('fechaDesde')" class="text-[11px] text-red-400 mt-1">Debe estar entre {{ fechaMin }} y {{ fechaMax }}.</p>
                   </div>
                   <div>
                     <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha Hasta</label>
-                    <input type="date" formControlName="fechaHasta" class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500 cursor-pointer" />
+                    <input type="date" formControlName="fechaHasta" [min]="fechaMin" [max]="fechaMax"
+                      [class.border-red-500]="invalidoBloqueo('fechaHasta')"
+                      class="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-teal-500 cursor-pointer" />
+                    <p *ngIf="invalidoBloqueo('fechaHasta')" class="text-[11px] text-red-400 mt-1">Debe estar entre {{ fechaMin }} y {{ fechaMax }}.</p>
                   </div>
                   <div>
                     <label class="block text-xs font-semibold text-slate-400 mb-1">Hora Desde</label>

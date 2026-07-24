@@ -1,0 +1,26 @@
+# Perfil de tests: base de datos H2 en memoria, efímera y aislada por corrida.
+# Reemplaza al Postgres persistente del perfil dev para que los tests de integración
+# (@SpringBootTest) arranquen siempre sobre un esquema limpio y no acumulen estado entre
+# ejecuciones. El esquema lo genera Hibernate desde las entidades (create-drop); Flyway y
+# el seed dev (V29, con sintaxis específica de Postgres) quedan deshabilitados.
+spring:
+  datasource:
+    url: jdbc:h2:mem:padeltest;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;NON_KEYWORDS=KEY,VALUE,USER
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+  flyway:
+    enabled: false
+
+# Defaults SOLO para tests. No usar en producción.
+jwt:
+  secret: test-only-secret-do-not-use-in-production-1234567890
+  expiration: 14400000
+
+mercadopago:
+  access-token: TEST-0000000000000000-000000-0000000000000000000000000000000-000000000
+  webhook-secret: test-webhook-secret

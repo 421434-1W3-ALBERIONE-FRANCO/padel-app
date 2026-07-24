@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { BonoService } from '../../../core/services/bono.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { maxIsoDate, toIsoDate } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-compra-bono',
@@ -17,7 +18,7 @@ export class CompraBonoComponent implements OnInit {
   private authService = inject(AuthService);
   private router = inject(Router);
 
-  isAdmin = signal<boolean>(false);
+  puedeVenderBonos = signal<boolean>(false);
   cargando = signal<boolean>(false);
   exito = signal<boolean>(false);
   error = signal<string | null>(null);
@@ -29,6 +30,13 @@ export class CompraBonoComponent implements OnInit {
   horasTotales = 10;
   fechaVencimiento = '';
 
+  // El vencimiento debe ser estrictamente posterior a hoy (el día en que se
+  // asigna el bono) y el año no puede irse de un rango razonable (evita typos
+  // como "20260" en vez de "2026" en el input de fecha).
+  private readonly manana = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d; })();
+  fechaVencimientoMin = toIsoDate(this.manana);
+  fechaVencimientoMax = maxIsoDate();
+
   // Standard Packs definition
   packs = [
     { tipo: '10HS', horas: 10, precio: 8000, descripcion: 'Pack inicial. Ideal para jugar un partido semanal.' },
@@ -37,7 +45,8 @@ export class CompraBonoComponent implements OnInit {
   ];
 
   ngOnInit() {
-    this.isAdmin.set(this.authService.userRole() === 'ADMIN');
+    const rol = this.authService.userRole();
+    this.puedeVenderBonos.set(rol === 'ADMIN' || rol === 'RECEPCIONISTA');
     
     // Set default expiration date to 30 days from now
     const expiry = new Date();
@@ -56,6 +65,10 @@ export class CompraBonoComponent implements OnInit {
   asignarBono() {
     if (!this.usuarioEmail || !this.packSeleccionado || !this.precioPagado || !this.horasTotales || !this.fechaVencimiento) {
       this.error.set('Todos los campos son obligatorios.');
+      return;
+    }
+    if (this.fechaVencimiento < this.fechaVencimientoMin || this.fechaVencimiento > this.fechaVencimientoMax) {
+      this.error.set(`La fecha de vencimiento debe estar entre ${this.fechaVencimientoMin} y ${this.fechaVencimientoMax}.`);
       return;
     }
 

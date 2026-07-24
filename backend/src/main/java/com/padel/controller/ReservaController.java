@@ -96,4 +96,23 @@ public class ReservaController {
         List<ReservaResponse> response = reservaService.obtenerTodas();
         return ResponseEntity.ok(response);
     }
+
+    @PutMapping("/{id}/confirmar")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
+    @Operation(
+        summary = "Confirmar una reserva manualmente (Admin/Recepción)",
+        description = "Confirma una reserva en estado PENDIENTE_PAGO sin pasar por el webhook de MercadoPago. " +
+                      "Útil para pagos en efectivo, pagos con bono o testing en entorno de desarrollo."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reserva confirmada exitosamente"),
+        @ApiResponse(responseCode = "401", description = "No autorizado"),
+        @ApiResponse(responseCode = "403", description = "Permisos insuficientes"),
+        @ApiResponse(responseCode = "404", description = "Reserva no encontrada"),
+        @ApiResponse(responseCode = "422", description = "La reserva no es modificable (no está en PENDIENTE_PAGO)")
+    })
+    public ResponseEntity<ReservaResponse> confirmar(@PathVariable Long id) {
+        ReservaResponse response = reservaService.confirmarReserva(id);
+        return ResponseEntity.ok(response);
+    }
 }

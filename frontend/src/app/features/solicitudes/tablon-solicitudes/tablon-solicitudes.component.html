@@ -49,10 +49,10 @@
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha y hora propuesta</label>
-        <input formControlName="fechaHoraPropuesta" type="datetime-local"
+        <input formControlName="fechaHoraPropuesta" type="datetime-local" [min]="fechaMin" [max]="fechaMax"
           [class.border-red-500]="invalido('fechaHoraPropuesta')"
           class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
-        <p *ngIf="invalido('fechaHoraPropuesta')" class="text-[11px] text-red-400 mt-1">Elegí una fecha y hora futura.</p>
+        <p *ngIf="invalido('fechaHoraPropuesta')" class="text-[11px] text-red-400 mt-1">Elegí una fecha y hora futura (hasta {{ fechaMax | slice:0:10 }}).</p>
       </div>
       <div class="md:col-span-2">
         <label class="block text-xs font-semibold text-slate-400 mb-1">Cancha (opcional)</label>

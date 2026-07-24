@@ -44,4 +44,9 @@ public class Pago extends BaseEntity {
 
     @Column(name = "mp_payment_id", unique = true)
     private String mpPaymentId;
+
+    // Staff (RECEPCIONISTA/ADMIN) que atendió el cobro presencial; null si el jugador pagó solo, online.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "atendido_por_id")
+    private Usuario atendidoPor;
 }

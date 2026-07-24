@@ -23,6 +23,7 @@ import com.padel.mapper.PagoMapper;
 import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
+import com.padel.service.EmailService;
 import com.padel.service.PagoService;
 import com.padel.service.ReservaService;
 import com.padel.service.ConsumoService;
@@ -49,6 +50,7 @@ public class PagoServiceImpl implements PagoService {
     private final ReservaService reservaService;
     private final ConsumoService consumoService;
     private final PagoMapper pagoMapper;
+    private final EmailService emailService;
 
     @Value("${mercadopago.access-token}")
     private String accessToken;
@@ -178,6 +180,7 @@ public class PagoServiceImpl implements PagoService {
             if ("approved".equalsIgnoreCase(status)) {
                 pago.setEstado(EstadoPago.APROBADO);
                 Pago saved = pagoRepository.save(pago);
+                emailService.enviarComprobantePago(saved);
                 if (saved.getMetodo() == MetodoPago.MERCADOPAGO_POINT) {
                     log.info("Pago presencial aprobado en DB. Procediendo a pagar consumos vinculados al Pago ID {}", saved.getId());
                     consumoService.marcarConsumosComoPagados(saved.getId());

@@ -11,6 +11,7 @@ import com.padel.mapper.BloqueoCanchaMapper;
 import com.padel.repository.BloqueoCanchaRepository;
 import com.padel.repository.CanchaRepository;
 import com.padel.service.BloqueoCanchaService;
+import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -30,6 +31,7 @@ public class BloqueoCanchaServiceImpl implements BloqueoCanchaService {
     private final CanchaRepository canchaRepository;
     private final BloqueoCanchaMapper bloqueoCanchaMapper;
     private final SimpMessagingTemplate messagingTemplate;
+    private final FechaHoraUtil fechaHoraUtil;
 
     @Override
     public BloqueoCanchaResponse crear(Long canchaId, BloqueoCanchaRequest request) {
@@ -100,6 +102,8 @@ public class BloqueoCanchaServiceImpl implements BloqueoCanchaService {
     }
 
     private void validarRangos(LocalDate fechaDesde, LocalDate fechaHasta, LocalTime horaDesde, LocalTime horaHasta) {
+        fechaHoraUtil.validarAnioRazonable(fechaDesde, "la fecha de inicio del bloqueo");
+        fechaHoraUtil.validarAnioRazonable(fechaHasta, "la fecha de fin del bloqueo");
         if (fechaDesde.isAfter(fechaHasta)) {
             throw new RangoHorarioInvalidoException("La fecha de inicio del bloqueo no puede ser posterior a la fecha de fin");
         }

@@ -23,4 +23,6 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     );
 
     List<Reserva> findByEstadoReservaAndCreatedAtBefore(EstadoReserva estadoReserva, LocalDateTime threshold);
+
+    List<Reserva> findByFechaAndEstadoReservaAndRecordatorioEnviadoFalse(LocalDate fecha, EstadoReserva estadoReserva);
 }

@@ -1,8 +1,14 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './features/auth/login/login.component';
 import { RegistroComponent } from './features/auth/registro/registro.component';
+import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
+import { ResetPasswordComponent } from './features/auth/reset-password/reset-password.component';
+import { CambiarPasswordComponent } from './features/perfil/cambiar-password/cambiar-password.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { CanchasAdminComponent } from './features/admin/canchas/canchas-admin.component';
+import { ConfiguracionComponent } from './features/admin/configuracion/configuracion.component';
+import { ComisionesReporteComponent } from './features/admin/comisiones/comisiones-reporte.component';
+import { ControlHorarioComponent } from './features/admin/control-horario/control-horario.component';
 import { CalendarioComponent } from './features/reservas/calendario/calendario.component';
 import { MisReservasComponent } from './features/reservas/mis-reservas/mis-reservas.component';
 import { CheckoutComponent } from './features/pagos/checkout/checkout.component';
@@ -34,8 +40,23 @@ export const routes: Routes = [
     canActivate: [guestGuard]
   },
   {
+    path: 'auth/recuperar-password',
+    component: ForgotPasswordComponent,
+    canActivate: [guestGuard]
+  },
+  {
+    path: 'auth/resetear-password',
+    component: ResetPasswordComponent,
+    canActivate: [guestGuard]
+  },
+  {
     path: 'dashboard',
     component: DashboardComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'perfil/password',
+    component: CambiarPasswordComponent,
     canActivate: [authGuard]
   },
   {
@@ -47,6 +68,24 @@ export const routes: Routes = [
   {
     path: 'admin/productos',
     component: ProductosAdminComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN'] }
+  },
+  {
+    path: 'admin/configuracion',
+    component: ConfiguracionComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN'] }
+  },
+  {
+    path: 'admin/comisiones',
+    component: ComisionesReporteComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN'] }
+  },
+  {
+    path: 'admin/control-horario',
+    component: ControlHorarioComponent,
     canActivate: [authGuard],
     data: { roles: ['ADMIN'] }
   },

@@ -12,6 +12,7 @@ import com.padel.exception.ReservaNoModificableException;
 import com.padel.exception.SlotNoDisponibleException;
 import com.padel.mapper.ReservaMapper;
 import com.padel.repository.*;
+import com.padel.service.NotificacionInAppService;
 import com.padel.service.NotificacionService;
 import com.padel.service.RedisLockService;
 import org.junit.jupiter.api.BeforeEach;
@@ -51,6 +52,8 @@ class ReservaServiceImplTest {
     private RedisLockService redisLockService;
     @Mock
     private NotificacionService notificacionService;
+    @Mock
+    private NotificacionInAppService notificacionInAppService;
     @Mock
     private ReservaMapper reservaMapper;
 
@@ -359,6 +362,40 @@ class ReservaServiceImplTest {
         assertThrows(ReservaNoModificableException.class, () ->
                 reservaService.confirmarReserva(1L));
 
+        verify(reservaRepository, never()).save(any());
+    }
+
+    @Test
+    void notificarReservasDeHoy_ShouldCreateNotificationAndMarkFlag_ForEachReservationFound() {
+        Reserva reservaDeHoy = Reserva.builder()
+                .id(5L)
+                .usuario(usuarioMock)
+                .cancha(canchaMock)
+                .fecha(LocalDate.now())
+                .horaInicio(LocalTime.of(18, 0))
+                .horaFin(LocalTime.of(19, 30))
+                .estadoReserva(EstadoReserva.CONFIRMADA)
+                .recordatorioEnviado(false)
+                .build();
+
+        when(reservaRepository.findByFechaAndEstadoReservaAndRecordatorioEnviadoFalse(any(LocalDate.class), eq(EstadoReserva.CONFIRMADA)))
+                .thenReturn(List.of(reservaDeHoy));
+
+        reservaService.notificarReservasDeHoy();
+
+        assertTrue(reservaDeHoy.isRecordatorioEnviado());
+        verify(notificacionInAppService).crear(eq(usuarioMock), any(), any(), any(), eq(5L));
+        verify(reservaRepository).save(reservaDeHoy);
+    }
+
+    @Test
+    void notificarReservasDeHoy_ShouldDoNothing_WhenNoReservationsFound() {
+        when(reservaRepository.findByFechaAndEstadoReservaAndRecordatorioEnviadoFalse(any(LocalDate.class), eq(EstadoReserva.CONFIRMADA)))
+                .thenReturn(List.of());
+
+        reservaService.notificarReservasDeHoy();
+
+        verify(notificacionInAppService, never()).crear(any(), any(), any(), any(), any());
         verify(reservaRepository, never()).save(any());
     }
 }

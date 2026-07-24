@@ -43,4 +43,13 @@ public class Bono extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private EstadoBono estado;
+
+    @Builder.Default
+    @Column(name = "aviso_vencimiento_enviado", nullable = false)
+    private boolean avisoVencimientoEnviado = false;
+
+    // Staff (RECEPCIONISTA/ADMIN) que vendió/asignó el bono; base para el cálculo de comisiones.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "vendido_por_id")
+    private Usuario vendidoPor;
 }

@@ -4,6 +4,7 @@ import com.padel.domain.entity.*;
 import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.OrigenReserva;
 import com.padel.domain.enums.RolUsuario;
+import com.padel.domain.enums.TipoNotificacion;
 import com.padel.dto.request.ReservaRequest;
 import com.padel.dto.response.ReservaResponse;
 import com.padel.exception.ResourceNotFoundException;
@@ -11,6 +12,7 @@ import com.padel.exception.ReservaNoModificableException;
 import com.padel.exception.SlotNoDisponibleException;
 import com.padel.mapper.ReservaMapper;
 import com.padel.repository.*;
+import com.padel.service.NotificacionInAppService;
 import com.padel.service.NotificacionService;
 import com.padel.service.RedisLockService;
 import com.padel.service.ReservaService;
@@ -42,6 +44,7 @@ public class ReservaServiceImpl implements ReservaService {
     private final BloqueoCanchaRepository bloqueoCanchaRepository;
     private final RedisLockService redisLockService;
     private final NotificacionService notificacionService;
+    private final NotificacionInAppService notificacionInAppService;
     private final ReservaMapper reservaMapper;
 
     @Override
@@ -241,7 +244,39 @@ public class ReservaServiceImpl implements ReservaService {
 
             // Liberar el lock de Redis
             redisLockService.releaseLock(r.getCancha().getId(), r.getFecha(), r.getHoraInicio());
+
+            // Aviso in-app (no por WhatsApp/email): la reserva venció por falta de pago a tiempo.
+            notificacionInAppService.crear(
+                    r.getUsuario(),
+                    TipoNotificacion.RESERVA_CANCELADA_FALTA_PAGO,
+                    "Reserva cancelada por falta de pago",
+                    String.format("Tu reserva del %s de %s a %s fue cancelada automáticamente por no completarse el pago a tiempo.",
+                            r.getFecha(), r.getHoraInicio(), r.getHoraFin()),
+                    r.getId()
+            );
         }
+    }
+
+    @Override
+    @Transactional
+    public void notificarReservasDeHoy() {
+        LocalDate hoy = LocalDate.now();
+        log.info("Buscando reservas confirmadas para hoy ({}) sin recordatorio enviado", hoy);
+
+        List<Reserva> reservasDeHoy = reservaRepository.findByFechaAndEstadoReservaAndRecordatorioEnviadoFalse(hoy, EstadoReserva.CONFIRMADA);
+        for (Reserva r : reservasDeHoy) {
+            notificacionInAppService.crear(
+                    r.getUsuario(),
+                    TipoNotificacion.RECORDATORIO_RESERVA,
+                    "Recordatorio de tu turno de hoy",
+                    String.format("Te recordamos tu turno de hoy en la cancha %s de %s a %s.",
+                            r.getCancha().getNombre(), r.getHoraInicio(), r.getHoraFin()),
+                    r.getId()
+            );
+            r.setRecordatorioEnviado(true);
+            reservaRepository.save(r);
+        }
+        log.info("Recordatorios enviados: {}", reservasDeHoy.size());
     }
 
     @Override

@@ -57,4 +57,8 @@ public class Reserva extends BaseEntity {
 
     @Column(name = "motivo_cancelacion")
     private String motivoCancelacion;
+
+    @Builder.Default
+    @Column(name = "recordatorio_enviado", nullable = false)
+    private boolean recordatorioEnviado = false;
 }

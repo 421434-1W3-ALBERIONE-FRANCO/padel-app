@@ -35,6 +35,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.padel.util.FechaHoraUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -57,10 +58,13 @@ public class TorneoServiceImpl implements TorneoService {
     private final TorneoMapper torneoMapper;
     private final InscripcionTorneoMapper inscripcionTorneoMapper;
     private final PartidoTorneoMapper partidoTorneoMapper;
+    private final FechaHoraUtil fechaHoraUtil;
 
     @Override
     public TorneoResponse crear(TorneoRequest request) {
         log.info("Creando nuevo torneo: {}", request.nombre());
+        fechaHoraUtil.validarAnioRazonable(request.fechaInicio(), "la fecha de inicio");
+        fechaHoraUtil.validarAnioRazonable(request.fechaFin(), "la fecha de fin");
         if (request.fechaFin().isBefore(request.fechaInicio())) {
             throw new DatosInvalidosException("La fecha de fin no puede ser anterior a la fecha de inicio");
         }
@@ -76,6 +80,8 @@ public class TorneoServiceImpl implements TorneoService {
         if (torneo.getEstado() != EstadoTorneo.INSCRIPCION_ABIERTA) {
             throw new EstadoInvalidoException("Sólo se puede editar un torneo mientras la inscripción está abierta");
         }
+        fechaHoraUtil.validarAnioRazonable(request.fechaInicio(), "la fecha de inicio");
+        fechaHoraUtil.validarAnioRazonable(request.fechaFin(), "la fecha de fin");
         if (request.fechaFin().isBefore(request.fechaInicio())) {
             throw new DatosInvalidosException("La fecha de fin no puede ser anterior a la fecha de inicio");
         }

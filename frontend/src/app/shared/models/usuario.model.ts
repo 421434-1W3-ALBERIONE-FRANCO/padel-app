@@ -28,3 +28,17 @@ export interface LoginRequest {
   email: string;
   password: string;
 }
+
+export interface CambiarPasswordRequest {
+  passwordActual: string;
+  passwordNueva: string;
+}
+
+export interface SolicitarRecuperacionRequest {
+  email: string;
+}
+
+export interface ResetearPasswordRequest {
+  token: string;
+  passwordNueva: string;
+}

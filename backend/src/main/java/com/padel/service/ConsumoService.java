@@ -9,6 +9,6 @@ import java.util.List;
 public interface ConsumoService {
     ConsumoResponse cargarConsumo(Long reservaId, ConsumoRequest request);
     List<ConsumoResponse> obtenerConsumosPorReserva(Long reservaId, String usuarioEmail);
-    void cerrarCuenta(Long reservaId, CerrarCuentaRequest request);
+    void cerrarCuenta(Long reservaId, CerrarCuentaRequest request, String staffEmail);
     void marcarConsumosComoPagados(Long pagoId);
 }

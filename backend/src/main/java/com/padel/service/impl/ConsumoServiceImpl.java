@@ -14,6 +14,8 @@ import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.StockInsuficienteException;
 import com.padel.mapper.ConsumoMapper;
 import com.padel.repository.*;
+import com.padel.service.ComisionService;
+import com.padel.service.ConfiguracionSistemaService;
 import com.padel.service.ConsumoService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -36,6 +38,8 @@ public class ConsumoServiceImpl implements ConsumoService {
     private final UsuarioRepository usuarioRepository;
     private final PagoRepository pagoRepository;
     private final ConsumoMapper consumoMapper;
+    private final ConfiguracionSistemaService configuracionSistemaService;
+    private final ComisionService comisionService;
 
     @Override
     public ConsumoResponse cargarConsumo(Long reservaId, ConsumoRequest request) {
@@ -105,11 +109,14 @@ public class ConsumoServiceImpl implements ConsumoService {
     }
 
     @Override
-    public void cerrarCuenta(Long reservaId, CerrarCuentaRequest request) {
-        log.info("Cerrando cuenta para reserva ID: {} con método {}", reservaId, request.metodo());
+    public void cerrarCuenta(Long reservaId, CerrarCuentaRequest request, String staffEmail) {
+        log.info("Cerrando cuenta para reserva ID: {} con método {} (atendido por {})", reservaId, request.metodo(), staffEmail);
 
         Reserva reserva = reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + reservaId));
+
+        Usuario staff = usuarioRepository.findByEmail(staffEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + staffEmail));
 
         List<Consumo> pendientes = consumoRepository.findByReservaId(reservaId).stream()
                 .filter(c -> c.getEstadoPago() == EstadoConsumoPago.PENDIENTE)
@@ -133,6 +140,7 @@ public class ConsumoServiceImpl implements ConsumoService {
                 .monto(total)
                 .metodo(request.metodo())
                 .estado(estadoPago)
+                .atendidoPor(staff)
                 .build();
 
         // Si es MercadoPago Point, intentar la llamada presencial
@@ -154,6 +162,10 @@ public class ConsumoServiceImpl implements ConsumoService {
         }
 
         Pago savedPago = pagoRepository.save(pago);
+
+        if (staff.getRol() == RolUsuario.RECEPCIONISTA && configuracionSistemaService.obtenerEntidad().isComisionesHabilitadas()) {
+            comisionService.registrarComisionConsumo(staff, savedPago, total);
+        }
 
         for (Consumo c : pendientes) {
             c.setPago(savedPago);

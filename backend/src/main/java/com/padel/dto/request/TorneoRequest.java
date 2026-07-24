@@ -23,6 +23,7 @@ public record TorneoRequest(
     CategoriaJugador categoria,
 
     @NotNull(message = "La fecha de inicio es obligatoria")
+    @FutureOrPresent(message = "La fecha de inicio no puede ser anterior a hoy")
     LocalDate fechaInicio,
 
     @NotNull(message = "La fecha de fin es obligatoria")

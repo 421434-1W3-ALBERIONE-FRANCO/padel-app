@@ -7,6 +7,17 @@ spring:
     serialization:
       write_dates_as_timestamps: false
     default-property-inclusion: non_null
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 springdoc:
   api-docs:
@@ -25,3 +36,8 @@ jwt:
 mercadopago:
   access-token: ${MP_ACCESS_TOKEN}
   webhook-secret: ${MP_WEBHOOK_SECRET:}
+
+app:
+  mail:
+    from: ${MAIL_FROM:no-reply@padelapp.com}
+  frontend-url: ${FRONTEND_URL:http://localhost:4200}
