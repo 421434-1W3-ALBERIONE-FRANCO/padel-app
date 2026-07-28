@@ -1,0 +1,48 @@
+<div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+
+  <!-- Bienvenida -->
+  <div class="flex items-start gap-4 pb-8 border-b border-white/5">
+    <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-500 to-accent-500 text-slate-950 flex items-center justify-center font-bold text-xl shadow-lg shadow-primary-500/10 font-display shrink-0">
+      {{ currentUser()?.nombre?.substring(0,1) }}{{ currentUser()?.apellido?.substring(0,1) }}
+    </div>
+    <div>
+      <h1 class="text-2xl sm:text-3xl font-extrabold text-white font-display">Consola de Administración</h1>
+      <p class="text-slate-400 text-sm mt-1">Control global de PadelApp. Elegí un módulo del menú lateral o de los accesos rápidos.</p>
+      <div class="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-accent-500/10 border border-accent-500/20 text-accent-400">
+        <span class="w-1.5 h-1.5 rounded-full bg-accent-400 animate-pulse"></span>
+        Rol: {{ currentUser()?.rol }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Accesos rápidos -->
+  <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mt-8 mb-4 font-display">Accesos rápidos</h2>
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+
+    <ng-container *ngFor="let card of cards">
+      <!-- Card habilitada -->
+      <a *ngIf="!card.disabled" [routerLink]="card.route"
+         class="group bg-surface-1/40 hover:bg-surface-1/70 border border-white/5 hover:border-primary-500/30 rounded-2xl p-5 transition flex flex-col">
+        <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+          <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="card.icon"/></svg>
+        </div>
+        <span class="font-bold text-white text-sm font-display">{{ card.label }}</span>
+        <span class="text-xs text-slate-400 mt-1 leading-relaxed">{{ card.desc }}</span>
+      </a>
+
+      <!-- Card deshabilitada (Fase 2) -->
+      <div *ngIf="card.disabled"
+           class="bg-surface-1/20 border border-dashed border-white/10 rounded-2xl p-5 flex flex-col opacity-60 cursor-not-allowed select-none">
+        <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mb-3">
+          <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="card.icon"/></svg>
+        </div>
+        <span class="font-bold text-slate-400 text-sm font-display flex items-center gap-2">
+          {{ card.label }}
+          <span class="text-[9px] font-bold uppercase tracking-wide bg-white/5 text-slate-500 px-1.5 py-0.5 rounded">Pronto</span>
+        </span>
+        <span class="text-xs text-slate-500 mt-1 leading-relaxed">{{ card.desc }}</span>
+      </div>
+    </ng-container>
+
+  </div>
+</div>

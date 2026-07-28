@@ -5,6 +5,8 @@ import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-
 import { ResetPasswordComponent } from './features/auth/reset-password/reset-password.component';
 import { CambiarPasswordComponent } from './features/perfil/cambiar-password/cambiar-password.component';
 import { DashboardComponent } from './features/dashboard/dashboard.component';
+import { AdminLayoutComponent } from './features/admin/layout/admin-layout.component';
+import { AdminOverviewComponent } from './features/admin/overview/admin-overview.component';
 import { CanchasAdminComponent } from './features/admin/canchas/canchas-admin.component';
 import { ConfiguracionComponent } from './features/admin/configuracion/configuracion.component';
 import { ComisionesReporteComponent } from './features/admin/comisiones/comisiones-reporte.component';
@@ -60,34 +62,20 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   {
-    path: 'admin/canchas',
-    component: CanchasAdminComponent,
+    // Consola de administración: shell con sidebar + pantallas como rutas hijas.
+    // El guard del padre protege todo el subárbol (solo ADMIN).
+    path: 'admin',
+    component: AdminLayoutComponent,
     canActivate: [authGuard],
-    data: { roles: ['ADMIN'] }
-  },
-  {
-    path: 'admin/productos',
-    component: ProductosAdminComponent,
-    canActivate: [authGuard],
-    data: { roles: ['ADMIN'] }
-  },
-  {
-    path: 'admin/configuracion',
-    component: ConfiguracionComponent,
-    canActivate: [authGuard],
-    data: { roles: ['ADMIN'] }
-  },
-  {
-    path: 'admin/comisiones',
-    component: ComisionesReporteComponent,
-    canActivate: [authGuard],
-    data: { roles: ['ADMIN'] }
-  },
-  {
-    path: 'admin/control-horario',
-    component: ControlHorarioComponent,
-    canActivate: [authGuard],
-    data: { roles: ['ADMIN'] }
+    data: { roles: ['ADMIN'] },
+    children: [
+      { path: '', component: AdminOverviewComponent },
+      { path: 'canchas', component: CanchasAdminComponent },
+      { path: 'productos', component: ProductosAdminComponent },
+      { path: 'configuracion', component: ConfiguracionComponent },
+      { path: 'comisiones', component: ComisionesReporteComponent },
+      { path: 'control-horario', component: ControlHorarioComponent },
+    ]
   },
   {
     path: 'recepcion/carga-consumos',
