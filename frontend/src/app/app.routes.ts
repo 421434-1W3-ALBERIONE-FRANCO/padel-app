@@ -7,6 +7,9 @@ import { CambiarPasswordComponent } from './features/perfil/cambiar-password/cam
 import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { AdminLayoutComponent } from './features/admin/layout/admin-layout.component';
 import { AdminOverviewComponent } from './features/admin/overview/admin-overview.component';
+import { ReservasAdminComponent } from './features/admin/reservas/reservas-admin.component';
+import { StaffAdminComponent } from './features/admin/staff/staff-admin.component';
+import { OcupacionAdminComponent } from './features/admin/ocupacion/ocupacion-admin.component';
 import { CanchasAdminComponent } from './features/admin/canchas/canchas-admin.component';
 import { ConfiguracionComponent } from './features/admin/configuracion/configuracion.component';
 import { ComisionesReporteComponent } from './features/admin/comisiones/comisiones-reporte.component';
@@ -70,6 +73,9 @@ export const routes: Routes = [
     data: { roles: ['ADMIN'] },
     children: [
       { path: '', component: AdminOverviewComponent },
+      { path: 'reservas', component: ReservasAdminComponent },
+      { path: 'ocupacion', component: OcupacionAdminComponent },
+      { path: 'staff', component: StaffAdminComponent },
       { path: 'canchas', component: CanchasAdminComponent },
       { path: 'productos', component: ProductosAdminComponent },
       { path: 'configuracion', component: ConfiguracionComponent },

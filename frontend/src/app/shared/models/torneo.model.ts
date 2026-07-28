@@ -4,7 +4,7 @@ export type TipoTorneo = 'LIGA' | 'TORNEO' | 'TORNEO_EXPRESS';
 
 export type FormatoTorneo = 'LIGA_TODOS_CONTRA_TODOS' | 'ELIMINACION_DIRECTA';
 
-export type EstadoTorneo = 'INSCRIPCION_ABIERTA' | 'EN_CURSO' | 'FINALIZADO' | 'CANCELADO';
+export type EstadoTorneo = 'INSCRIPCION_ABIERTA' | 'EN_CURSO' | 'SUSPENDIDO' | 'FINALIZADO' | 'CANCELADO';
 
 export type EstadoInscripcion = 'CONFIRMADA' | 'CANCELADA';
 
@@ -35,6 +35,7 @@ export interface TorneoResponse {
   precioInscripcion: number;
   descripcion: string | null;
   estado: EstadoTorneo;
+  motivoSuspension: string | null;
 }
 
 export interface InscripcionTorneoRequest {

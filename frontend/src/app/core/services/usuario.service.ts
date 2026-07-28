@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { CambiarPasswordRequest, RolUsuario, UsuarioResponse } from '../../shared/models/usuario.model';
+import { CambiarPasswordRequest, CrearStaffRequest, RolUsuario, UsuarioResponse } from '../../shared/models/usuario.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -18,5 +18,9 @@ export class UsuarioService {
   listarPorRol(rol: RolUsuario): Observable<UsuarioResponse[]> {
     const params = new HttpParams().set('rol', rol);
     return this.http.get<UsuarioResponse[]>(`${this.API_URL}/usuarios`, { params });
+  }
+
+  crearStaff(request: CrearStaffRequest): Observable<UsuarioResponse> {
+    return this.http.post<UsuarioResponse>(`${this.API_URL}/usuarios/staff`, request);
   }
 }

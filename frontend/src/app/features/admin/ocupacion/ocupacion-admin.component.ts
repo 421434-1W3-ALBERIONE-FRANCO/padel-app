@@ -1,0 +1,131 @@
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
+import { CanchaAdminService } from '../../../core/services/cancha-admin.service';
+import { ReservaService } from '../../../core/services/reserva.service';
+import { ToastService } from '../../../core/services/toast.service';
+import { CanchaResponse } from '../../../shared/models/cancha.model';
+import { FranjaHorariaResponse } from '../../../shared/models/franja.model';
+import { ReservaResponse } from '../../../shared/models/reserva.model';
+
+interface CanchaConFranjas {
+  cancha: CanchaResponse;
+  franjas: FranjaHorariaResponse[];
+}
+
+interface Celda {
+  horaInicio: string;
+  horaFin: string;
+  ocupada: boolean;
+}
+
+interface FilaCancha {
+  nombre: string;
+  celdas: Celda[];
+  ocupadas: number;
+  total: number;
+}
+
+@Component({
+  selector: 'app-ocupacion-admin',
+  standalone: true,
+  imports: [CommonModule, FormsModule],
+  templateUrl: './ocupacion-admin.component.html'
+})
+export class OcupacionAdminComponent implements OnInit, OnDestroy {
+  private canchaService = inject(CanchaAdminService);
+  private reservaService = inject(ReservaService);
+  private toast = inject(ToastService);
+
+  private readonly REFRESH_MS = 15000;
+  private timer?: ReturnType<typeof setInterval>;
+
+  base = signal<CanchaConFranjas[]>([]);
+  reservas = signal<ReservaResponse[]>([]);
+  cargando = signal<boolean>(true);
+  fecha = signal<string>(this.hoyIso());
+  ultimaActualizacion = signal<string>('');
+
+  private hoyIso(): string {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  private ocupa(estado: string): boolean {
+    return estado === 'CONFIRMADA' || estado === 'PENDIENTE_PAGO' || estado === 'COMPLETADA';
+  }
+
+  grid = computed<FilaCancha[]>(() => {
+    const fecha = this.fecha();
+    const reservas = this.reservas().filter(r => r.fecha === fecha && this.ocupa(r.estadoReserva));
+    return this.base().map(({ cancha, franjas }) => {
+      const celdas = [...franjas]
+        .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
+        .map(f => ({
+          horaInicio: f.horaInicio,
+          horaFin: f.horaFin,
+          ocupada: reservas.some(r => r.canchaId === cancha.id && r.horaInicio?.substring(0, 5) === f.horaInicio.substring(0, 5))
+        }));
+      return {
+        nombre: cancha.nombre,
+        celdas,
+        ocupadas: celdas.filter(c => c.ocupada).length,
+        total: celdas.length
+      };
+    });
+  });
+
+  totalSlots = computed(() => this.grid().reduce((s, f) => s + f.total, 0));
+  totalOcupados = computed(() => this.grid().reduce((s, f) => s + f.ocupadas, 0));
+  porcentajeGlobal = computed(() => {
+    const t = this.totalSlots();
+    return t === 0 ? 0 : Math.round((this.totalOcupados() / t) * 100);
+  });
+
+  ngOnInit(): void {
+    this.cargarBase();
+    this.timer = setInterval(() => this.refrescarReservas(true), this.REFRESH_MS);
+  }
+
+  ngOnDestroy(): void {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  private cargarBase(): void {
+    this.cargando.set(true);
+    this.canchaService.getCanchas().subscribe({
+      next: (canchas) => {
+        const activas = canchas.filter(c => c.activa);
+        if (activas.length === 0) {
+          this.base.set([]);
+          this.cargando.set(false);
+          this.refrescarReservas(false);
+          return;
+        }
+        forkJoin(
+          activas.map(c => this.canchaService.getFranjas(c.id).pipe(catchError(() => of([] as FranjaHorariaResponse[]))))
+        ).subscribe(franjasPorCancha => {
+          this.base.set(activas.map((cancha, i) => ({ cancha, franjas: franjasPorCancha[i] })));
+          this.cargando.set(false);
+          this.refrescarReservas(false);
+        });
+      },
+      error: (err) => {
+        this.toast.error(err.error?.message || 'No se pudo cargar la ocupación.');
+        this.cargando.set(false);
+      }
+    });
+  }
+
+  refrescarReservas(silencioso: boolean): void {
+    this.reservaService.getAllReservas().subscribe({
+      next: (data) => {
+        this.reservas.set(data);
+        this.ultimaActualizacion.set(new Date().toLocaleTimeString('es-AR'));
+      },
+      error: () => { if (!silencioso) this.toast.error('No se pudieron actualizar las reservas.'); }
+    });
+  }
+}

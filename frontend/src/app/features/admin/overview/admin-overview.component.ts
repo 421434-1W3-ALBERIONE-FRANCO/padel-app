@@ -114,6 +114,9 @@ export class AdminOverviewComponent implements OnInit {
   });
 
   readonly cards: QuickCard[] = [
+    { label: 'Reservas globales', desc: 'Ver y cancelar cualquier reserva del sistema.', route: '/admin/reservas', icon: 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25' },
+    { label: 'Ocupación en vivo', desc: 'Estado de las canchas por franja, en tiempo real.', route: '/admin/ocupacion', icon: 'M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h3.218a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859' },
+    { label: 'Gestión de Staff', desc: 'Alta y listado de recepcionistas y administradores.', route: '/admin/staff', icon: 'M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493' },
     { label: 'Canchas y Franjas', desc: 'Alta, baja y edición de canchas, horarios y bloqueos.', route: '/admin/canchas', icon: 'M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18' },
     { label: 'Productos y Stock', desc: 'Catálogo de la tienda y control de inventario.', route: '/admin/productos', icon: 'M20.25 7.5 12 12m0 0L3.75 7.5M12 12v9' },
     { label: 'Control Horario', desc: 'Turnos, sesiones de trabajo y liquidación del staff.', route: '/admin/control-horario', icon: 'M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z' },

@@ -18,6 +18,8 @@ public interface TorneoService {
     List<TorneoResponse> buscar(EstadoTorneo estado, CategoriaJugador categoria, TipoTorneo tipo);
     TorneoResponse obtenerPorId(Long id);
     void cancelar(Long id);
+    TorneoResponse suspender(Long id, String motivo);
+    TorneoResponse reactivar(Long id);
 
     InscripcionTorneoResponse inscribirPareja(Long torneoId, InscripcionTorneoRequest request, String usuarioEmail);
     List<InscripcionTorneoResponse> listarInscripciones(Long torneoId);

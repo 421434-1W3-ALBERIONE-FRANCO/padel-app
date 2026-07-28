@@ -1,7 +1,7 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { TorneoService } from '../../../core/services/torneo.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { InscripcionTorneoResponse, PartidoTorneoResponse, TorneoResponse } from '../../../shared/models/torneo.model';
@@ -10,7 +10,7 @@ import { ToastService } from '../../../core/services/toast.service';
 @Component({
   selector: 'app-torneo-detalle',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule],
   templateUrl: './torneo-detalle.component.html'
 })
 export class TorneoDetalleComponent implements OnInit {
@@ -124,6 +124,50 @@ export class TorneoDetalleComponent implements OnInit {
       },
       error: (err) => {
         this.mostrarError(err.error?.message || 'Error al cancelar la inscripción');
+        this.procesando.set(false);
+      }
+    });
+  }
+
+  // --- Suspensión de torneo (Fase 2) ---
+  mostrarModalSuspension = signal<boolean>(false);
+  motivoSuspension = '';
+
+  abrirSuspension() {
+    this.motivoSuspension = '';
+    this.mostrarModalSuspension.set(true);
+  }
+
+  cerrarSuspension() {
+    this.mostrarModalSuspension.set(false);
+  }
+
+  confirmarSuspension() {
+    this.procesando.set(true);
+    this.torneoService.suspender(this.torneoId, this.motivoSuspension).subscribe({
+      next: () => {
+        this.procesando.set(false);
+        this.cerrarSuspension();
+        this.mostrarExito('Torneo suspendido');
+        this.cargarTodo();
+      },
+      error: (err) => {
+        this.mostrarError(err.error?.message || 'Error al suspender el torneo');
+        this.procesando.set(false);
+      }
+    });
+  }
+
+  reactivarTorneo() {
+    this.procesando.set(true);
+    this.torneoService.reactivar(this.torneoId).subscribe({
+      next: () => {
+        this.procesando.set(false);
+        this.mostrarExito('Torneo reactivado');
+        this.cargarTodo();
+      },
+      error: (err) => {
+        this.mostrarError(err.error?.message || 'Error al reactivar el torneo');
         this.procesando.set(false);
       }
     });

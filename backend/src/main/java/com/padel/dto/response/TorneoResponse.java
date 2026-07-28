@@ -20,5 +20,6 @@ public record TorneoResponse(
     long parejasInscriptas,
     BigDecimal precioInscripcion,
     String descripcion,
-    EstadoTorneo estado
+    EstadoTorneo estado,
+    String motivoSuspension
 ) {}

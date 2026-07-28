@@ -24,6 +24,15 @@ export interface CrearUsuarioRequest {
   rol: RolUsuario;
 }
 
+export interface CrearStaffRequest {
+  nombre: string;
+  apellido: string;
+  email: string;
+  telefono?: string;
+  password: string;
+  rol: RolUsuario;
+}
+
 export interface LoginRequest {
   email: string;
   password: string;

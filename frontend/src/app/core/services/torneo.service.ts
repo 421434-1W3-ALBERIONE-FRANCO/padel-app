@@ -45,6 +45,16 @@ export class TorneoService {
     return this.http.delete<void>(`${this.API_URL}/torneos/${id}`);
   }
 
+  suspender(id: number, motivo: string): Observable<TorneoResponse> {
+    let params = new HttpParams();
+    if (motivo) params = params.set('motivo', motivo);
+    return this.http.put<TorneoResponse>(`${this.API_URL}/torneos/${id}/suspender`, {}, { params });
+  }
+
+  reactivar(id: number): Observable<TorneoResponse> {
+    return this.http.put<TorneoResponse>(`${this.API_URL}/torneos/${id}/reactivar`, {});
+  }
+
   inscribirPareja(torneoId: number, request: InscripcionTorneoRequest): Observable<InscripcionTorneoResponse> {
     return this.http.post<InscripcionTorneoResponse>(`${this.API_URL}/torneos/${torneoId}/inscripciones`, request);
   }

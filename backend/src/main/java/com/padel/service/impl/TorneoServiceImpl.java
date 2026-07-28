@@ -119,6 +119,36 @@ public class TorneoServiceImpl implements TorneoService {
     }
 
     @Override
+    public TorneoResponse suspender(Long id, String motivo) {
+        log.info("Suspendiendo torneo ID: {} (motivo: {})", id, motivo);
+        Torneo torneo = obtenerTorneoOrThrow(id);
+        if (torneo.getEstado() == EstadoTorneo.FINALIZADO || torneo.getEstado() == EstadoTorneo.CANCELADO) {
+            throw new EstadoInvalidoException("No se puede suspender un torneo en estado " + torneo.getEstado());
+        }
+        torneo.setEstado(EstadoTorneo.SUSPENDIDO);
+        torneo.setMotivoSuspension(motivo != null && !motivo.isBlank() ? motivo : "Suspendido por el administrador");
+        Torneo saved = torneoRepository.save(torneo);
+        long inscriptas = inscripcionTorneoRepository.countByTorneoIdAndEstado(id, EstadoInscripcion.CONFIRMADA);
+        return torneoMapper.toResponse(saved, inscriptas);
+    }
+
+    @Override
+    public TorneoResponse reactivar(Long id) {
+        log.info("Reactivando torneo ID: {}", id);
+        Torneo torneo = obtenerTorneoOrThrow(id);
+        if (torneo.getEstado() != EstadoTorneo.SUSPENDIDO) {
+            throw new EstadoInvalidoException("Sólo se puede reactivar un torneo suspendido");
+        }
+        // Si aún no llegó la fecha de inicio, vuelve a inscripción; si ya empezó, a en curso.
+        boolean yaEmpezo = torneo.getFechaInicio() != null && !torneo.getFechaInicio().isAfter(java.time.LocalDate.now());
+        torneo.setEstado(yaEmpezo ? EstadoTorneo.EN_CURSO : EstadoTorneo.INSCRIPCION_ABIERTA);
+        torneo.setMotivoSuspension(null);
+        Torneo saved = torneoRepository.save(torneo);
+        long inscriptas = inscripcionTorneoRepository.countByTorneoIdAndEstado(id, EstadoInscripcion.CONFIRMADA);
+        return torneoMapper.toResponse(saved, inscriptas);
+    }
+
+    @Override
     public InscripcionTorneoResponse inscribirPareja(Long torneoId, InscripcionTorneoRequest request, String usuarioEmail) {
         log.info("Inscribiendo pareja en torneo ID {} por usuario {}", torneoId, usuarioEmail);
         Torneo torneo = obtenerTorneoOrThrow(torneoId);

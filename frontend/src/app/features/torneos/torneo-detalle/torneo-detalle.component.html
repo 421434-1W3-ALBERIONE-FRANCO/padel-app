@@ -17,14 +17,30 @@
           <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-100">{{ t.nombre }}</h1>
           <p class="text-sm text-slate-400 mt-1">{{ t.tipo }} · {{ t.formato }} · Categoría {{ t.categoria }}</p>
         </div>
-        <div class="flex gap-2">
-          <span class="px-3 py-1 text-xs font-bold rounded-full uppercase bg-teal-500/10 text-teal-400 border border-teal-500/20">{{ t.estado }}</span>
+        <div class="flex flex-wrap gap-2 justify-end">
+          <span class="px-3 py-1 text-xs font-bold rounded-full uppercase border"
+                [ngClass]="t.estado === 'SUSPENDIDO' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-teal-500/10 text-teal-400 border-teal-500/20'">{{ t.estado }}</span>
+          <button *ngIf="esAdmin() && t.estado !== 'FINALIZADO' && t.estado !== 'CANCELADO' && t.estado !== 'SUSPENDIDO'"
+            (click)="abrirSuspension()"
+            class="bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 px-3 py-1 rounded-full text-xs font-bold transition">
+            Suspender
+          </button>
+          <button *ngIf="esAdmin() && t.estado === 'SUSPENDIDO'" [disabled]="procesando()"
+            (click)="reactivarTorneo()"
+            class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full text-xs font-bold transition">
+            Reactivar
+          </button>
           <button *ngIf="esAdmin() && t.estado !== 'FINALIZADO' && t.estado !== 'CANCELADO'"
             (click)="cancelarTorneo()"
             class="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 px-3 py-1 rounded-full text-xs font-bold transition">
             Cancelar Torneo
           </button>
         </div>
+      </div>
+
+      <!-- Aviso de suspensión con motivo -->
+      <div *ngIf="t.estado === 'SUSPENDIDO'" class="mt-4 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-200 text-sm">
+        <span class="font-bold">Torneo suspendido.</span> {{ t.motivoSuspension || 'Sin motivo especificado.' }}
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 text-xs">
@@ -174,6 +190,24 @@
       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
       Volver a Torneos
     </a>
+  </div>
+
+  <!-- Modal de suspensión -->
+  <div *ngIf="mostrarModalSuspension()" class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" (click)="cerrarSuspension()">
+    <div class="bg-dark-950 border border-white/10 rounded-2xl p-6 max-w-md w-full shadow-2xl" (click)="$event.stopPropagation()">
+      <h3 class="font-display font-bold text-lg text-white mb-1">Suspender torneo</h3>
+      <p class="text-sm text-slate-400 mb-4">Indicá el motivo de la suspensión (se muestra a los jugadores).</p>
+      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Motivo</label>
+      <input type="text" [(ngModel)]="motivoSuspension" placeholder="Ej: mal clima / falta de parejas"
+             class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none mb-5" />
+      <div class="flex gap-3 justify-end">
+        <button (click)="cerrarSuspension()" class="btn-secondary py-2.5 px-5 text-sm">Volver</button>
+        <button (click)="confirmarSuspension()" [disabled]="procesando()"
+                class="py-2.5 px-5 text-sm font-bold rounded-xl bg-amber-500/90 hover:bg-amber-500 text-slate-950 transition disabled:opacity-50">
+          {{ procesando() ? 'Suspendiendo...' : 'Confirmar suspensión' }}
+        </button>
+      </div>
+    </div>
   </div>
 
 </div>

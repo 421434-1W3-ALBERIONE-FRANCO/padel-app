@@ -57,4 +57,8 @@ public class Torneo extends BaseEntity {
     @Builder.Default
     @Column(nullable = false, length = 50)
     private EstadoTorneo estado = EstadoTorneo.INSCRIPCION_ABIERTA;
+
+    // Motivo de la suspensión (solo aplica cuando estado = SUSPENDIDO).
+    @Column(name = "motivo_suspension", length = 500)
+    private String motivoSuspension;
 }

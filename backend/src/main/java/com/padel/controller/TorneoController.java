@@ -70,6 +70,20 @@ public class TorneoController {
         return ResponseEntity.noContent().build();
     }
 
+    @PutMapping("/{id}/suspender")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Suspender un torneo", description = "Suspende un torneo (con motivo) que no haya finalizado ni cancelado. Sólo administradores.")
+    public ResponseEntity<TorneoResponse> suspender(@PathVariable Long id, @RequestParam(required = false) String motivo) {
+        return ResponseEntity.ok(torneoService.suspender(id, motivo));
+    }
+
+    @PutMapping("/{id}/reactivar")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Reactivar un torneo suspendido", description = "Reactiva un torneo previamente suspendido. Sólo administradores.")
+    public ResponseEntity<TorneoResponse> reactivar(@PathVariable Long id) {
+        return ResponseEntity.ok(torneoService.reactivar(id));
+    }
+
     @PostMapping("/{id}/inscripciones")
     @Operation(summary = "Inscribir una pareja", description = "Inscribe al usuario autenticado junto a un compañero en el torneo.")
     public ResponseEntity<InscripcionTorneoResponse> inscribirPareja(

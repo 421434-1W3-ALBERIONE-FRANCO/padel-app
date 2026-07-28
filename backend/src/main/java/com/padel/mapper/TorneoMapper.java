@@ -47,7 +47,8 @@ public class TorneoMapper {
                 parejasInscriptas,
                 entity.getPrecioInscripcion(),
                 entity.getDescripcion(),
-                entity.getEstado()
+                entity.getEstado(),
+                entity.getMotivoSuspension()
         );
     }
 }
