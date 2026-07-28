@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ConfiguracionService } from '../../../core/services/configuracion.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
 
 @Component({
@@ -14,6 +15,7 @@ import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.comp
 export class ConfiguracionComponent implements OnInit {
   private fb = inject(FormBuilder);
   private configuracionService = inject(ConfiguracionService);
+  private toast = inject(ToastService);
 
   form: FormGroup = this.fb.group({
     comisionesHabilitadas: [false],
@@ -24,8 +26,6 @@ export class ConfiguracionComponent implements OnInit {
 
   cargando = signal<boolean>(true);
   guardando = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
 
   ngOnInit(): void {
     this.cargarConfiguracion();
@@ -44,7 +44,7 @@ export class ConfiguracionComponent implements OnInit {
         this.cargando.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar la configuración');
+        this.toast.error(err.error?.message || 'Error al cargar la configuración');
         this.cargando.set(false);
       }
     });
@@ -57,17 +57,15 @@ export class ConfiguracionComponent implements OnInit {
     }
 
     this.guardando.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
 
     this.configuracionService.actualizar(this.form.value).subscribe({
       next: () => {
         this.guardando.set(false);
-        this.mensajeExito.set('Configuración actualizada exitosamente.');
+        this.toast.success('Configuración actualizada exitosamente.');
       },
       error: (err) => {
         this.guardando.set(false);
-        this.mensajeError.set(err.error?.message || 'Error al guardar la configuración');
+        this.toast.error(err.error?.message || 'Error al guardar la configuración');
       }
     });
   }

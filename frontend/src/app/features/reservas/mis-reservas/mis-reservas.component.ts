@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ReservaService } from '../../../core/services/reserva.service';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { ReservaResponse } from '../../../shared/models/reserva.model';
 
 @Component({
@@ -16,10 +17,10 @@ import { ReservaResponse } from '../../../shared/models/reserva.model';
 export class MisReservasComponent implements OnInit {
   private reservaService = inject(ReservaService);
   private authService = inject(AuthService);
+  private toast = inject(ToastService);
 
   reservas = signal<ReservaResponse[]>([]);
   cargando = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
 
   // Filtro / Vista para admin/recepcionista
   verTodas = signal<boolean>(false);
@@ -40,7 +41,6 @@ export class MisReservasComponent implements OnInit {
 
   cargarReservas() {
     this.cargando.set(true);
-    this.mensajeError.set(null);
 
     const request$ = (this.esPersonal() && this.verTodas())
       ? this.reservaService.getAllReservas()
@@ -52,7 +52,7 @@ export class MisReservasComponent implements OnInit {
         this.cargando.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar las reservas.');
+        this.toast.error(err.error?.message || 'Error al cargar las reservas.');
         this.cargando.set(false);
       }
     });
@@ -85,6 +85,7 @@ export class MisReservasComponent implements OnInit {
       next: () => {
         this.cargandoCancelacion.set(false);
         this.cerrarModalCancelacion();
+        this.toast.success('Reserva cancelada. La franja quedó liberada.');
         this.cargarReservas();
       },
       error: (err) => {

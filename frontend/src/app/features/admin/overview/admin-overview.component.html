@@ -1,27 +1,81 @@
-<div class="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+<div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
 
-  <!-- Bienvenida -->
-  <div class="flex items-start gap-4 pb-8 border-b border-white/5">
-    <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-500 to-accent-500 text-slate-950 flex items-center justify-center font-bold text-xl shadow-lg shadow-primary-500/10 font-display shrink-0">
-      {{ currentUser()?.nombre?.substring(0,1) }}{{ currentUser()?.apellido?.substring(0,1) }}
-    </div>
-    <div>
-      <h1 class="text-2xl sm:text-3xl font-extrabold text-white font-display">Consola de Administración</h1>
-      <p class="text-slate-400 text-sm mt-1">Control global de PadelApp. Elegí un módulo del menú lateral o de los accesos rápidos.</p>
-      <div class="inline-flex items-center gap-1.5 mt-3 px-3 py-1 rounded-full text-xs font-semibold bg-accent-500/10 border border-accent-500/20 text-accent-400">
-        <span class="w-1.5 h-1.5 rounded-full bg-accent-400 animate-pulse"></span>
-        Rol: {{ currentUser()?.rol }}
+  <!-- Bienvenida + filtro de tiempo -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-6 border-b border-white/5">
+    <div class="flex items-start gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-500 to-accent-500 text-slate-950 flex items-center justify-center font-bold text-xl shadow-lg shadow-primary-500/10 font-display shrink-0">
+        {{ currentUser()?.nombre?.substring(0,1) }}{{ currentUser()?.apellido?.substring(0,1) }}
       </div>
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white font-display">Panel de Control</h1>
+        <p class="text-slate-400 text-sm mt-1">Métricas globales de PadelApp.</p>
+      </div>
+    </div>
+
+    <!-- Filtro de rango -->
+    <div class="inline-flex rounded-xl bg-surface-1/40 border border-white/5 p-1 self-start">
+      <button (click)="setRango('hoy')" [class]="rango() === 'hoy' ? 'bg-primary-500/20 text-primary-300' : 'text-slate-400 hover:text-white'" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Hoy</button>
+      <button (click)="setRango('semana')" [class]="rango() === 'semana' ? 'bg-primary-500/20 text-primary-300' : 'text-slate-400 hover:text-white'" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Semana</button>
+      <button (click)="setRango('mes')" [class]="rango() === 'mes' ? 'bg-primary-500/20 text-primary-300' : 'text-slate-400 hover:text-white'" class="px-3.5 py-1.5 rounded-lg text-xs font-bold transition">Mes</button>
     </div>
   </div>
 
-  <!-- Accesos rápidos -->
-  <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mt-8 mb-4 font-display">Accesos rápidos</h2>
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+  <!-- Loading -->
+  <div *ngIf="cargando()" class="mt-8 text-slate-400 text-sm">Cargando métricas...</div>
 
-    <ng-container *ngFor="let card of cards">
-      <!-- Card habilitada -->
-      <a *ngIf="!card.disabled" [routerLink]="card.route"
+  <div *ngIf="!cargando()">
+    <!-- Tarjetas de métricas -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reservas</span>
+        <span class="block text-3xl font-extrabold text-white font-display mt-1">{{ totalReservas() }}</span>
+        <span class="block text-xs text-slate-500 mt-1">en el período</span>
+      </div>
+      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos</span>
+        <span class="block text-3xl font-extrabold text-primary-400 font-display mt-1">${{ ingresos() | number:'1.0-0' }}</span>
+        <span class="block text-xs text-slate-500 mt-1">confirmadas + completadas</span>
+      </div>
+      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Confirmadas</span>
+        <span class="block text-3xl font-extrabold text-emerald-400 font-display mt-1">{{ confirmadas() }}</span>
+        <span class="block text-xs text-slate-500 mt-1">{{ tasaConfirmacion() }}% de confirmación</span>
+      </div>
+      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Canceladas</span>
+        <span class="block text-3xl font-extrabold text-red-400 font-display mt-1">{{ canceladas() }}</span>
+        <span class="block text-xs text-slate-500 mt-1">en el período</span>
+      </div>
+    </div>
+
+    <!-- Gráfico de reservas por día -->
+    <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 sm:p-6 mt-4">
+      <div class="flex items-center justify-between mb-5">
+        <h2 class="text-sm font-bold text-white font-display uppercase tracking-wider">Reservas por día</h2>
+        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Máx por barra</span>
+      </div>
+
+      <div class="flex items-end gap-1.5 h-40 sm:h-48">
+        <div *ngFor="let barra of grafico()" class="flex-1 flex flex-col items-center justify-end gap-1.5 min-w-0 group">
+          <span class="text-[10px] font-bold text-slate-300 opacity-0 group-hover:opacity-100 transition">{{ barra.cantidad }}</span>
+          <div
+            class="w-full rounded-t-md bg-gradient-to-t from-primary-600/60 to-accent-500/70 hover:from-primary-500 hover:to-accent-400 transition-all min-h-[2px]"
+            [style.height.%]="barra.altura"
+            [title]="barra.fecha + ': ' + barra.cantidad + ' reservas'">
+          </div>
+          <span class="text-[9px] text-slate-500 truncate w-full text-center">{{ barra.etiqueta }}</span>
+        </div>
+      </div>
+
+      <p class="text-[11px] text-slate-500 mt-4">
+        Nota: la ocupación real por franja se agregará en Fase 2 (requiere capacidad por cancha).
+      </p>
+    </div>
+
+    <!-- Accesos rápidos -->
+    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mt-10 mb-4 font-display">Accesos rápidos</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <a *ngFor="let card of cards" [routerLink]="card.route"
          class="group bg-surface-1/40 hover:bg-surface-1/70 border border-white/5 hover:border-primary-500/30 rounded-2xl p-5 transition flex flex-col">
         <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-3 group-hover:scale-105 transition">
           <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="card.icon"/></svg>
@@ -29,20 +83,6 @@
         <span class="font-bold text-white text-sm font-display">{{ card.label }}</span>
         <span class="text-xs text-slate-400 mt-1 leading-relaxed">{{ card.desc }}</span>
       </a>
-
-      <!-- Card deshabilitada (Fase 2) -->
-      <div *ngIf="card.disabled"
-           class="bg-surface-1/20 border border-dashed border-white/10 rounded-2xl p-5 flex flex-col opacity-60 cursor-not-allowed select-none">
-        <div class="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center mb-3">
-          <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="card.icon"/></svg>
-        </div>
-        <span class="font-bold text-slate-400 text-sm font-display flex items-center gap-2">
-          {{ card.label }}
-          <span class="text-[9px] font-bold uppercase tracking-wide bg-white/5 text-slate-500 px-1.5 py-0.5 rounded">Pronto</span>
-        </span>
-        <span class="text-xs text-slate-500 mt-1 leading-relaxed">{{ card.desc }}</span>
-      </div>
-    </ng-container>
-
+    </div>
   </div>
 </div>

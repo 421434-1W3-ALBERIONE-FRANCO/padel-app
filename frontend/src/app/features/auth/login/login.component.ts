@@ -38,7 +38,9 @@ export class LoginComponent {
     this.authService.login(this.loginForm.value).subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.router.navigate(['/dashboard']);
+        // El admin va directo a su consola; el resto al panel de jugador.
+        const destino = this.authService.userRole() === 'ADMIN' ? '/admin' : '/dashboard';
+        this.router.navigate([destino]);
       },
       error: (error: HttpErrorResponse) => {
         this.isLoading.set(false);

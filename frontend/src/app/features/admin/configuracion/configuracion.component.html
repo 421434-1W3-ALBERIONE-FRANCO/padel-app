@@ -4,39 +4,11 @@
   <main class="max-w-2xl mx-auto px-4 py-12 relative z-10">
     <ui-card class="p-6 sm:p-10">
       <h1 class="text-2xl font-extrabold text-white font-display mb-1">Configuración del Sistema</h1>
-      <p class="text-slate-400 text-sm mb-8">Parámetros globales administrables: comisiones, avisos y control horario.</p>
-
-      <div *ngIf="mensajeError()" class="mb-5 p-4 rounded-xl bg-red-950/50 border border-red-800/50 text-red-100 text-sm">
-        {{ mensajeError() }}
-      </div>
-      <div *ngIf="mensajeExito()" class="mb-5 p-4 rounded-xl bg-primary-950/50 border border-primary-800/50 text-primary-100 text-sm">
-        {{ mensajeExito() }}
-      </div>
+      <p class="text-slate-400 text-sm mb-8">Parámetros globales administrables: avisos de vencimiento y control horario. La configuración de comisiones se administra en <strong>Personal y Finanzas → Comisiones</strong>.</p>
 
       <div *ngIf="cargando()" class="text-slate-400 text-sm">Cargando configuración...</div>
 
       <form *ngIf="!cargando()" [formGroup]="form" (ngSubmit)="guardar()" class="space-y-6">
-        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 flex items-center justify-between">
-          <div>
-            <span class="block text-sm font-semibold text-white">Comisiones para recepción</span>
-            <span class="block text-xs text-slate-400 mt-1">Habilita el cálculo de comisiones por ventas de consumos y bonos.</span>
-          </div>
-          <input type="checkbox" formControlName="comisionesHabilitadas" class="w-5 h-5 accent-primary-500" />
-        </div>
-
-        <div>
-          <label for="porcentajeComisionRecepcion" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-            Porcentaje de comisión (%)
-          </label>
-          <input
-            id="porcentajeComisionRecepcion"
-            type="number"
-            step="0.01"
-            formControlName="porcentajeComisionRecepcion"
-            class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 px-4 text-sm transition duration-200 outline-none"
-          />
-        </div>
-
         <div>
           <label for="diasAvisoVencimientoBono" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
             Días de aviso previo de vencimiento de bono
