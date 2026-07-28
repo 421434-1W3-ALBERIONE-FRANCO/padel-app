@@ -65,7 +65,7 @@ class CanchaControllerSecurityTest {
     @Test
     void jugadorNoPuedeCrearCancha() throws Exception {
         String token = obtenerTokenParaRol("jugador.security.test@test.com", RolUsuario.JUGADOR);
-        CanchaRequest request = new CanchaRequest("Cancha Test", TipoSuelo.CEMENTO, false, false);
+        CanchaRequest request = new CanchaRequest("Cancha Test", TipoSuelo.CEMENTO, false, false, null);
 
         mockMvc.perform(post("/api/v1/canchas")
                         .header("Authorization", "Bearer " + token)
@@ -77,7 +77,7 @@ class CanchaControllerSecurityTest {
     @Test
     void adminPuedeCrearCancha() throws Exception {
         String token = obtenerTokenParaRol("admin.security.test@test.com", RolUsuario.ADMIN);
-        CanchaRequest request = new CanchaRequest("Cancha Test Admin", TipoSuelo.BLINDEX, true, true);
+        CanchaRequest request = new CanchaRequest("Cancha Test Admin", TipoSuelo.BLINDEX, true, true, null);
 
         mockMvc.perform(post("/api/v1/canchas")
                         .header("Authorization", "Bearer " + token)

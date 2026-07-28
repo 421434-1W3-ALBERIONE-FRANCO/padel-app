@@ -6,6 +6,8 @@ export interface ReservaRequest {
   franjaId: number;
   fecha: string;
   origen: OrigenReserva;
+  duracionMin?: number;   // opcional: si falta, se usa la duración de la franja (turno estándar)
+  usuarioId?: number;     // opcional: alta rápida por staff para un cliente
 }
 
 export interface ReservaResponse {

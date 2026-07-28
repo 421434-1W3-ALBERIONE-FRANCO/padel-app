@@ -69,6 +69,7 @@ public class CanchaServiceImpl implements CanchaService {
         cancha.setTipoSuelo(request.tipoSuelo());
         cancha.setTechada(request.techada());
         cancha.setTieneLuz(request.tieneLuz());
+        cancha.setDuracionesPermitidas(canchaMapper.duracionesToString(request.duracionesPermitidas()));
 
         Cancha guardada = canchaRepository.save(cancha);
         notificarCambio(id);

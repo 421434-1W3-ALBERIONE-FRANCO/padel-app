@@ -1,3 +1,9 @@
+export interface OpcionDuracion {
+  duracionMin: number;
+  horaFin: string;
+  precio: number;
+}
+
 export interface SlotDisponibilidad {
   franjaId: number;
   horaInicio: string;
@@ -6,6 +12,7 @@ export interface SlotDisponibilidad {
   precio: number;
   disponible: boolean;
   motivoBloqueo: string | null;
+  opcionesDuracion: OpcionDuracion[];
 }
 
 export interface DisponibilidadResponse {

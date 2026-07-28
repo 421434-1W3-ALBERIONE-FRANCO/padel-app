@@ -79,6 +79,20 @@
             </label>
           </div>
 
+          <div>
+            <label class="block text-sm font-medium text-slate-300 mb-2">Duraciones permitidas (min)</label>
+            <div class="flex flex-wrap gap-2">
+              <button *ngFor="let d of duracionesDisponibles" type="button" (click)="toggleDuracion(d)"
+                      class="px-3 py-1.5 rounded-lg text-xs font-bold border transition"
+                      [ngClass]="duracionesSel().includes(d)
+                        ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
+                        : 'bg-slate-950/60 text-slate-400 border-slate-800 hover:border-teal-500/30'">
+                {{ d }}'
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1.5">El cliente elige entre estas según disponibilidad. 90' es el turno estándar.</p>
+          </div>
+
           <div class="flex items-center gap-3 mt-2">
             <button 
               type="button" 

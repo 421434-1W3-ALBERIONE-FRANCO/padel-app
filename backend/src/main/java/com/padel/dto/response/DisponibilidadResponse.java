@@ -18,6 +18,15 @@ public record DisponibilidadResponse(
         Integer duracionMin,
         BigDecimal precio,
         boolean disponible,
-        String motivoBloqueo
+        String motivoBloqueo,
+        // Duraciones (en minutos) que se pueden reservar arrancando en este slot, según lo que
+        // entra en la ventana libre contigua, cada una con su hora de fin y precio prorrateado.
+        List<OpcionDuracion> opcionesDuracion
+    ) {}
+
+    public record OpcionDuracion(
+        Integer duracionMin,
+        LocalTime horaFin,
+        BigDecimal precio
     ) {}
 }

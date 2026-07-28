@@ -5,6 +5,7 @@ export interface CanchaRequest {
   tipoSuelo: TipoSuelo;
   techada: boolean;
   tieneLuz: boolean;
+  duracionesPermitidas?: number[];
 }
 
 export interface CanchaResponse {
@@ -14,4 +15,5 @@ export interface CanchaResponse {
   techada: boolean;
   tieneLuz: boolean;
   activa: boolean;
+  duracionesPermitidas: number[];
 }

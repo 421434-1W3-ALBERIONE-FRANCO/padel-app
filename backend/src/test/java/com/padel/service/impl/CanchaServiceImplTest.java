@@ -53,7 +53,8 @@ class CanchaServiceImplTest {
                 "Cancha Central",
                 TipoSuelo.BLINDEX,
                 true,
-                true
+                true,
+                null
         );
 
         canchaResponse = new CanchaResponse(
@@ -63,6 +64,7 @@ class CanchaServiceImplTest {
                 true,
                 true,
                 true,
+                null,
                 LocalDateTime.now(),
                 LocalDateTime.now()
         );
@@ -110,8 +112,8 @@ class CanchaServiceImplTest {
 
     @Test
     void actualizar_ShouldSaveAndReturnResponse_WhenValid() {
-        CanchaRequest updateRequest = new CanchaRequest("Cancha Central Modificada", TipoSuelo.SINTETICO, false, false);
-        CanchaResponse updateResponse = new CanchaResponse(1L, "Cancha Central Modificada", TipoSuelo.SINTETICO, false, false, true, LocalDateTime.now(), LocalDateTime.now());
+        CanchaRequest updateRequest = new CanchaRequest("Cancha Central Modificada", TipoSuelo.SINTETICO, false, false, null);
+        CanchaResponse updateResponse = new CanchaResponse(1L, "Cancha Central Modificada", TipoSuelo.SINTETICO, false, false, true, null, LocalDateTime.now(), LocalDateTime.now());
 
         when(canchaRepository.findByIdAndActivaTrue(1L)).thenReturn(Optional.of(canchaMock));
         when(canchaRepository.existsByNombreAndActivaTrueAndIdNot(updateRequest.nombre(), 1L)).thenReturn(false);

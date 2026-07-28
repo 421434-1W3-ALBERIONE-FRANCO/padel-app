@@ -33,4 +33,10 @@ public class Cancha extends BaseEntity {
     @Builder.Default
     @Column(nullable = false)
     private boolean activa = true;
+
+    // Duraciones de reserva permitidas en minutos, separadas por coma (ej. "60,90,120,180").
+    // El cliente elige entre estas (según disponibilidad); default 90 (el estándar de pádel).
+    @Builder.Default
+    @Column(name = "duraciones_permitidas", length = 100)
+    private String duracionesPermitidas = "90";
 }

@@ -18,5 +18,12 @@ public record ReservaRequest(
     LocalDate fecha,
 
     @NotNull(message = "El origen de la reserva es obligatorio")
-    OrigenReserva origen
+    OrigenReserva origen,
+
+    // Duración en minutos. Opcional: si es null, se usa la duración de la franja (turno estándar).
+    Integer duracionMin,
+
+    // Cliente para el que se crea la reserva (alta rápida por staff/admin). Opcional:
+    // si es null, la reserva es para el usuario autenticado.
+    Long usuarioId
 ) {}

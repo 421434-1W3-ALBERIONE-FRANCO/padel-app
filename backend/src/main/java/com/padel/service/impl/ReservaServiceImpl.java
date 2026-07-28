@@ -22,11 +22,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.DayOfWeek;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -52,8 +55,16 @@ public class ReservaServiceImpl implements ReservaService {
         log.info("Iniciando creación de reserva para usuario {} en cancha {} y franja {}", 
                 usuarioEmail, request.canchaId(), request.franjaId());
 
-        Usuario usuario = usuarioRepository.findByEmail(usuarioEmail)
+        Usuario solicitante = usuarioRepository.findByEmail(usuarioEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + usuarioEmail));
+
+        // Alta rápida por staff: si viene usuarioId y el solicitante es staff, la reserva es para ese cliente.
+        Usuario usuario = solicitante;
+        boolean esStaff = solicitante.getRol() == RolUsuario.ADMIN || solicitante.getRol() == RolUsuario.RECEPCIONISTA;
+        if (request.usuarioId() != null && esStaff) {
+            usuario = usuarioRepository.findById(request.usuarioId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente no encontrado con id: " + request.usuarioId()));
+        }
 
         Cancha cancha = canchaRepository.findById(request.canchaId())
                 .filter(Cancha::isActiva)
@@ -92,6 +103,32 @@ public class ReservaServiceImpl implements ReservaService {
             throw new SlotNoDisponibleException("La franja horaria no está disponible para el día de la semana especificado");
         }
 
+        // === Duración variable ===
+        int duracion = request.duracionMin() != null ? request.duracionMin() : franja.getDuracionMin();
+        if (request.duracionMin() != null && !parseDuraciones(cancha.getDuracionesPermitidas()).contains(duracion)) {
+            throw new SlotNoDisponibleException("La duración de " + duracion + " min no está permitida para esta cancha");
+        }
+        LocalTime horaInicio = franja.getHoraInicio();
+        LocalTime horaFin = horaInicio.plusMinutes(duracion);
+
+        // Franjas del día que la reserva cubre; se valida cobertura contigua (dentro del horario de apertura).
+        List<FranjaHoraria> franjasDia = franjaHorariaRepository.findByCanchaIdAndCanchaActivaTrue(cancha.getId()).stream()
+                .filter(f -> Arrays.stream(f.getDiasAplicables().split(","))
+                        .map(String::trim).map(DayOfWeek::valueOf).collect(Collectors.toSet()).contains(dayOfWeek))
+                .sorted(Comparator.comparing(FranjaHoraria::getHoraInicio))
+                .toList();
+        List<FranjaHoraria> cubiertas = franjasDia.stream()
+                .filter(f -> f.getHoraInicio().isBefore(horaFin) && horaInicio.isBefore(f.getHoraFin()))
+                .toList();
+        LocalTime cursor = horaInicio;
+        for (FranjaHoraria f : cubiertas) {
+            if (f.getHoraInicio().isAfter(cursor)) break; // hay un hueco entre franjas
+            cursor = f.getHoraFin();
+        }
+        if (cursor.isBefore(horaFin)) {
+            throw new SlotNoDisponibleException("La duración seleccionada excede el horario disponible de la cancha");
+        }
+
         // Intentar adquirir el lock en Redis
         boolean lockAcquired = redisLockService.acquireLock(cancha.getId(), fecha, franja.getHoraInicio());
         if (!lockAcquired) {
@@ -102,34 +139,33 @@ public class ReservaServiceImpl implements ReservaService {
             // 1. Evaluar si hay un BloqueoCancha activo
             List<BloqueoCancha> blocks = bloqueoCanchaRepository.findBlocksForDate(cancha.getId(), fecha);
             boolean isBlocked = blocks.stream()
-                    .anyMatch(b -> franja.getHoraInicio().isBefore(b.getHoraHasta()) && b.getHoraDesde().isBefore(franja.getHoraFin()));
+                    .anyMatch(b -> horaInicio.isBefore(b.getHoraHasta()) && b.getHoraDesde().isBefore(horaFin));
             if (isBlocked) {
                 throw new SlotNoDisponibleException("La cancha está bloqueada en ese horario");
             }
 
-            // 2. Evaluar si existe una Reserva CONFIRMADA o COMPLETADA
+            // 2. Evaluar si existe una Reserva CONFIRMADA o COMPLETADA (solapamiento en todo el rango)
             List<Reserva> activeReservations = reservaRepository.findActiveReservationsByCanchaAndDate(cancha.getId(), fecha);
             boolean isReserved = activeReservations.stream()
-                    .anyMatch(r -> franja.getHoraInicio().isBefore(r.getHoraFin()) && r.getHoraInicio().isBefore(franja.getHoraFin()));
+                    .anyMatch(r -> horaInicio.isBefore(r.getHoraFin()) && r.getHoraInicio().isBefore(horaFin));
             if (isReserved) {
                 throw new SlotNoDisponibleException("La cancha ya está reservada en ese horario");
             }
 
-            // Determinar si es nocturno (18:00 en adelante)
-            boolean esNocturno = !franja.getHoraInicio().isBefore(LocalTime.of(18, 0));
-            BigDecimal precioTotal = esNocturno ? franja.getPrecioNocturno() : franja.getPrecioBase();
+            // Precio prorrateado por las franjas que cubre (cada tramo con su tarifa base/nocturna).
+            BigDecimal precioTotal = calcularPrecioProrrateado(cubiertas, horaInicio, horaFin);
 
-            // El origen es un dato de auditoría: un JUGADOR reservando para sí mismo siempre es APP,
-            // sin importar lo que envíe el cliente. Sólo staff (admin/recepción) puede marcar RECEPCION.
-            OrigenReserva origen = usuario.getRol() == RolUsuario.JUGADOR ? OrigenReserva.APP : request.origen();
+            // El origen es un dato de auditoría: si el SOLICITANTE es JUGADOR siempre es APP;
+            // sólo staff (admin/recepción) puede marcar RECEPCION (incluye altas para clientes).
+            OrigenReserva origen = solicitante.getRol() == RolUsuario.JUGADOR ? OrigenReserva.APP : request.origen();
 
             Reserva reserva = Reserva.builder()
                     .usuario(usuario)
                     .cancha(cancha)
                     .franjaHoraria(franja)
                     .fecha(fecha)
-                    .horaInicio(franja.getHoraInicio())
-                    .horaFin(franja.getHoraFin())
+                    .horaInicio(horaInicio)
+                    .horaFin(horaFin)
                     .precioTotal(precioTotal)
                     .estadoReserva(EstadoReserva.PENDIENTE_PAGO)
                     .origen(origen)
@@ -145,6 +181,36 @@ public class ReservaServiceImpl implements ReservaService {
             redisLockService.releaseLock(cancha.getId(), fecha, franja.getHoraInicio());
             throw e;
         }
+    }
+
+    // Parsea "60,90,120" -> {60,90,120}.
+    private Set<Integer> parseDuraciones(String s) {
+        if (s == null || s.isBlank()) {
+            return Set.of(90);
+        }
+        return Arrays.stream(s.split(","))
+                .map(String::trim)
+                .filter(x -> !x.isEmpty())
+                .map(Integer::valueOf)
+                .collect(Collectors.toSet());
+    }
+
+    // Precio prorrateado: por cada franja cubierta, su tarifa (base/nocturna según su hora de inicio)
+    // multiplicada por la fracción de la franja que la reserva ocupa. Cruza bien el corte nocturno (18:00).
+    private BigDecimal calcularPrecioProrrateado(List<FranjaHoraria> cubiertas, LocalTime horaInicio, LocalTime horaFin) {
+        BigDecimal total = BigDecimal.ZERO;
+        for (FranjaHoraria f : cubiertas) {
+            LocalTime overlapStart = horaInicio.isAfter(f.getHoraInicio()) ? horaInicio : f.getHoraInicio();
+            LocalTime overlapEnd = horaFin.isBefore(f.getHoraFin()) ? horaFin : f.getHoraFin();
+            long overlapMin = Duration.between(overlapStart, overlapEnd).toMinutes();
+            if (overlapMin <= 0) continue;
+            boolean noct = !f.getHoraInicio().isBefore(LocalTime.of(18, 0));
+            BigDecimal precioFranja = noct ? f.getPrecioNocturno() : f.getPrecioBase();
+            BigDecimal fraccion = BigDecimal.valueOf(overlapMin)
+                    .divide(BigDecimal.valueOf(f.getDuracionMin()), 6, RoundingMode.HALF_UP);
+            total = total.add(precioFranja.multiply(fraccion));
+        }
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     // Reservas habilitadas solo dentro del mes en curso; en la última semana del mes

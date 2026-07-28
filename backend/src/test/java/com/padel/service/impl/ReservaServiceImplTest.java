@@ -99,6 +99,10 @@ class ReservaServiceImplTest {
                 .diasAplicables("MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY")
                 .build();
 
+        // La disponibilidad de duración variable consulta las franjas del día para validar cobertura.
+        lenient().when(franjaHorariaRepository.findByCanchaIdAndCanchaActivaTrue(1L))
+                .thenReturn(List.of(franjaMock));
+
         reservaMock = Reserva.builder()
                 .id(1L)
                 .usuario(usuarioMock)
@@ -116,7 +120,9 @@ class ReservaServiceImplTest {
                 1L,
                 1L,
                 LocalDate.now().plusDays(1),
-                OrigenReserva.APP
+                OrigenReserva.APP,
+                null,
+                null
         );
 
         responseMock = new ReservaResponse(
@@ -159,7 +165,7 @@ class ReservaServiceImplTest {
 
     @Test
     void crearReserva_DeberiaForzarOrigenAppParaJugadorSinImportarLoEnviado() {
-        ReservaRequest requestConOrigenFalseado = new ReservaRequest(1L, 1L, LocalDate.now().plusDays(1), OrigenReserva.RECEPCION);
+        ReservaRequest requestConOrigenFalseado = new ReservaRequest(1L, 1L, LocalDate.now().plusDays(1), OrigenReserva.RECEPCION, null, null);
 
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
         when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
