@@ -4,6 +4,7 @@ import { FormsModule, ReactiveFormsModule, FormBuilder, FormGroup, Validators } 
 import { RouterLink } from '@angular/router';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ProductoResponse } from '../../../shared/models/producto.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-productos-admin',
@@ -14,24 +15,18 @@ import { ProductoResponse } from '../../../shared/models/producto.model';
 })
 export class ProductosAdminComponent implements OnInit {
   private productoService = inject(ProductoService);
-  private fb = inject(FormBuilder);
-
+  private toast = inject(ToastService);
+  private fb = inject(FormBuilder);
   productos = signal<ProductoResponse[]>([]);
-  cargando = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
-
+  cargando = signal<boolean>(false);
   productoForm!: FormGroup;
   showForm = signal<boolean>(false);
-  editProductoId = signal<number | null>(null);
-
-  categorias = ['BEBIDA', 'SNACK', 'ACCESORIO', 'ALQUILER', 'OTROS'];
-
+  editProductoId = signal<number | null>(null);
+  categorias = ['BEBIDA', 'SNACK', 'ACCESORIO', 'ALQUILER', 'OTROS'];
   ngOnInit() {
     this.initForm();
     this.cargarProductos();
-  }
-
+  }
   initForm() {
     this.productoForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(100)]],
@@ -40,23 +35,20 @@ export class ProductosAdminComponent implements OnInit {
       stock: [0, [Validators.required, Validators.min(0)]],
       activo: [true]
     });
-  }
-
+  }
   cargarProductos() {
     this.cargando.set(true);
-    this.mensajeError.set(null);
     this.productoService.listarActivos().subscribe({
       next: (data) => {
         this.productos.set(data);
         this.cargando.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar el catálogo de productos.');
+        this.toast.error(err.error?.message || 'Error al cargar el catálogo de productos.');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   abrirNuevo() {
     this.editProductoId.set(null);
     this.productoForm.reset({
@@ -67,10 +59,7 @@ export class ProductosAdminComponent implements OnInit {
       activo: true
     });
     this.showForm.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
-  }
-
+  }
   editar(producto: ProductoResponse) {
     this.editProductoId.set(producto.id);
     this.productoForm.patchValue({
@@ -81,57 +70,43 @@ export class ProductosAdminComponent implements OnInit {
       activo: producto.activo
     });
     this.showForm.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
-  }
-
+  }
   cerrarForm() {
     this.showForm.set(false);
     this.editProductoId.set(null);
-  }
-
+  }
   guardar() {
     if (this.productoForm.invalid) {
       this.productoForm.markAllAsTouched();
       return;
-    }
-
+    }
     const payload = this.productoForm.value;
     const request$ = this.editProductoId()
       ? this.productoService.actualizar(this.editProductoId()!, payload)
-      : this.productoService.crear(payload);
-
-    this.cargando.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
-
+      : this.productoService.crear(payload);
+    this.cargando.set(true);
     request$.subscribe({
       next: () => {
-        this.mensajeExito.set(this.editProductoId() ? 'Producto actualizado con éxito' : 'Producto creado con éxito');
+        this.toast.success(this.editProductoId() ? 'Producto actualizado con éxito' : 'Producto creado con éxito');
         this.cerrarForm();
         this.cargarProductos();
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al guardar el producto.');
+        this.toast.error(err.error?.message || 'Error al guardar el producto.');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   eliminar(id: number) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
-
-    this.cargando.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
-
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+    this.cargando.set(true);
     this.productoService.eliminar(id).subscribe({
       next: () => {
-        this.mensajeExito.set('Producto eliminado con éxito');
+        this.toast.success('Producto eliminado con éxito');
         this.cargarProductos();
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al eliminar el producto.');
+        this.toast.error(err.error?.message || 'Error al eliminar el producto.');
         this.cargando.set(false);
       }
     });

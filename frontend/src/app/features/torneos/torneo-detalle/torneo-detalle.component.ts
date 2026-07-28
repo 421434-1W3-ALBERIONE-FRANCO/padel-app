@@ -5,6 +5,7 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { TorneoService } from '../../../core/services/torneo.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { InscripcionTorneoResponse, PartidoTorneoResponse, TorneoResponse } from '../../../shared/models/torneo.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-torneo-detalle',
@@ -14,6 +15,7 @@ import { InscripcionTorneoResponse, PartidoTorneoResponse, TorneoResponse } from
 })
 export class TorneoDetalleComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private toast = inject(ToastService);
   private torneoService = inject(TorneoService);
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
@@ -28,8 +30,6 @@ export class TorneoDetalleComponent implements OnInit {
   activeTab = signal<'inscripciones' | 'fixture'>('inscripciones');
   cargando = signal<boolean>(true);
   procesando = signal<boolean>(false);
-  error = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
 
   editandoResultadoId = signal<number | null>(null);
 
@@ -48,7 +48,6 @@ export class TorneoDetalleComponent implements OnInit {
 
   cargarTodo() {
     this.cargando.set(true);
-    this.error.set(null);
 
     this.torneoService.obtenerPorId(this.torneoId).subscribe({
       next: (data) => {
@@ -57,7 +56,7 @@ export class TorneoDetalleComponent implements OnInit {
         this.cargarPartidos();
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al cargar el torneo');
+        this.toast.error(err.error?.message || 'Error al cargar el torneo');
         this.cargando.set(false);
       }
     });
@@ -84,13 +83,13 @@ export class TorneoDetalleComponent implements OnInit {
   }
 
   private mostrarError(msg: string) {
-    this.error.set(msg);
-    setTimeout(() => this.error.set(null), 5000);
+    this.toast.error(msg);
+
   }
 
   private mostrarExito(msg: string) {
-    this.mensajeExito.set(msg);
-    setTimeout(() => this.mensajeExito.set(null), 4000);
+    this.toast.success(msg);
+
   }
 
   inscribirPareja() {

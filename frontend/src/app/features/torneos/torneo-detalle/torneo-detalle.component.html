@@ -1,12 +1,6 @@
 <div class="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
 
-  <div class="max-w-5xl mx-auto mb-6" *ngIf="error()">
-    <div class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl">{{ error() }}</div>
-  </div>
 
-  <div class="max-w-5xl mx-auto mb-6" *ngIf="mensajeExito()">
-    <div class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl">{{ mensajeExito() }}</div>
-  </div>
 
   <!-- Skeleton -->
   <div *ngIf="cargando()" class="max-w-5xl mx-auto space-y-4 animate-pulse">

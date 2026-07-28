@@ -16,18 +16,8 @@
       {{ mostrarFormulario() ? 'Cerrar' : 'Crear Torneo' }}
     </button>
   </div>
-
-  <div class="max-w-6xl mx-auto mb-6" *ngIf="error()">
-    <div class="bg-red-500/15 border border-red-500/30 text-red-400 p-4 rounded-xl flex items-start gap-3">
-      <span class="font-semibold">Error:</span> {{ error() }}
-    </div>
-  </div>
-
-  <div class="max-w-6xl mx-auto mb-6" *ngIf="mensajeExito()">
-    <div class="bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 p-4 rounded-xl">
-      {{ mensajeExito() }}
-    </div>
-  </div>
+
+
 
   <!-- Formulario de creación (ADMIN) -->
   <div *ngIf="mostrarFormulario()" class="max-w-6xl mx-auto mb-8 bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6">

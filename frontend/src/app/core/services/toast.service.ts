@@ -21,8 +21,8 @@ export class ToastService {
   private seq = 0;
   private readonly timers = new Map<number, ReturnType<typeof setTimeout>>();
 
-  private push(type: ToastType, message: string, durationMs: number): void {
-    if (!message) return;
+  private push(type: ToastType, message: string | null | undefined, durationMs: number): void {
+    if (!message) return; // ignora null/undefined/'' — sirve como no-op seguro
     const id = ++this.seq;
     this._toasts.update(list => [...list, { id, type, message }]);
     if (durationMs > 0) {
@@ -30,15 +30,15 @@ export class ToastService {
     }
   }
 
-  success(message: string, durationMs = 4000): void {
+  success(message: string | null | undefined, durationMs = 4000): void {
     this.push('success', message, durationMs);
   }
 
-  error(message: string, durationMs = 6000): void {
+  error(message: string | null | undefined, durationMs = 6000): void {
     this.push('error', message, durationMs);
   }
 
-  info(message: string, durationMs = 4000): void {
+  info(message: string | null | undefined, durationMs = 4000): void {
     this.push('info', message, durationMs);
   }
 

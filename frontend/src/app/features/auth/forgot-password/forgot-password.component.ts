@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
@@ -14,14 +15,13 @@ import { HttpErrorResponse } from '@angular/common/http';
 export class ForgotPasswordComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
+  private toast = inject(ToastService);
 
   form: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]]
   });
 
   isLoading = signal<boolean>(false);
-  errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
 
   onSubmit(): void {
     if (this.form.invalid) {
@@ -30,18 +30,16 @@ export class ForgotPasswordComponent {
     }
 
     this.isLoading.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
 
     this.authService.solicitarRecuperacionPassword(this.form.value).subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.successMessage.set('Si el correo está registrado, vas a recibir un enlace para restablecer tu contraseña.');
+        this.toast.success('Si el correo está registrado, vas a recibir un enlace para restablecer tu contraseña.');
       },
       error: (error: HttpErrorResponse) => {
         this.isLoading.set(false);
         const message = error.error?.message || 'Ocurrió un error al procesar la solicitud.';
-        this.errorMessage.set(message);
+        this.toast.error(message);
       }
     });
   }

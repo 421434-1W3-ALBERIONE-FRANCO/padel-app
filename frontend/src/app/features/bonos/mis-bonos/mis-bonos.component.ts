@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterModule } from '@angular/router';
 import { BonoService } from '../../../core/services/bono.service';
 import { BonoResponse } from '../../../shared/models/bono.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-mis-bonos',
@@ -13,12 +14,12 @@ import { BonoResponse } from '../../../shared/models/bono.model';
 })
 export class MisBonosComponent implements OnInit {
   private bonoService = inject(BonoService);
+  private toast = inject(ToastService);
 
   bonos = this.bonoService.bonos;
   saldoHoras = this.bonoService.saldoHorasBono;
 
   cargando = signal<boolean>(true);
-  error = signal<string | null>(null);
 
   ngOnInit() {
     this.cargarDatos();
@@ -26,14 +27,13 @@ export class MisBonosComponent implements OnInit {
 
   cargarDatos() {
     this.cargando.set(true);
-    this.error.set(null);
 
     this.bonoService.cargarMisBonos().subscribe({
       next: () => {
         this.cargando.set(false);
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al obtener tus bonos prepago.');
+        this.toast.error(err.error?.message || 'Error al obtener tus bonos prepago.');
         this.cargando.set(false);
       }
     });

@@ -7,6 +7,7 @@ import { ConsumoService } from '../../../core/services/consumo.service';
 import { ReservaResponse } from '../../../shared/models/reserva.model';
 import { ConsumoResponse } from '../../../shared/models/consumo.model';
 import { MetodoPago } from '../../../shared/models/pago.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-cierre-cuenta',
@@ -17,50 +18,41 @@ import { MetodoPago } from '../../../shared/models/pago.model';
 })
 export class CierreCuentaComponent implements OnInit {
   private route = inject(ActivatedRoute);
+  private toast = inject(ToastService);
   private router = inject(Router);
   private reservaService = inject(ReservaService);
-  private consumoService = inject(ConsumoService);
-
+  private consumoService = inject(ConsumoService);
   reservaId = signal<number>(0);
   reserva = signal<ReservaResponse | null>(null);
-  consumos = signal<ConsumoResponse[]>([]);
-
+  consumos = signal<ConsumoResponse[]>([]);
   // UI state
   cargando = signal<boolean>(false);
-  cargandoOperacion = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
-
+  cargandoOperacion = signal<boolean>(false);
   // Form selections
-  metodoSeleccionado = signal<MetodoPago>('EFECTIVO');
-
+  metodoSeleccionado = signal<MetodoPago>('EFECTIVO');
   ngOnInit() {
     const idParam = this.route.snapshot.paramMap.get('reservaId');
     if (idParam) {
       this.reservaId.set(Number(idParam));
       this.cargarDatos();
     } else {
-      this.mensajeError.set('ID de reserva inválido.');
+      this.toast.error('ID de reserva inválido.');
     }
-  }
-
+  }
   cargarDatos() {
     const id = this.reservaId();
-    this.cargando.set(true);
-    this.mensajeError.set(null);
-
+    this.cargando.set(true);
     this.reservaService.getReserva(id).subscribe({
       next: (res) => {
         this.reserva.set(res);
         this.cargarConsumos(id);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al obtener detalles del turno.');
+        this.toast.error(err.error?.message || 'Error al obtener detalles del turno.');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   cargarConsumos(reservaId: number) {
     this.consumoService.obtenerConsumos(reservaId).subscribe({
       next: (data) => {
@@ -68,50 +60,42 @@ export class CierreCuentaComponent implements OnInit {
         this.cargando.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar consumos de la reserva.');
+        this.toast.error(err.error?.message || 'Error al cargar consumos de la reserva.');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   obtenerPendientes(): ConsumoResponse[] {
     return this.consumos().filter(c => c.estadoPago === 'PENDIENTE');
-  }
-
+  }
   obtenerPagados(): ConsumoResponse[] {
     return this.consumos().filter(c => c.estadoPago === 'PAGADO');
-  }
-
+  }
   calcularTotalPendiente(): number {
     return this.obtenerPendientes().reduce((sum, item) => sum + item.subtotal, 0);
-  }
-
+  }
   cerrarCuenta() {
     const total = this.calcularTotalPendiente();
     if (total === 0) {
-      this.mensajeError.set('No hay consumos pendientes para cobrar.');
+      this.toast.error('No hay consumos pendientes para cobrar.');
       return;
-    }
-
+    }
     const metodo = this.metodoSeleccionado();
-    this.cargandoOperacion.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
-
+    this.cargandoOperacion.set(true);
     this.consumoService.cerrarCuenta(this.reservaId(), { metodo }).subscribe({
       next: () => {
         this.cargandoOperacion.set(false);
         if (metodo === 'EFECTIVO') {
-          this.mensajeExito.set('¡Cuenta cobrada y cerrada exitosamente en efectivo!');
+          this.toast.success('¡Cuenta cobrada y cerrada exitosamente en efectivo!');
         } else if (metodo === 'TARJETA') {
-          this.mensajeExito.set('¡Cuenta cobrada y cerrada exitosamente con tarjeta!');
+          this.toast.success('¡Cuenta cobrada y cerrada exitosamente con tarjeta!');
         } else if (metodo === 'MERCADOPAGO_POINT') {
-          this.mensajeExito.set('¡Solicitud enviada a la terminal MercadoPago Point! La cuenta se marcará como pagada al confirmarse la transacción presencial.');
+          this.toast.success('¡Solicitud enviada a la terminal MercadoPago Point! La cuenta se marcará como pagada al confirmarse la transacción presencial.');
         }
         this.cargarConsumos(this.reservaId());
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cerrar la cuenta.');
+        this.toast.error(err.error?.message || 'Error al cerrar la cuenta.');
         this.cargandoOperacion.set(false);
       }
     });

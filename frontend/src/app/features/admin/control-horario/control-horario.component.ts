@@ -13,6 +13,7 @@ import {
 } from '../../../shared/models/control-horario.model';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
 import { todayIsoDate } from '../../../shared/utils/date.util';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-control-horario',
@@ -22,18 +23,15 @@ import { todayIsoDate } from '../../../shared/utils/date.util';
 })
 export class ControlHorarioComponent implements OnInit {
   private usuarioService = inject(UsuarioService);
-  private service = inject(ControlHorarioService);
-
+  private toast = inject(ToastService);
+  private service = inject(ControlHorarioService);
   empleados = signal<UsuarioResponse[]>([]);
   turnos = signal<TurnoResponse[]>([]);
   banco = signal<BancoHorasResponse | null>(null);
   liquidaciones = signal<LiquidacionResponse[]>([]);
   ultimaLiquidacion = signal<LiquidacionResponse | null>(null);
-  error = signal<string | null>(null);
-  exito = signal<string | null>(null);
-
-  empleadoId: number | null = null;
-
+  exito = signal<string | null>(null);
+  empleadoId: number | null = null;
   diasSemana: { value: DiaSemana; label: string }[] = [
     { value: 'MONDAY', label: 'Lunes' },
     { value: 'TUESDAY', label: 'Martes' },
@@ -42,23 +40,19 @@ export class ControlHorarioComponent implements OnInit {
     { value: 'FRIDAY', label: 'Viernes' },
     { value: 'SATURDAY', label: 'Sábado' },
     { value: 'SUNDAY', label: 'Domingo' }
-  ];
-
+  ];
   // Form turno
   nuevoDia: DiaSemana = 'MONDAY';
   nuevaHoraInicio = '08:00';
-  nuevaHoraFin = '16:00';
-
+  nuevaHoraFin = '16:00';
   // Form liquidación
   desde = '';
-  hasta = todayIsoDate();
-
+  hasta = todayIsoDate();
   ngOnInit(): void {
     const hoy = new Date();
     this.desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().substring(0, 10);
     this.cargarEmpleados();
-  }
-
+  }
   private cargarEmpleados(): void {
     this.usuarioService.listarPorRol('RECEPCIONISTA').subscribe({
       next: (recep) => {
@@ -69,21 +63,18 @@ export class ControlHorarioComponent implements OnInit {
       },
       error: () => this.setError('No se pudieron cargar los empleados.')
     });
-  }
-
+  }
   onEmpleadoChange(): void {
     if (!this.empleadoId) return;
     this.refrescar();
-  }
-
+  }
   private refrescar(): void {
     if (!this.empleadoId) return;
     const id = this.empleadoId;
     this.service.listarTurnos(id).subscribe({ next: (t) => this.turnos.set(t), error: () => {} });
     this.service.bancoHoras(id).subscribe({ next: (b) => this.banco.set(b), error: () => {} });
     this.service.historialLiquidaciones(id).subscribe({ next: (l) => this.liquidaciones.set(l), error: () => {} });
-  }
-
+  }
   agregarTurno(): void {
     if (!this.empleadoId) { this.setError('Seleccioná un empleado.'); return; }
     const empleado = this.empleados().find(e => e.id === this.empleadoId);
@@ -97,15 +88,13 @@ export class ControlHorarioComponent implements OnInit {
       next: () => { this.setExito('Turno agregado.'); this.refrescar(); },
       error: (err) => this.setError(err.error?.message || 'Error al agregar el turno.')
     });
-  }
-
+  }
   eliminarTurno(id: number): void {
     this.service.eliminarTurno(id).subscribe({
       next: () => { this.setExito('Turno eliminado.'); this.refrescar(); },
       error: (err) => this.setError(err.error?.message || 'Error al eliminar el turno.')
     });
-  }
-
+  }
   liquidar(): void {
     if (!this.empleadoId) { this.setError('Seleccioná un empleado.'); return; }
     if (!this.desde || !this.hasta) { this.setError('Indicá el período.'); return; }
@@ -113,8 +102,7 @@ export class ControlHorarioComponent implements OnInit {
       next: (liq) => { this.ultimaLiquidacion.set(liq); this.setExito('Liquidación generada.'); this.refrescar(); },
       error: (err) => this.setError(err.error?.message || 'Error al generar la liquidación.')
     });
-  }
-
-  private setError(msg: string): void { this.error.set(msg); this.exito.set(null); setTimeout(() => this.error.set(null), 5000); }
-  private setExito(msg: string): void { this.exito.set(msg); this.error.set(null); setTimeout(() => this.exito.set(null), 4000); }
+  }
+  private setError(msg: string): void { this.toast.error(msg); this.exito.set(null); }
+  private setExito(msg: string): void { this.exito.set(msg); setTimeout(() => this.exito.set(null), 4000); }
 }

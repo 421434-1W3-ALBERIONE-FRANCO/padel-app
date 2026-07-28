@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
 import { Scene3dComponent } from '../../../shared/components/scene-3d/scene-3d.component';
@@ -17,6 +18,7 @@ export class LoginComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private toast = inject(ToastService);
 
   loginForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
@@ -24,7 +26,6 @@ export class LoginComponent {
   });
 
   isLoading = signal<boolean>(false);
-  errorMessage = signal<string | null>(null);
 
   onSubmit(): void {
     if (this.loginForm.invalid) {
@@ -33,7 +34,6 @@ export class LoginComponent {
     }
 
     this.isLoading.set(true);
-    this.errorMessage.set(null);
 
     this.authService.login(this.loginForm.value).subscribe({
       next: () => {
@@ -46,7 +46,7 @@ export class LoginComponent {
         this.isLoading.set(false);
         // Extraer mensaje del formato ApiError del backend
         const message = error.error?.message || 'Ocurrió un error inesperado al intentar iniciar sesión.';
-        this.errorMessage.set(message);
+        this.toast.error(message);
       }
     });
   }

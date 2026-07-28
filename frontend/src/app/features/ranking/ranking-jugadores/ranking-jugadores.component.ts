@@ -6,6 +6,7 @@ import { RankingService } from '../../../core/services/ranking.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CategoriaJugador } from '../../../shared/models/torneo.model';
 import { RankingJugadorResponse } from '../../../shared/models/ranking.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-ranking-jugadores',
@@ -15,6 +16,7 @@ import { RankingJugadorResponse } from '../../../shared/models/ranking.model';
 })
 export class RankingJugadoresComponent implements OnInit {
   private rankingService = inject(RankingService);
+  private toast = inject(ToastService);
   private authService = inject(AuthService);
 
   currentUser = this.authService.currentUser;
@@ -24,7 +26,6 @@ export class RankingJugadoresComponent implements OnInit {
 
   ranking = signal<RankingJugadorResponse[]>([]);
   cargando = signal<boolean>(true);
-  error = signal<string | null>(null);
 
   ngOnInit() {
     this.cargarRanking();
@@ -37,14 +38,13 @@ export class RankingJugadoresComponent implements OnInit {
 
   cargarRanking() {
     this.cargando.set(true);
-    this.error.set(null);
     this.rankingService.obtenerRankingPorCategoria(this.categoriaSeleccionada()).subscribe({
       next: (data) => {
         this.ranking.set(data);
         this.cargando.set(false);
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al cargar el ranking');
+        this.toast.error(err.error?.message || 'Error al cargar el ranking');
         this.cargando.set(false);
       }
     });

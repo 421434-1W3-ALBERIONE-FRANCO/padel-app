@@ -8,18 +8,17 @@ import { CanchaAdminService } from '../../../core/services/cancha-admin.service'
 import { ReservaService } from '../../../core/services/reserva.service';
 import { BonoService } from '../../../core/services/bono.service';
 import { CanchaResponse } from '../../../shared/models/cancha.model';
-import { SlotDisponibilidad } from '../../../shared/models/disponibilidad.model';
-
+import { SlotDisponibilidad } from '../../../shared/models/disponibilidad.model';
 import { RouterLink } from '@angular/router';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
+import { ToastService } from '../../../core/services/toast.service';
 
 function toIsoDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
-}
-
+}
 // Reservas habilitadas solo dentro del mes en curso; en la última semana del mes
 // se habilita también el mes siguiente completo (permite reservar, ej., enero
 // estando en la última semana de diciembre).
@@ -28,14 +27,11 @@ function calcularRangoFechas(): { min: string; max: string } {
   const anio = hoy.getFullYear();
   const mes = hoy.getMonth();
   const ultimoDiaMesActual = new Date(anio, mes + 1, 0).getDate();
-  const diasParaFinDeMes = ultimoDiaMesActual - hoy.getDate();
-
+  const diasParaFinDeMes = ultimoDiaMesActual - hoy.getDate();
   const mesLimite = diasParaFinDeMes <= 6 ? mes + 1 : mes;
-  const finRango = new Date(anio, mesLimite + 1, 0);
-
+  const finRango = new Date(anio, mesLimite + 1, 0);
   return { min: toIsoDate(hoy), max: toIsoDate(finRango) };
-}
-
+}
 @Component({
   selector: 'app-calendario',
   standalone: true,
@@ -45,33 +41,28 @@ function calcularRangoFechas(): { min: string; max: string } {
 })
 export class CalendarioComponent implements OnInit, OnDestroy {
   private disponibilidadService = inject(DisponibilidadService);
+  private toast = inject(ToastService);
   private canchaAdminService = inject(CanchaAdminService);
   private reservaService = inject(ReservaService);
   private bonoService = inject(BonoService);
-  private router = inject(Router);
-
+  private router = inject(Router);
   canchas = signal<CanchaResponse[]>([]);
   canchaSeleccionadaId = signal<number | null>(null);
   fechaSeleccionada = signal<string>(toIsoDate(new Date())); // YYYY-MM-DD
-  slots = signal<SlotDisponibilidad[]>([]);
-
+  slots = signal<SlotDisponibilidad[]>([]);
   // Ventana de reserva habilitada: mes en curso; en la última semana del mes
   // se habilita también el mes siguiente (ej. fin de diciembre -> reservas de enero).
   private readonly rangoFechas = calcularRangoFechas();
   fechaMin = this.rangoFechas.min;
-  fechaMax = this.rangoFechas.max;
-
-  cargando = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
-
+  fechaMax = this.rangoFechas.max;
+  cargando = signal<boolean>(false);
   // Estados para el Modal de Reserva
   slotParaReservar = signal<SlotDisponibilidad | null>(null);
   cargandoReserva = signal<boolean>(false);
   reservaExitosa = signal<boolean>(false);
   errorReserva = signal<string | null>(null);
   reservaCreadaId = signal<number | null>(null);
-  pagadoConBono = signal<boolean>(false);
-
+  pagadoConBono = signal<boolean>(false);
   // Signals para Bonos
   saldoHoras = this.bonoService.saldoHorasBono;
   horasRequeridas = computed(() => {
@@ -80,22 +71,18 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   });
   tieneSaldoBono = computed(() => {
     return this.saldoHoras() >= this.horasRequeridas();
-  });
-
-  private wsSubscription: Subscription | null = null;
-
+  });
+  private wsSubscription: Subscription | null = null;
   ngOnInit() {
     this.cargarCanchas();
     this.suscribirActualizacionesWS();
     this.bonoService.cargarMisBonos().subscribe({
       error: () => console.warn('Could not load user coupon packs balance in Calendar.')
     });
-  }
-
+  }
   ngOnDestroy() {
     this.wsSubscription?.unsubscribe();
-  }
-
+  }
   cargarCanchas() {
     this.cargando.set(true);
     this.canchaAdminService.getCanchas().subscribe({
@@ -110,44 +97,37 @@ export class CalendarioComponent implements OnInit, OnDestroy {
         }
       },
       error: () => {
-        this.mensajeError.set('Error al cargar las canchas.');
+        this.toast.error('Error al cargar las canchas.');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   cargarDisponibilidad() {
     const canchaId = this.canchaSeleccionadaId();
-    const fecha = this.fechaSeleccionada();
-
-    if (!canchaId || !fecha) return;
-
+    const fecha = this.fechaSeleccionada();
+    if (!canchaId || !fecha) return;
     this.cargando.set(true);
-    this.mensajeError.set(null);
     this.disponibilidadService.getDisponibilidad(canchaId, fecha).subscribe({
       next: (res) => {
         this.slots.set(res.slots);
         this.cargando.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al obtener la disponibilidad de la cancha.');
+        this.toast.error(err.error?.message || 'Error al obtener la disponibilidad de la cancha.');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   onCanchaChange(canchaId: number) {
     this.canchaSeleccionadaId.set(canchaId);
     this.cargarDisponibilidad();
-  }
-
+  }
   onFechaChange(fecha: string) {
     // Defensa extra ante entrada manual fuera de rango (min/max del input no siempre lo impiden).
     const fechaClamped = fecha < this.fechaMin ? this.fechaMin : fecha > this.fechaMax ? this.fechaMax : fecha;
     this.fechaSeleccionada.set(fechaClamped);
     this.cargarDisponibilidad();
-  }
-
+  }
   seleccionarSlot(slot: SlotDisponibilidad) {
     if (!slot.disponible) return;
     this.slotParaReservar.set(slot);
@@ -155,26 +135,21 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     this.reservaExitosa.set(false);
     this.reservaCreadaId.set(null);
     this.pagadoConBono.set(false);
-  }
-
+  }
   cerrarModal() {
     this.slotParaReservar.set(null);
     this.reservaExitosa.set(false);
     this.errorReserva.set(null);
     this.reservaCreadaId.set(null);
     this.cargarDisponibilidad();
-  }
-
+  }
   confirmarReserva() {
     const slot = this.slotParaReservar();
     const canchaId = this.canchaSeleccionadaId();
-    const fecha = this.fechaSeleccionada();
-
-    if (!slot || !canchaId || !fecha) return;
-
+    const fecha = this.fechaSeleccionada();
+    if (!slot || !canchaId || !fecha) return;
     this.cargandoReserva.set(true);
-    this.errorReserva.set(null);
-
+    this.errorReserva.set(null);
     this.reservaService.crearReserva({
       canchaId,
       franjaId: slot.franjaId,
@@ -191,18 +166,14 @@ export class CalendarioComponent implements OnInit, OnDestroy {
         this.errorReserva.set(err.error?.message || 'Error al procesar la reserva. Por favor intente nuevamente.');
       }
     });
-  }
-
+  }
   confirmarYReservarConBono() {
     const slot = this.slotParaReservar();
     const canchaId = this.canchaSeleccionadaId();
-    const fecha = this.fechaSeleccionada();
-
-    if (!slot || !canchaId || !fecha) return;
-
+    const fecha = this.fechaSeleccionada();
+    if (!slot || !canchaId || !fecha) return;
     this.cargandoReserva.set(true);
-    this.errorReserva.set(null);
-
+    this.errorReserva.set(null);
     // 1. Crear la reserva
     this.reservaService.crearReserva({
       canchaId,
@@ -230,19 +201,16 @@ export class CalendarioComponent implements OnInit, OnDestroy {
         this.errorReserva.set(err.error?.message || 'Error al procesar la reserva. Por favor intente nuevamente.');
       }
     });
-  }
-
+  }
   irAMisReservas() {
     this.slotParaReservar.set(null);
     this.router.navigate(['/reservas/mis-reservas']);
-  }
-
+  }
   obtenerNombreCanchaSeleccionada(): string {
     const id = this.canchaSeleccionadaId();
     const cancha = this.canchas().find(c => c.id === id);
     return cancha ? cancha.nombre : '';
-  }
-
+  }
   private suscribirActualizacionesWS() {
     this.wsSubscription = this.disponibilidadService.updates$.subscribe((payload) => {
       if (payload && payload.canchaId === this.canchaSeleccionadaId()) {

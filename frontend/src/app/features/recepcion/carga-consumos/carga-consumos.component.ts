@@ -8,6 +8,7 @@ import { ConsumoService } from '../../../core/services/consumo.service';
 import { ReservaResponse } from '../../../shared/models/reserva.model';
 import { ProductoResponse } from '../../../shared/models/producto.model';
 import { ConsumoResponse } from '../../../shared/models/consumo.model';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-carga-consumos',
@@ -18,6 +19,7 @@ import { ConsumoResponse } from '../../../shared/models/consumo.model';
 })
 export class CargaConsumosComponent implements OnInit {
   private reservaService = inject(ReservaService);
+  private toast = inject(ToastService);
   private productoService = inject(ProductoService);
   private consumoService = inject(ConsumoService);
   private router = inject(Router);
@@ -32,8 +34,6 @@ export class CargaConsumosComponent implements OnInit {
   // UI state signals
   cargandoReservas = signal<boolean>(false);
   cargandoTab = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
 
   consumoForm!: FormGroup;
 
@@ -52,7 +52,6 @@ export class CargaConsumosComponent implements OnInit {
 
   cargarReservasHoy() {
     this.cargandoReservas.set(true);
-    this.mensajeError.set(null);
     const hoyStr = new Date().toISOString().substring(0, 10); // YYYY-MM-DD
 
     this.reservaService.getAllReservas().subscribe({
@@ -63,7 +62,7 @@ export class CargaConsumosComponent implements OnInit {
         this.cargandoReservas.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar las reservas del día.');
+        this.toast.error(err.error?.message || 'Error al cargar las reservas del día.');
         this.cargandoReservas.set(false);
       }
     });
@@ -82,8 +81,6 @@ export class CargaConsumosComponent implements OnInit {
 
   seleccionarReserva(reserva: ReservaResponse) {
     this.reservaSeleccionada.set(reserva);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
     this.consumoForm.patchValue({ productoId: null, cantidad: 1 });
     this.cargarConsumosTab(reserva.id);
   }
@@ -91,8 +88,6 @@ export class CargaConsumosComponent implements OnInit {
   deseleccionarReserva() {
     this.reservaSeleccionada.set(null);
     this.consumosTab.set([]);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
   }
 
   cargarConsumosTab(reservaId: number) {
@@ -103,7 +98,7 @@ export class CargaConsumosComponent implements OnInit {
         this.cargandoTab.set(false);
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar los consumos de la reserva.');
+        this.toast.error(err.error?.message || 'Error al cargar los consumos de la reserva.');
         this.cargandoTab.set(false);
       }
     });
@@ -118,18 +113,16 @@ export class CargaConsumosComponent implements OnInit {
 
     const payload = this.consumoForm.value;
     this.cargandoTab.set(true);
-    this.mensajeError.set(null);
-    this.mensajeExito.set(null);
 
     this.consumoService.cargarConsumo(reserva.id, payload).subscribe({
       next: () => {
-        this.mensajeExito.set('Consumo cargado con éxito');
+        this.toast.success('Consumo cargado con éxito');
         this.consumoForm.patchValue({ productoId: null, cantidad: 1 });
         this.cargarConsumosTab(reserva.id);
         this.cargarProductos(); // actualiza stocks locales en el dropdown
       },
       error: (err) => {
-        this.mensajeError.set(err.error?.message || 'Error al cargar el consumo. Verifique stock.');
+        this.toast.error(err.error?.message || 'Error al cargar el consumo. Verifique stock.');
         this.cargandoTab.set(false);
       }
     });

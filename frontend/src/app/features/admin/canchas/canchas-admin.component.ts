@@ -7,6 +7,7 @@ import { CanchaResponse, TipoSuelo } from '../../../shared/models/cancha.model';
 import { FranjaHorariaResponse } from '../../../shared/models/franja.model';
 import { BloqueoCanchaResponse } from '../../../shared/models/bloqueo.model';
 import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared/utils/date.util';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-canchas-admin',
@@ -17,40 +18,32 @@ import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared
 })
 export class CanchasAdminComponent implements OnInit {
   private canchaAdminService = inject(CanchaAdminService);
-  private fb = inject(FormBuilder);
-
+  private toast = inject(ToastService);
+  private fb = inject(FormBuilder);
   // Signals para estado de datos
   canchas = signal<CanchaResponse[]>([]);
   canchaSeleccionada = signal<CanchaResponse | null>(null);
   franjas = signal<FranjaHorariaResponse[]>([]);
-  bloqueos = signal<BloqueoCanchaResponse[]>([]);
-
+  bloqueos = signal<BloqueoCanchaResponse[]>([]);
   // Signals para estado de UI
   cargando = signal<boolean>(false);
   cargandoDetalles = signal<boolean>(false);
-  mensajeError = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
-  activeTab = signal<'franjas' | 'bloqueos'>('franjas');
-
+  activeTab = signal<'franjas' | 'bloqueos'>('franjas');
   // Formularios reactivos
   canchaForm!: FormGroup;
   franjaForm!: FormGroup;
-  bloqueoForm!: FormGroup;
-
+  bloqueoForm!: FormGroup;
   // Modales / Edición
   editCanchaId = signal<number | null>(null);
   editFranjaId = signal<number | null>(null);
-  editBloqueoId = signal<number | null>(null);
-
+  editBloqueoId = signal<number | null>(null);
   showCanchaForm = signal<boolean>(false);
   showFranjaForm = signal<boolean>(false);
-  showBloqueoForm = signal<boolean>(false);
-
+  showBloqueoForm = signal<boolean>(false);
   // El bloqueo nunca puede arrancar antes de hoy (el día en que se crea) y el año
   // no puede irse de un rango razonable (evita typos como "20260" en vez de "2026").
   fechaMin = todayIsoDate();
-  fechaMax = maxIsoDate();
-
+  fechaMax = maxIsoDate();
   diasSemana = [
     { value: 'MONDAY', label: 'Lunes' },
     { value: 'TUESDAY', label: 'Martes' },
@@ -59,29 +52,25 @@ export class CanchasAdminComponent implements OnInit {
     { value: 'FRIDAY', label: 'Viernes' },
     { value: 'SATURDAY', label: 'Sábado' },
     { value: 'SUNDAY', label: 'Domingo' }
-  ];
-
+  ];
   ngOnInit() {
     this.initForms();
     this.cargarCanchas();
-  }
-
+  }
   private initForms() {
     this.canchaForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(100)]],
       tipoSuelo: ['BLINDEX', Validators.required],
       techada: [false],
       tieneLuz: [true]
-    });
-
+    });
     this.franjaForm = this.fb.group({
       horaInicio: ['', Validators.required],
       horaFin: ['', Validators.required],
       precioBase: [0, [Validators.required, Validators.min(0)]],
       precioNocturno: [0, [Validators.required, Validators.min(0)]],
       diasAplicables: this.fb.control([] as string[], Validators.required)
-    });
-
+    });
     this.bloqueoForm = this.fb.group({
       fechaDesde: [this.fechaMin, [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
       fechaHasta: ['', [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
@@ -89,16 +78,14 @@ export class CanchasAdminComponent implements OnInit {
       horaHasta: ['23:59', Validators.required],
       motivo: ['', [Validators.required, Validators.maxLength(255)]]
     }, { validators: this.rangoBloqueoValidator });
-  }
-
+  }
   // Espeja la regla del backend: fechaDesde no puede ser posterior a fechaHasta,
   // y horaDesde debe ser estrictamente anterior a horaHasta.
   private rangoBloqueoValidator(group: AbstractControl): ValidationErrors | null {
     const fechaDesde = group.get('fechaDesde')?.value;
     const fechaHasta = group.get('fechaHasta')?.value;
     const horaDesde = group.get('horaDesde')?.value;
-    const horaHasta = group.get('horaHasta')?.value;
-
+    const horaHasta = group.get('horaHasta')?.value;
     if (fechaDesde && fechaHasta && fechaDesde > fechaHasta) {
       return { fechaRangoInvalido: true };
     }
@@ -106,12 +93,10 @@ export class CanchasAdminComponent implements OnInit {
       return { horaRangoInvalido: true };
     }
     return null;
-  }
-
+  }
   // Cargar datos
   cargarCanchas() {
     this.cargando.set(true);
-    this.mensajeError.set(null);
     this.canchaAdminService.getCanchas().subscribe({
       next: (data) => {
         this.canchas.set(data);
@@ -122,18 +107,15 @@ export class CanchasAdminComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   seleccionarCancha(cancha: CanchaResponse) {
     this.canchaSeleccionada.set(cancha);
     this.cargarDetallesCancha(cancha.id);
-  }
-
+  }
   cargarDetallesCancha(canchaId: number) {
     this.cargandoDetalles.set(true);
     this.franjas.set([]);
-    this.bloqueos.set([]);
-
+    this.bloqueos.set([]);
     // Cargar Franjas
     this.canchaAdminService.getFranjas(canchaId).subscribe({
       next: (data) => {
@@ -144,8 +126,7 @@ export class CanchasAdminComponent implements OnInit {
         this.mostrarError('Error al cargar las franjas horarias');
         this.cargandoDetalles.set(false);
       }
-    });
-
+    });
     // Cargar Bloqueos
     this.canchaAdminService.getBloqueos(canchaId).subscribe({
       next: (data) => {
@@ -157,23 +138,19 @@ export class CanchasAdminComponent implements OnInit {
         this.cargandoDetalles.set(false);
       }
     });
-  }
-
+  }
   private checkDetallesCargados() {
     this.cargandoDetalles.set(false);
-  }
-
+  }
   // CRUD Canchas
   guardarCancha() {
     if (this.canchaForm.invalid) {
       return;
-    }
-
+    }
     const payload = this.canchaForm.value;
     const request$ = this.editCanchaId() 
       ? this.canchaAdminService.actualizarCancha(this.editCanchaId()!, payload)
-      : this.canchaAdminService.crearCancha(payload);
-
+      : this.canchaAdminService.crearCancha(payload);
     this.cargando.set(true);
     request$.subscribe({
       next: (res) => {
@@ -186,8 +163,7 @@ export class CanchasAdminComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   editarCancha(cancha: CanchaResponse) {
     this.editCanchaId.set(cancha.id);
     this.showCanchaForm.set(true);
@@ -197,11 +173,9 @@ export class CanchasAdminComponent implements OnInit {
       techada: cancha.techada,
       tieneLuz: cancha.tieneLuz
     });
-  }
-
+  }
   desactivarCancha(id: number) {
-    if (!confirm('¿Seguro que querés desactivar esta cancha?')) return;
-
+    if (!confirm('¿Seguro que querés desactivar esta cancha?')) return;
     this.cargando.set(true);
     this.canchaAdminService.desactivarCancha(id).subscribe({
       next: () => {
@@ -216,31 +190,26 @@ export class CanchasAdminComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   cancelarEdicionCancha() {
     this.showCanchaForm.set(false);
     this.editCanchaId.set(null);
     this.canchaForm.reset({ tipoSuelo: 'BLINDEX', techada: false, tieneLuz: true });
-  }
-
+  }
   // CRUD Franjas
   guardarFranja() {
     if (this.franjaForm.invalid || !this.canchaSeleccionada()) {
       return;
-    }
-
+    }
     const value = this.franjaForm.value;
     const payload = {
       ...value,
       diasAplicables: this.getDiasSeleccionados()
-    };
-
+    };
     const canchaId = this.canchaSeleccionada()!.id;
     const request$ = this.editFranjaId()
       ? this.canchaAdminService.actualizarFranja(this.editFranjaId()!, payload)
-      : this.canchaAdminService.crearFranja(canchaId, payload);
-
+      : this.canchaAdminService.crearFranja(canchaId, payload);
     this.cargandoDetalles.set(true);
     request$.subscribe({
       next: () => {
@@ -253,8 +222,7 @@ export class CanchasAdminComponent implements OnInit {
         this.cargandoDetalles.set(false);
       }
     });
-  }
-
+  }
   editarFranja(franja: FranjaHorariaResponse) {
     this.editFranjaId.set(franja.id);
     this.showFranjaForm.set(true);
@@ -266,11 +234,9 @@ export class CanchasAdminComponent implements OnInit {
     });
     // Marcar checkboxes
     this.setDiasSeleccionados(franja.diasAplicables);
-  }
-
+  }
   eliminarFranja(id: number) {
-    if (!confirm('¿Seguro que deseas eliminar esta franja horaria permanentemente?')) return;
-
+    if (!confirm('¿Seguro que deseas eliminar esta franja horaria permanentemente?')) return;
     this.cargandoDetalles.set(true);
     this.canchaAdminService.eliminarFranja(id).subscribe({
       next: () => {
@@ -282,15 +248,13 @@ export class CanchasAdminComponent implements OnInit {
         this.cargandoDetalles.set(false);
       }
     });
-  }
-
+  }
   cancelarEdicionFranja() {
     this.showFranjaForm.set(false);
     this.editFranjaId.set(null);
     this.franjaForm.reset({ precioBase: 0, precioNocturno: 0 });
     this.clearDiasSeleccionados();
-  }
-
+  }
   // CRUD Bloqueos
   guardarBloqueo() {
     if (!this.canchaSeleccionada()) {
@@ -300,14 +264,12 @@ export class CanchasAdminComponent implements OnInit {
       this.bloqueoForm.markAllAsTouched();
       this.mostrarError('Completá los campos obligatorios marcados en rojo antes de guardar.');
       return;
-    }
-
+    }
     const payload = this.bloqueoForm.value;
     const canchaId = this.canchaSeleccionada()!.id;
     const request$ = this.editBloqueoId()
       ? this.canchaAdminService.actualizarBloqueo(this.editBloqueoId()!, payload)
-      : this.canchaAdminService.crearBloqueo(canchaId, payload);
-
+      : this.canchaAdminService.crearBloqueo(canchaId, payload);
     this.cargandoDetalles.set(true);
     request$.subscribe({
       next: () => {
@@ -320,8 +282,7 @@ export class CanchasAdminComponent implements OnInit {
         this.cargandoDetalles.set(false);
       }
     });
-  }
-
+  }
   editarBloqueo(bloqueo: BloqueoCanchaResponse) {
     this.editBloqueoId.set(bloqueo.id);
     this.showBloqueoForm.set(true);
@@ -332,11 +293,9 @@ export class CanchasAdminComponent implements OnInit {
       horaHasta: bloqueo.horaHasta.substring(0, 5),
       motivo: bloqueo.motivo
     });
-  }
-
+  }
   eliminarBloqueo(id: number) {
-    if (!confirm('¿Seguro que deseas eliminar este bloqueo?')) return;
-
+    if (!confirm('¿Seguro que deseas eliminar este bloqueo?')) return;
     this.cargandoDetalles.set(true);
     this.canchaAdminService.eliminarBloqueo(id).subscribe({
       next: () => {
@@ -348,61 +307,48 @@ export class CanchasAdminComponent implements OnInit {
         this.cargandoDetalles.set(false);
       }
     });
-  }
-
+  }
   cancelarEdicionBloqueo() {
     this.showBloqueoForm.set(false);
     this.editBloqueoId.set(null);
     this.bloqueoForm.reset({ fechaDesde: this.fechaMin, horaDesde: '00:00', horaHasta: '23:59' });
-  }
-
+  }
   invalidoBloqueo(campo: string): boolean {
     const control = this.bloqueoForm.get(campo);
     return !!control && control.invalid && (control.touched || control.dirty);
-  }
-
+  }
   // Helpers para manejo de checkboxes de Días Aplicables
   onDiaChange(event: Event) {
     const target = event.target as HTMLInputElement;
     const value = target.value;
     const checked = target.checked;
-    const diasArray = this.franjaForm.get('diasAplicables')?.value as string[];
-
+    const diasArray = this.franjaForm.get('diasAplicables')?.value as string[];
     if (checked) {
       this.franjaForm.get('diasAplicables')?.setValue([...diasArray, value]);
     } else {
       this.franjaForm.get('diasAplicables')?.setValue(diasArray.filter(x => x !== value));
     }
-  }
-
+  }
   isDiaChecked(dia: string): boolean {
     const diasArray = this.franjaForm.get('diasAplicables')?.value as string[];
     return diasArray ? diasArray.includes(dia) : false;
-  }
-
+  }
   private getDiasSeleccionados(): string[] {
     return this.franjaForm.get('diasAplicables')?.value || [];
-  }
-
+  }
   private setDiasSeleccionados(dias: string[]) {
     this.franjaForm.get('diasAplicables')?.setValue(dias);
-  }
-
+  }
   private clearDiasSeleccionados() {
     this.franjaForm.get('diasAplicables')?.setValue([]);
-  }
-
+  }
   // Helpers de alertas
   private mostrarError(msg: string) {
-    this.mensajeError.set(msg);
-    setTimeout(() => this.mensajeError.set(null), 5000);
-  }
-
+    this.toast.error(msg);
+  }
   private mostrarExito(msg: string) {
-    this.mensajeExito.set(msg);
-    setTimeout(() => this.mensajeExito.set(null), 4000);
-  }
-
+    this.toast.success(msg);
+  }
   setTab(tab: 'franjas' | 'bloqueos') {
     this.activeTab.set(tab);
   }

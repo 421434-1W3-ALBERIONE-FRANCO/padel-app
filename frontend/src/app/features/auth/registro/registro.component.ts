@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RolUsuario } from '../../../shared/models/usuario.model';
 
@@ -16,6 +17,7 @@ export class RegistroComponent {
   private fb = inject(FormBuilder);
   private authService = inject(AuthService);
   private router = inject(Router);
+  private toast = inject(ToastService);
 
   registroForm: FormGroup = this.fb.group({
     nombre: ['', [Validators.required, Validators.maxLength(100)]],
@@ -32,8 +34,6 @@ export class RegistroComponent {
   });
 
   isLoading = signal<boolean>(false);
-  errorMessage = signal<string | null>(null);
-  successMessage = signal<string | null>(null);
 
   onSubmit(): void {
     if (this.registroForm.invalid) {
@@ -42,14 +42,12 @@ export class RegistroComponent {
     }
 
     this.isLoading.set(true);
-    this.errorMessage.set(null);
-    this.successMessage.set(null);
 
     this.authService.registrar(this.registroForm.value).subscribe({
       next: () => {
         this.isLoading.set(false);
-        this.successMessage.set('¡Registro exitoso! Redirigiendo al login...');
-        
+        this.toast.success('¡Registro exitoso! Redirigiendo al login...');
+
         // Redirigir después de 2 segundos para dar feedback visual
         setTimeout(() => {
           this.router.navigate(['/auth/login']);
@@ -59,7 +57,7 @@ export class RegistroComponent {
         this.isLoading.set(false);
         // Extraer mensaje del formato ApiError del backend
         const message = error.error?.message || 'Ocurrió un error al registrar el usuario.';
-        this.errorMessage.set(message);
+        this.toast.error(message);
       }
     });
   }

@@ -6,6 +6,7 @@ import { TorneoService } from '../../../core/services/torneo.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { CategoriaJugador, EstadoTorneo, TipoTorneo, TorneoResponse } from '../../../shared/models/torneo.model';
 import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared/utils/date.util';
+import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-lista-torneos',
@@ -15,35 +16,27 @@ import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared
 })
 export class ListaTorneosComponent implements OnInit {
   private torneoService = inject(TorneoService);
+  private toast = inject(ToastService);
   private authService = inject(AuthService);
-  private fb = inject(FormBuilder);
-
-  currentUser = this.authService.currentUser;
-
+  private fb = inject(FormBuilder);
+  currentUser = this.authService.currentUser;
   torneos = signal<TorneoResponse[]>([]);
-  cargando = signal<boolean>(true);
-  error = signal<string | null>(null);
-  mensajeExito = signal<string | null>(null);
-
+  cargando = signal<boolean>(true);
   mostrarFormulario = signal<boolean>(false);
-  guardando = signal<boolean>(false);
-
+  guardando = signal<boolean>(false);
   categorias: CategoriaJugador[] = ['PRIMERA', 'SEGUNDA', 'TERCERA', 'CUARTA', 'QUINTA', 'SEXTA', 'SEPTIMA', 'OCTAVA'];
   tipos: TipoTorneo[] = ['LIGA', 'TORNEO', 'TORNEO_EXPRESS'];
-  estados: EstadoTorneo[] = ['INSCRIPCION_ABIERTA', 'EN_CURSO', 'FINALIZADO', 'CANCELADO'];
-
+  estados: EstadoTorneo[] = ['INSCRIPCION_ABIERTA', 'EN_CURSO', 'FINALIZADO', 'CANCELADO'];
   // La fecha de inicio nunca puede ser anterior a hoy (el día en que se crea el
   // torneo) y el año no puede irse de un rango razonable (evita typos como
   // escribir "20260" en vez de "2026" en el input de fecha).
   fechaMin = todayIsoDate();
-  fechaMax = maxIsoDate();
-
+  fechaMax = maxIsoDate();
   filtroForm: FormGroup = this.fb.group({
     categoria: [''],
     tipo: [''],
     estado: ['']
-  });
-
+  });
   torneoForm: FormGroup = this.fb.group({
     nombre: ['', [Validators.required, Validators.maxLength(150)]],
     tipo: ['TORNEO', Validators.required],
@@ -54,15 +47,12 @@ export class ListaTorneosComponent implements OnInit {
     maxParejas: [8, [Validators.required, Validators.min(2)]],
     precioInscripcion: [0, [Validators.required, Validators.min(0)]],
     descripcion: ['', Validators.maxLength(500)]
-  });
-
+  });
   ngOnInit() {
     this.cargarTorneos();
-  }
-
+  }
   cargarTorneos() {
     this.cargando.set(true);
-    this.error.set(null);
     const { categoria, tipo, estado } = this.filtroForm.value;
     this.torneoService.buscar({
       categoria: categoria || undefined,
@@ -74,29 +64,25 @@ export class ListaTorneosComponent implements OnInit {
         this.cargando.set(false);
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al cargar los torneos');
+        this.toast.error(err.error?.message || 'Error al cargar los torneos');
         this.cargando.set(false);
       }
     });
-  }
-
+  }
   aplicarFiltros() {
     this.cargarTorneos();
-  }
-
+  }
   limpiarFiltros() {
     this.filtroForm.reset({ categoria: '', tipo: '', estado: '' });
     this.cargarTorneos();
-  }
-
+  }
   toggleFormulario() {
     this.mostrarFormulario.set(!this.mostrarFormulario());
-  }
-
+  }
   crearTorneo() {
     if (this.torneoForm.invalid) {
       this.torneoForm.markAllAsTouched();
-      this.error.set('Completá los campos obligatorios marcados en rojo antes de guardar.');
+      this.toast.error('Completá los campos obligatorios marcados en rojo antes de guardar.');
       return;
     }
     this.guardando.set(true);
@@ -105,22 +91,19 @@ export class ListaTorneosComponent implements OnInit {
         this.guardando.set(false);
         this.mostrarFormulario.set(false);
         this.torneoForm.reset({ tipo: 'TORNEO', formato: 'ELIMINACION_DIRECTA', categoria: 'CUARTA', fechaInicio: todayIsoDate(), maxParejas: 8, precioInscripcion: 0 });
-        this.mensajeExito.set('Torneo creado exitosamente');
-        setTimeout(() => this.mensajeExito.set(null), 4000);
+        this.toast.success('Torneo creado exitosamente');
         this.cargarTorneos();
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al crear el torneo');
+        this.toast.error(err.error?.message || 'Error al crear el torneo');
         this.guardando.set(false);
       }
     });
-  }
-
+  }
   invalido(campo: string): boolean {
     const control = this.torneoForm.get(campo);
     return !!control && control.invalid && (control.touched || control.dirty);
-  }
-
+  }
   claseEstado(estado: EstadoTorneo): string {
     switch (estado) {
       case 'INSCRIPCION_ABIERTA':
