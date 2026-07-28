@@ -15,9 +15,9 @@ VALUES
 -- Canchas
 INSERT INTO canchas (nombre, tipo_suelo, techada, tiene_luz, activa, created_at)
 VALUES
-    ('Cancha 1 - Césped',  'CESPED',  FALSE, TRUE,  TRUE, NOW()),
-    ('Cancha 2 - Cristal', 'CRISTAL', TRUE,  TRUE,  TRUE, NOW()),
-    ('Cancha 3 - Cemento', 'CEMENTO', TRUE,  FALSE, TRUE, NOW());
+    ('Cancha 1 - Sintético', 'SINTETICO', FALSE, TRUE,  TRUE, NOW()),
+    ('Cancha 2 - Blindex',   'BLINDEX',   TRUE,  TRUE,  TRUE, NOW()),
+    ('Cancha 3 - Cemento',   'CEMENTO',   TRUE,  FALSE, TRUE, NOW());
 
 -- Franjas horarias para TODAS las canchas, todos los días de la semana
 INSERT INTO franjas_horarias (cancha_id, hora_inicio, hora_fin, duracion_min, precio_base, precio_nocturno, dias_aplicables, created_at)
