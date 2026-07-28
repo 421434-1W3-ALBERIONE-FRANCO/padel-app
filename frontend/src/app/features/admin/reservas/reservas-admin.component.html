@@ -36,7 +36,7 @@
         </thead>
         <tbody>
           <tr *ngFor="let r of filtradas()" class="border-t border-white/5 hover:bg-white/5 transition">
-            <td class="px-4 py-3 text-white whitespace-nowrap">{{ r.fecha }}<span class="text-slate-500"> · {{ r.horaInicio?.substring(0,5) }}-{{ r.horaFin?.substring(0,5) }}</span></td>
+            <td class="px-4 py-3 text-white whitespace-nowrap">{{ r.fecha }}<span class="text-slate-500"> · {{ r.horaInicio.substring(0,5) }}-{{ r.horaFin.substring(0,5) }}</span></td>
             <td class="px-4 py-3 text-slate-300">{{ r.canchaNombre }}</td>
             <td class="px-4 py-3 text-slate-300">{{ r.usuarioEmail }}</td>
             <td class="px-4 py-3 text-right text-slate-300">${{ r.precioTotal | number:'1.0-0' }}</td>

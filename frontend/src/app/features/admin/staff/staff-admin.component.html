@@ -60,7 +60,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div *ngFor="let u of recepcionistas()" class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 flex items-center justify-center font-bold font-display shrink-0">
-            {{ u.nombre?.substring(0,1) }}{{ u.apellido?.substring(0,1) }}
+            {{ u.nombre.substring(0,1) }}{{ u.apellido.substring(0,1) }}
           </div>
           <div class="min-w-0">
             <span class="block text-sm font-semibold text-white truncate">{{ u.nombre }} {{ u.apellido }}</span>
@@ -77,7 +77,7 @@
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div *ngFor="let u of admins()" class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
           <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 flex items-center justify-center font-bold font-display shrink-0">
-            {{ u.nombre?.substring(0,1) }}{{ u.apellido?.substring(0,1) }}
+            {{ u.nombre.substring(0,1) }}{{ u.apellido.substring(0,1) }}
           </div>
           <div class="min-w-0">
             <span class="block text-sm font-semibold text-white truncate">{{ u.nombre }} {{ u.apellido }}</span>
