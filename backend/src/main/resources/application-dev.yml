@@ -16,6 +16,8 @@ spring:
     enabled: true
     baseline-on-migrate: false
     out-of-order: false
+    # Incluye el seed de datos de prueba (db/dev), que NO se aplica en produccion.
+    locations: classpath:db/migration,classpath:db/dev
   data:
     redis:
       host: ${REDIS_HOST:localhost}

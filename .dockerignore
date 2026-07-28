@@ -1,0 +1,10 @@
+# El build del backend solo necesita backend/pom.xml y backend/src.
+# Excluimos todo lo demas para achicar el contexto que se envia al daemon Docker.
+frontend
+**/node_modules
+**/target
+.git
+.github
+.idea
+.vscode
+*.log

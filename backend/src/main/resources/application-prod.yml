@@ -17,6 +17,8 @@ spring:
     enabled: true
     baseline-on-migrate: false
     out-of-order: false
+    # Solo el esquema. El seed de prueba (db/dev, V29) NO se aplica en produccion.
+    locations: classpath:db/migration
   data:
     redis:
       host: ${REDIS_HOST}
