@@ -69,10 +69,10 @@ public class UsuarioController {
     }
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
     @Operation(
-        summary = "Listar usuarios por rol (Admin)",
-        description = "Retorna los usuarios que tienen el rol especificado. Pensado para poblar selectores administrativos (ej. elegir un recepcionista).",
+        summary = "Listar usuarios por rol (Staff)",
+        description = "Retorna los usuarios que tienen el rol especificado. Usado por selectores de staff (ej. elegir un cliente para crear una reserva, o un recepcionista para comisiones).",
         security = @SecurityRequirement(name = "Bearer Authentication")
     )
     public ResponseEntity<List<UsuarioResponse>> listarPorRol(@RequestParam RolUsuario rol) {

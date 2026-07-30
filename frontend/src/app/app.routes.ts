@@ -21,6 +21,7 @@ import { CompraBonoComponent } from './features/bonos/compra-bono/compra-bono.co
 import { MisBonosComponent } from './features/bonos/mis-bonos/mis-bonos.component';
 import { ProductosAdminComponent } from './features/admin/productos/productos-admin.component';
 import { CargaConsumosComponent } from './features/recepcion/carga-consumos/carga-consumos.component';
+import { AltaTurnoComponent } from './features/recepcion/alta-turno/alta-turno.component';
 import { CierreCuentaComponent } from './features/recepcion/cierre-cuenta/cierre-cuenta.component';
 import { ExperienceComponent } from './features/experience/experience.component';
 import { ListaTorneosComponent } from './features/torneos/lista-torneos/lista-torneos.component';
@@ -86,6 +87,12 @@ export const routes: Routes = [
   {
     path: 'recepcion/carga-consumos',
     component: CargaConsumosComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+  },
+  {
+    path: 'recepcion/alta-turno',
+    component: AltaTurnoComponent,
     canActivate: [authGuard],
     data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
   },

@@ -144,6 +144,12 @@
         <!-- Acciones de recepción (staff). El admin las tiene dentro de la consola. -->
         <a
           *ngIf="currentUser()?.rol === 'RECEPCIONISTA'"
+          routerLink="/recepcion/alta-turno"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Alta de Turno
+        </a>
+        <a
+          *ngIf="currentUser()?.rol === 'RECEPCIONISTA'"
           routerLink="/bonos/comprar"
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">
           Vender Bono
