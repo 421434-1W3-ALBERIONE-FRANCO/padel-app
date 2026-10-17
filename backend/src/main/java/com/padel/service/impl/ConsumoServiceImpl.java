@@ -5,11 +5,13 @@ import com.mercadopago.client.point.PointPaymentIntentRequest;
 import com.padel.domain.entity.*;
 import com.padel.domain.enums.EstadoConsumoPago;
 import com.padel.domain.enums.EstadoPago;
+import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.MetodoPago;
 import com.padel.domain.enums.RolUsuario;
 import com.padel.dto.request.CerrarCuentaRequest;
 import com.padel.dto.request.ConsumoRequest;
 import com.padel.dto.response.ConsumoResponse;
+import com.padel.exception.ReservaNoModificableException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.StockInsuficienteException;
 import com.padel.mapper.ConsumoMapper;
@@ -47,6 +49,10 @@ public class ConsumoServiceImpl implements ConsumoService {
 
         Reserva reserva = reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + reservaId));
+
+        if (reserva.getEstadoReserva() == EstadoReserva.CANCELADA) {
+            throw new ReservaNoModificableException("No se pueden cargar consumos a una reserva cancelada");
+        }
 
         Producto producto = productoRepository.findById(request.productoId())
                 .orElseThrow(() -> new ResourceNotFoundException("Producto no encontrado con ID: " + request.productoId()));

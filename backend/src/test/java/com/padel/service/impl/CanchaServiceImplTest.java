@@ -72,7 +72,7 @@ class CanchaServiceImplTest {
 
     @Test
     void crear_ShouldSaveAndReturnResponse_WhenNombreDoesNotExist() {
-        when(canchaRepository.existsByNombreAndActivaTrue(canchaRequest.nombre())).thenReturn(false);
+        when(canchaRepository.existsByNombre(canchaRequest.nombre())).thenReturn(false);
         when(canchaMapper.toEntity(canchaRequest)).thenReturn(canchaMock);
         when(canchaRepository.save(any(Cancha.class))).thenReturn(canchaMock);
         when(canchaMapper.toResponse(canchaMock)).thenReturn(canchaResponse);
@@ -86,7 +86,7 @@ class CanchaServiceImplTest {
 
     @Test
     void crear_ShouldThrowNombreDuplicadoException_WhenNombreExists() {
-        when(canchaRepository.existsByNombreAndActivaTrue(canchaRequest.nombre())).thenReturn(true);
+        when(canchaRepository.existsByNombre(canchaRequest.nombre())).thenReturn(true);
 
         assertThrows(NombreDuplicadoException.class, () -> canchaService.crear(canchaRequest));
         verify(canchaRepository, never()).save(any(Cancha.class));
@@ -116,7 +116,7 @@ class CanchaServiceImplTest {
         CanchaResponse updateResponse = new CanchaResponse(1L, "Cancha Central Modificada", TipoSuelo.SINTETICO, false, false, true, null, LocalDateTime.now(), LocalDateTime.now());
 
         when(canchaRepository.findByIdAndActivaTrue(1L)).thenReturn(Optional.of(canchaMock));
-        when(canchaRepository.existsByNombreAndActivaTrueAndIdNot(updateRequest.nombre(), 1L)).thenReturn(false);
+        when(canchaRepository.existsByNombreAndIdNot(updateRequest.nombre(), 1L)).thenReturn(false);
         when(canchaRepository.save(canchaMock)).thenReturn(canchaMock);
         when(canchaMapper.toResponse(canchaMock)).thenReturn(updateResponse);
 

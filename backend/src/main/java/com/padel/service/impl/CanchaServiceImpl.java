@@ -27,8 +27,8 @@ public class CanchaServiceImpl implements CanchaService {
     @Override
     @Transactional
     public CanchaResponse crear(CanchaRequest request) {
-        if (canchaRepository.existsByNombreAndActivaTrue(request.nombre())) {
-            throw new NombreDuplicadoException("Ya existe una cancha activa con el nombre: " + request.nombre());
+        if (canchaRepository.existsByNombre(request.nombre())) {
+            throw new NombreDuplicadoException("Ya existe una cancha (activa o dada de baja) con el nombre: " + request.nombre());
         }
 
         Cancha cancha = canchaMapper.toEntity(request);
@@ -61,8 +61,8 @@ public class CanchaServiceImpl implements CanchaService {
         Cancha cancha = canchaRepository.findByIdAndActivaTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cancha no encontrada o inactiva con id: " + id));
 
-        if (canchaRepository.existsByNombreAndActivaTrueAndIdNot(request.nombre(), id)) {
-            throw new NombreDuplicadoException("Ya existe otra cancha activa con el nombre: " + request.nombre());
+        if (canchaRepository.existsByNombreAndIdNot(request.nombre(), id)) {
+            throw new NombreDuplicadoException("Ya existe otra cancha (activa o dada de baja) con el nombre: " + request.nombre());
         }
 
         cancha.setNombre(request.nombre());

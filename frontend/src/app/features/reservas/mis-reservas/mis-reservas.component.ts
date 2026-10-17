@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { ReservaService } from '../../../core/services/reserva.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -18,6 +18,7 @@ export class MisReservasComponent implements OnInit {
   private reservaService = inject(ReservaService);
   private authService = inject(AuthService);
   private toast = inject(ToastService);
+  private route = inject(ActivatedRoute);
 
   reservas = signal<ReservaResponse[]>([]);
   cargando = signal<boolean>(false);
@@ -37,6 +38,45 @@ export class MisReservasComponent implements OnInit {
 
   ngOnInit() {
     this.cargarReservas();
+    this.avisarResultadoDePago();
+  }
+
+  // MercadoPago vuelve a esta pantalla con ?status=success|pending (ver back_urls en PagoServiceImpl).
+  // La confirmación llega por webhook unos segundos después, así que se avisa y se refresca la lista.
+  private avisarResultadoDePago() {
+    const status = this.route.snapshot.queryParamMap.get('status');
+    if (status === 'success') {
+      this.toast.success('¡Pago recibido! Tu turno se confirma en unos segundos.');
+      setTimeout(() => this.cargarReservas(), 5000);
+    } else if (status === 'pending') {
+      this.toast.info('Tu pago quedó pendiente de acreditación. El turno se confirma cuando MercadoPago lo apruebe.');
+    }
+  }
+
+  /** Un jugador no puede cancelar un turno que ya empezó (el backend también lo rechaza); el staff sí. */
+  puedeCancelar(r: ReservaResponse): boolean {
+    if (r.estadoReserva !== 'PENDIENTE_PAGO' && r.estadoReserva !== 'CONFIRMADA') return false;
+    if (this.esPersonal()) return true;
+    const inicio = new Date(`${r.fecha}T${r.horaInicio.substring(0, 5)}:00`);
+    return inicio.getTime() > Date.now();
+  }
+
+  // Staff: confirma una reserva pendiente que se cobra en el club (efectivo / mostrador).
+  confirmandoId = signal<number | null>(null);
+
+  confirmarPagoEnClub(r: ReservaResponse) {
+    this.confirmandoId.set(r.id);
+    this.reservaService.confirmarReserva(r.id).subscribe({
+      next: () => {
+        this.confirmandoId.set(null);
+        this.toast.success('Reserva confirmada.');
+        this.cargarReservas();
+      },
+      error: (err) => {
+        this.confirmandoId.set(null);
+        this.toast.error(err.error?.message || 'No se pudo confirmar la reserva.');
+      }
+    });
   }
 
   cargarReservas() {

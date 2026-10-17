@@ -23,6 +23,9 @@ export class ToastService {
 
   private push(type: ToastType, message: string | null | undefined, durationMs: number): void {
     if (!message) return; // ignora null/undefined/'' — sirve como no-op seguro
+    // Evita el mismo aviso repetido en pantalla (ej. la sesión vencida que informan a la vez el
+    // interceptor y la pantalla, o varios pedidos en paralelo que fallan con el mismo mensaje).
+    if (this._toasts().some(t => t.message === message)) return;
     const id = ++this.seq;
     this._toasts.update(list => [...list, { id, type, message }]);
     if (durationMs > 0) {

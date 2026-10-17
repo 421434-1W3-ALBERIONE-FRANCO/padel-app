@@ -4,6 +4,7 @@ import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { ReservaService } from '../../../core/services/reserva.service';
 import { PagoService } from '../../../core/services/pago.service';
 import { BonoService } from '../../../core/services/bono.service';
+import { ToastService } from '../../../core/services/toast.service';
 import { ReservaResponse } from '../../../shared/models/reserva.model';
 
 @Component({
@@ -19,6 +20,7 @@ export class CheckoutComponent implements OnInit {
   private reservaService = inject(ReservaService);
   private pagoService = inject(PagoService);
   private bonoService = inject(BonoService);
+  private toast = inject(ToastService);
 
   reservaId: number | null = null;
   reserva = signal<ReservaResponse | null>(null);
@@ -46,6 +48,10 @@ export class CheckoutComponent implements OnInit {
 
   ngOnInit() {
     const idParam = this.route.snapshot.paramMap.get('reservaId');
+    // MercadoPago vuelve acá con ?status=failure cuando el pago no se completó (ver back_urls).
+    if (this.route.snapshot.queryParamMap.get('status') === 'failure') {
+      this.toast.error('El pago no se completó o fue rechazado. Podés intentarlo nuevamente.');
+    }
     if (idParam) {
       this.reservaId = Number(idParam);
       this.cargarDatos();
@@ -100,7 +106,8 @@ export class CheckoutComponent implements OnInit {
         window.location.href = response.initPoint;
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al conectar con la pasarela de MercadoPago.');
+        // Toast y no error(): error() reemplaza la pantalla y ya no se podía reintentar el pago.
+        this.toast.error(err.error?.message || 'Error al conectar con la pasarela de MercadoPago.');
         this.procesandoPago.set(false);
       }
     });
@@ -118,7 +125,7 @@ export class CheckoutComponent implements OnInit {
         this.pagoCompletado.set(true);
       },
       error: (err) => {
-        this.error.set(err.error?.message || 'Error al procesar el pago por bono.');
+        this.toast.error(err.error?.message || 'Error al procesar el pago por bono.');
         this.procesandoPago.set(false);
       }
     });

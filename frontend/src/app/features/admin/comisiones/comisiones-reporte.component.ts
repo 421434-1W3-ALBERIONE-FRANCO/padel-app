@@ -10,7 +10,7 @@ import { UsuarioResponse } from '../../../shared/models/usuario.model';
 import { ReporteComisionesResponse } from '../../../shared/models/comision.model';
 import { ConfiguracionResponse } from '../../../shared/models/configuracion.model';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
-import { todayIsoDate } from '../../../shared/utils/date.util';
+import { firstDayOfMonthIsoDate, todayIsoDate } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-comisiones-reporte',
@@ -41,8 +41,7 @@ export class ComisionesReporteComponent implements OnInit {
 
   ngOnInit(): void {
     // Por defecto, el primer día del mes en curso.
-    const hoy = new Date();
-    this.desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().substring(0, 10);
+    this.desde = firstDayOfMonthIsoDate();
 
     this.usuarioService.listarPorRol('RECEPCIONISTA').subscribe({
       next: (data) => this.recepcionistas.set(data),

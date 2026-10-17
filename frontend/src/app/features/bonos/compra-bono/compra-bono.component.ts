@@ -46,7 +46,7 @@ export class CompraBonoComponent implements OnInit {
     // Set default expiration date to 30 days from now
     const expiry = new Date();
     expiry.setDate(expiry.getDate() + 30);
-    this.fechaVencimiento = expiry.toISOString().substring(0, 10);
+    this.fechaVencimiento = toIsoDate(expiry);
   }
   onPackChange(packTipo: string) {
     const selected = this.packs.find(p => p.tipo === packTipo);

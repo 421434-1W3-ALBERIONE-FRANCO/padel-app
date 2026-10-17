@@ -16,7 +16,11 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     List<Reserva> findByUsuarioIdOrderByFechaDesc(Long usuarioId);
 
-    @Query("SELECT r FROM Reserva r WHERE r.cancha.id = :canchaId AND r.fecha = :fecha AND r.estadoReserva IN ('CONFIRMADA', 'COMPLETADA')")
+    // Reservas que ocupan la cancha ese día. Incluye PENDIENTE_PAGO: el turno queda retenido mientras
+    // se paga (hasta que el scheduler lo cancela por falta de pago). Antes solo se miraba el lock de Redis
+    // de la hora de inicio, que vence a los 10 min y no cubre las franjas siguientes de una reserva larga:
+    // otro usuario podía reservar encima y, si ambos pagaban, la cancha quedaba vendida dos veces.
+    @Query("SELECT r FROM Reserva r WHERE r.cancha.id = :canchaId AND r.fecha = :fecha AND r.estadoReserva IN ('PENDIENTE_PAGO', 'CONFIRMADA', 'COMPLETADA')")
     List<Reserva> findActiveReservationsByCanchaAndDate(
             @Param("canchaId") Long canchaId,
             @Param("fecha") LocalDate fecha

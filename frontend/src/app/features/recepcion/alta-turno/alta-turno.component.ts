@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { switchMap } from 'rxjs';
 import { DisponibilidadService } from '../../../core/services/disponibilidad.service';
 import { CanchaAdminService } from '../../../core/services/cancha-admin.service';
 import { ReservaService } from '../../../core/services/reserva.service';
@@ -127,10 +128,14 @@ export class AltaTurnoComponent implements OnInit {
       origen: 'RECEPCION',
       duracionMin: this.duracionSel()?.duracionMin,
       usuarioId: cliente.id
-    }).subscribe({
+    }).pipe(
+      // El turno dado de alta por recepción se cobra en el club: se confirma en el acto. Si quedara
+      // PENDIENTE_PAGO, el scheduler lo cancelaba a los 15 minutos "por falta de pago".
+      switchMap(reserva => this.reservaService.confirmarReserva(reserva.id))
+    ).subscribe({
       next: () => {
         this.creando.set(false);
-        this.toast.success(`Turno creado para ${cliente.nombre} ${cliente.apellido}.`);
+        this.toast.success(`Turno confirmado para ${cliente.nombre} ${cliente.apellido}. El cobro se registra en el club.`);
         this.slotSel.set(null);
         this.duracionSel.set(null);
         this.cargarDisponibilidad();
@@ -138,6 +143,7 @@ export class AltaTurnoComponent implements OnInit {
       error: (err) => {
         this.creando.set(false);
         this.toast.error(err.error?.message || 'No se pudo crear el turno.');
+        this.cargarDisponibilidad();
       }
     });
   }

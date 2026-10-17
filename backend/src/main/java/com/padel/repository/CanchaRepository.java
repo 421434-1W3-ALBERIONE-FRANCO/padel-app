@@ -11,6 +11,8 @@ import java.util.Optional;
 public interface CanchaRepository extends JpaRepository<Cancha, Long> {
     List<Cancha> findByActivaTrue();
     Optional<Cancha> findByIdAndActivaTrue(Long id);
-    boolean existsByNombreAndActivaTrue(String nombre);
-    boolean existsByNombreAndActivaTrueAndIdNot(String nombre, Long id);
+    // El nombre es UNIQUE en la tabla para todas las canchas (también las dadas de baja), así que
+    // la validación no puede limitarse a las activas: si no, la base rechaza el INSERT con un 500.
+    boolean existsByNombre(String nombre);
+    boolean existsByNombreAndIdNot(String nombre, Long id);
 }

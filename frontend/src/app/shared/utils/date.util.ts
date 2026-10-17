@@ -23,6 +23,13 @@ export function todayIsoDate(): string {
   return toIsoDate(new Date());
 }
 
+/** Primer día del mes en curso (fecha local). No usar `toISOString()` para fechas: convierte a UTC
+ * y en Argentina (UTC-3) desde las 21 h devuelve el día siguiente. */
+export function firstDayOfMonthIsoDate(): string {
+  const hoy = new Date();
+  return toIsoDate(new Date(hoy.getFullYear(), hoy.getMonth(), 1));
+}
+
 export function maxIsoDate(aniosAFuturo: number = MAX_ANIOS_A_FUTURO): string {
   const d = new Date();
   d.setFullYear(d.getFullYear() + aniosAFuturo);
@@ -43,11 +50,15 @@ export function maxIsoDateTimeLocal(aniosAFuturo: number = MAX_ANIOS_A_FUTURO): 
  * "20260-01-01" en vez de "2026-01-01"): HTML permite tipear más de 4 dígitos de
  * año antes de que el navegador termine de validar, así que se valida también acá. */
 export function rangoDeFechaValidator(minIso: string, maxIso: string): ValidatorFn {
+  // Se compara a nivel día: con un min de fecha-hora ("2026-10-17T20:15") la fecha sola
+  // ("2026-10-17") queda lexicográficamente antes y rechazaba cualquier horario de hoy.
+  const minFecha = minIso.substring(0, 10);
+  const maxFecha = maxIso.substring(0, 10);
   return (control: AbstractControl): ValidationErrors | null => {
     const value = control.value;
     if (!value) return null;
     const fecha = String(value).substring(0, 10);
-    if (fecha < minIso || fecha > maxIso) {
+    if (fecha < minFecha || fecha > maxFecha) {
       return { rangoFecha: { min: minIso, max: maxIso } };
     }
     return null;

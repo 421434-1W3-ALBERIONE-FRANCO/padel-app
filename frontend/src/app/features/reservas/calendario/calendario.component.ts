@@ -223,6 +223,20 @@ export class CalendarioComponent implements OnInit, OnDestroy {
     this.slotParaReservar.set(null);
     this.router.navigate(['/reservas/mis-reservas']);
   }
+  // Etiqueta corta del slot no disponible (el detalle completo va en motivoBloqueo).
+  etiquetaNoDisponible(slot: SlotDisponibilidad): string {
+    switch (slot.motivoBloqueo) {
+      case 'Fecha pasada':
+      case 'Horario pasado':
+        return 'Pasado';
+      case 'En proceso de pago':
+        return 'En pago';
+      case 'Reservado':
+        return 'Reservado';
+      default:
+        return 'Bloqueado';
+    }
+  }
   obtenerNombreCanchaSeleccionada(): string {
     const id = this.canchaSeleccionadaId();
     const cancha = this.canchas().find(c => c.id === id);

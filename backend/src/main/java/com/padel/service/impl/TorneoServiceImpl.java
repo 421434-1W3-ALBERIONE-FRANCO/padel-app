@@ -111,8 +111,8 @@ public class TorneoServiceImpl implements TorneoService {
     public void cancelar(Long id) {
         log.info("Cancelando torneo ID: {}", id);
         Torneo torneo = obtenerTorneoOrThrow(id);
-        if (torneo.getEstado() == EstadoTorneo.FINALIZADO) {
-            throw new EstadoInvalidoException("No se puede cancelar un torneo ya finalizado");
+        if (torneo.getEstado() == EstadoTorneo.FINALIZADO || torneo.getEstado() == EstadoTorneo.CANCELADO) {
+            throw new EstadoInvalidoException("No se puede cancelar un torneo en estado " + torneo.getEstado());
         }
         torneo.setEstado(EstadoTorneo.CANCELADO);
         torneoRepository.save(torneo);
@@ -172,11 +172,20 @@ public class TorneoServiceImpl implements TorneoService {
             throw new CupoCompletoException("El torneo ya alcanzó el cupo máximo de parejas");
         }
 
-        boolean yaInscriptos = inscripcionTorneoRepository.findByTorneoIdAndEstado(torneoId, EstadoInscripcion.CONFIRMADA).stream()
+        List<InscripcionTorneo> confirmadas = inscripcionTorneoRepository.findByTorneoIdAndEstado(torneoId, EstadoInscripcion.CONFIRMADA);
+        boolean yaInscriptos = confirmadas.stream()
                 .anyMatch(i -> contieneJugadores(i, jugador1.getId(), jugador2.getId()));
         if (yaInscriptos) {
             throw new DatosInvalidosException("Esta pareja ya está inscripta en el torneo");
         }
+        // Un jugador no puede jugar el mismo torneo en dos parejas distintas.
+        confirmadas.stream()
+                .filter(i -> participa(i, jugador1.getId()) || participa(i, jugador2.getId()))
+                .findFirst()
+                .ifPresent(i -> {
+                    String email = participa(i, jugador1.getId()) ? jugador1.getEmail() : jugador2.getEmail();
+                    throw new DatosInvalidosException("El jugador " + email + " ya está inscripto en otra pareja de este torneo");
+                });
 
         InscripcionTorneo inscripcion = InscripcionTorneo.builder()
                 .torneo(torneo)
@@ -193,6 +202,10 @@ public class TorneoServiceImpl implements TorneoService {
         Long a = inscripcion.getJugador1().getId();
         Long b = inscripcion.getJugador2().getId();
         return (a.equals(jugador1Id) && b.equals(jugador2Id)) || (a.equals(jugador2Id) && b.equals(jugador1Id));
+    }
+
+    private boolean participa(InscripcionTorneo inscripcion, Long jugadorId) {
+        return inscripcion.getJugador1().getId().equals(jugadorId) || inscripcion.getJugador2().getId().equals(jugadorId);
     }
 
     @Override
@@ -324,7 +337,8 @@ public class TorneoServiceImpl implements TorneoService {
     @Override
     public PartidoTorneoResponse cargarResultado(Long torneoId, Long partidoId, ResultadoPartidoRequest request) {
         log.info("Cargando resultado del partido ID {} del torneo ID {}", partidoId, torneoId);
-        obtenerTorneoOrThrow(torneoId);
+        Torneo torneo = obtenerTorneoOrThrow(torneoId);
+        validarEnCurso(torneo);
         PartidoTorneo partido = partidoTorneoRepository.findByIdAndTorneoId(partidoId, torneoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Partido no encontrado con ID: " + partidoId));
 
@@ -357,7 +371,27 @@ public class TorneoServiceImpl implements TorneoService {
         actualizarRanking(perdedor.getJugador1(), categoria, false);
         actualizarRanking(perdedor.getJugador2(), categoria, false);
 
+        // Una liga no avanza por rondas ("siguiente ronda" es solo para eliminación directa): sin esto
+        // quedaba EN_CURSO para siempre. Termina cuando se jugaron todos sus partidos.
+        if (torneo.getFormato() == FormatoTorneo.LIGA_TODOS_CONTRA_TODOS) {
+            boolean quedanPendientes = partidoTorneoRepository.findByTorneoIdOrderByNumeroRondaAscIdAsc(torneoId).stream()
+                    .anyMatch(p -> p.getEstado() != EstadoPartido.FINALIZADO);
+            if (!quedanPendientes) {
+                torneo.setEstado(EstadoTorneo.FINALIZADO);
+                torneoRepository.save(torneo);
+                log.info("Liga ID {} finalizada: se cargaron todos sus resultados", torneoId);
+            }
+        }
+
         return partidoTorneoMapper.toResponse(saved);
+    }
+
+    // Cargar resultados y avanzar rondas solo tiene sentido con el torneo en juego: no si está
+    // suspendido, cancelado o ya finalizado.
+    private void validarEnCurso(Torneo torneo) {
+        if (torneo.getEstado() != EstadoTorneo.EN_CURSO) {
+            throw new EstadoInvalidoException("El torneo no está en curso (estado actual: " + torneo.getEstado() + ")");
+        }
     }
 
     private void actualizarRanking(Usuario jugador, CategoriaJugador categoria, boolean gano) {
@@ -388,6 +422,7 @@ public class TorneoServiceImpl implements TorneoService {
         if (torneo.getFormato() != FormatoTorneo.ELIMINACION_DIRECTA) {
             throw new DatosInvalidosException("Sólo los torneos de eliminación directa avanzan por rondas");
         }
+        validarEnCurso(torneo);
 
         Integer ultimaRonda = partidoTorneoRepository.obtenerUltimaRonda(torneoId);
         if (ultimaRonda == null) {

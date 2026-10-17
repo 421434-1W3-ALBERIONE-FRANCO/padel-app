@@ -9,6 +9,7 @@ import { ReservaResponse } from '../../../shared/models/reserva.model';
 import { ProductoResponse } from '../../../shared/models/producto.model';
 import { ConsumoResponse } from '../../../shared/models/consumo.model';
 import { ToastService } from '../../../core/services/toast.service';
+import { todayIsoDate } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-carga-consumos',
@@ -52,7 +53,8 @@ export class CargaConsumosComponent implements OnInit {
 
   cargarReservasHoy() {
     this.cargandoReservas.set(true);
-    const hoyStr = new Date().toISOString().substring(0, 10); // YYYY-MM-DD
+    // Fecha local: toISOString() es UTC y desde las 21 h mostraba los turnos de mañana.
+    const hoyStr = todayIsoDate();
 
     this.reservaService.getAllReservas().subscribe({
       next: (data) => {

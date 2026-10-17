@@ -52,6 +52,14 @@ public class LiquidacionServiceImpl implements LiquidacionService {
             throw new DatosInvalidosException("Solo se puede liquidar a personal ADMIN o RECEPCIONISTA");
         }
 
+        // Las sesiones de trabajo no se marcan como liquidadas: liquidar dos veces un mismo período
+        // volvería a pagar los minutos trabajados.
+        if (liquidacionSueldoRepository.existsByEmpleadoIdAndPeriodoDesdeLessThanEqualAndPeriodoHastaGreaterThanEqual(
+                empleado.getId(), request.hasta(), request.desde())) {
+            throw new DatosInvalidosException("El empleado ya tiene una liquidación que se superpone con el período "
+                    + request.desde() + " - " + request.hasta());
+        }
+
         Usuario admin = usuarioRepository.findByEmail(adminEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + adminEmail));
 

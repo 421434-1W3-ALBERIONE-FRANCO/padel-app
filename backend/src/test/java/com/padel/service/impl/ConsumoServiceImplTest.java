@@ -2,6 +2,7 @@ package com.padel.service.impl;
 
 import com.padel.domain.entity.*;
 import com.padel.domain.enums.EstadoConsumoPago;
+import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.MetodoPago;
 import com.padel.domain.enums.RolUsuario;
@@ -9,6 +10,7 @@ import com.padel.dto.request.CerrarCuentaRequest;
 import com.padel.dto.request.ConsumoRequest;
 import com.padel.dto.response.ConsumoResponse;
 import com.padel.exception.ResourceNotFoundException;
+import com.padel.exception.ReservaNoModificableException;
 import com.padel.exception.StockInsuficienteException;
 import com.padel.mapper.ConsumoMapper;
 import com.padel.repository.*;
@@ -141,6 +143,16 @@ class ConsumoServiceImplTest {
         when(productoRepository.findById(1L)).thenReturn(Optional.of(productoMock));
 
         assertThrows(StockInsuficienteException.class, () -> consumoService.cargarConsumo(1L, consumoRequest));
+        verify(productoRepository, never()).save(any(Producto.class));
+        verify(consumoRepository, never()).save(any(Consumo.class));
+    }
+
+    @Test
+    void cargarConsumo_DeberiaRechazarReservaCancelada() {
+        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+
+        assertThrows(ReservaNoModificableException.class, () -> consumoService.cargarConsumo(1L, consumoRequest));
         verify(productoRepository, never()).save(any(Producto.class));
         verify(consumoRepository, never()).save(any(Consumo.class));
     }

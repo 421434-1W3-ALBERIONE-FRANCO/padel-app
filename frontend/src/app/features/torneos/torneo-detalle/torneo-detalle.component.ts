@@ -241,7 +241,8 @@ export class TorneoDetalleComponent implements OnInit {
         this.procesando.set(false);
         this.editandoResultadoId.set(null);
         this.mostrarExito('Resultado cargado');
-        this.cargarPartidos();
+        // Se recarga también el torneo: con el último resultado de una liga pasa a FINALIZADO.
+        this.cargarTodo();
       },
       error: (err) => {
         this.mostrarError(err.error?.message || 'Error al cargar el resultado');

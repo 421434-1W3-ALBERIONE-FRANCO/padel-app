@@ -4,6 +4,7 @@ import { Observable, tap } from 'rxjs';
 import { BonoResponse, CrearBonoRequest } from '../../shared/models/bono.model';
 import { PagoResponse } from '../../shared/models/pago.model';
 import { environment } from '../../../environments/environment';
+import { todayIsoDate } from '../../shared/utils/date.util';
 
 @Injectable({
   providedIn: 'root'
@@ -18,7 +19,7 @@ export class BonoService {
 
   // Computed signal to sum active hours balance
   saldoHorasBono = computed(() => {
-    const todayStr = new Date().toISOString().substring(0, 10);
+    const todayStr = todayIsoDate(); // fecha local (toISOString es UTC: desde las 21 h daba mañana)
     return this.bonosSignal()
       .filter(b => b.estado === 'ACTIVO' && b.fechaVencimiento >= todayStr)
       .reduce((total, b) => total + (b.horasTotales - b.horasUsadas), 0);

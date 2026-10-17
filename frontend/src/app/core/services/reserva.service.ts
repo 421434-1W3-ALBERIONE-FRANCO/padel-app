@@ -34,4 +34,9 @@ export class ReservaService {
   getAllReservas(): Observable<ReservaResponse[]> {
     return this.http.get<ReservaResponse[]>(this.API_URL);
   }
+
+  /** Staff: confirma una reserva PENDIENTE_PAGO que se cobra en el club (efectivo, alta por recepción). */
+  confirmarReserva(id: number): Observable<ReservaResponse> {
+    return this.http.put<ReservaResponse>(`${this.API_URL}/${id}/confirmar`, {});
+  }
 }

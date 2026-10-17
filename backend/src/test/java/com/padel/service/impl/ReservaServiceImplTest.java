@@ -312,6 +312,106 @@ class ReservaServiceImplTest {
     }
 
     @Test
+    void cancelarReserva_JugadorNoPuedeCancelarUnTurnoQueYaPaso() {
+        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
+        reservaMock.setFecha(LocalDate.now().minusDays(1));
+
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+
+        assertThrows(ReservaNoModificableException.class, () ->
+                reservaService.cancelarReserva(1L, "juan@example.com", "Ya lo jugué"));
+
+        verify(reservaRepository, never()).save(any());
+        verify(notificacionService, never()).enviarCancelacion(any());
+    }
+
+    @Test
+    void cancelarReserva_StaffPuedeCancelarUnTurnoPasado() {
+        Usuario recepcion = Usuario.builder()
+                .id(4L)
+                .email("recepcion@example.com")
+                .rol(RolUsuario.RECEPCIONISTA)
+                .build();
+        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
+        reservaMock.setFecha(LocalDate.now().minusDays(1));
+
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcion));
+        when(reservaRepository.save(any(Reserva.class))).thenReturn(reservaMock);
+        when(reservaMapper.toResponse(any(Reserva.class))).thenReturn(responseMock);
+
+        reservaService.cancelarReserva(1L, "recepcion@example.com", "Corrección de agenda");
+
+        assertEquals(EstadoReserva.CANCELADA, reservaMock.getEstadoReserva());
+        assertEquals("Corrección de agenda", reservaMock.getMotivoCancelacion());
+    }
+
+    @Test
+    void cancelarReserva_ShouldThrowReservaNoModificableException_WhenNoShow() {
+        reservaMock.setEstadoReserva(EstadoReserva.NO_SHOW);
+
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+
+        assertThrows(ReservaNoModificableException.class, () ->
+                reservaService.cancelarReserva(1L, "juan@example.com", "No vine"));
+
+        verify(reservaRepository, never()).save(any());
+    }
+
+    @Test
+    void cancelarReserva_SinMotivoUsaElMotivoPorDefecto() {
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        when(reservaRepository.save(any(Reserva.class))).thenReturn(reservaMock);
+        when(reservaMapper.toResponse(any(Reserva.class))).thenReturn(responseMock);
+
+        reservaService.cancelarReserva(1L, "juan@example.com", "  ");
+
+        assertEquals("Cancelada por el usuario", reservaMock.getMotivoCancelacion());
+    }
+
+    @Test
+    void crearReserva_ShouldThrowSlotNoDisponible_WhenOverlapsPendingReservation() {
+        // Reserva de 120' de otro usuario (18:00-20:00) todavía pendiente de pago: la franja de las
+        // 19:30 no se puede volver a vender aunque el lock de Redis sea de otra hora.
+        FranjaHoraria franjaSiguiente = FranjaHoraria.builder()
+                .id(2L)
+                .cancha(canchaMock)
+                .horaInicio(LocalTime.of(19, 30))
+                .horaFin(LocalTime.of(21, 0))
+                .duracionMin(90)
+                .precioBase(new BigDecimal("1000.00"))
+                .precioNocturno(new BigDecimal("1200.00"))
+                .diasAplicables("MONDAY,TUESDAY,WEDNESDAY,THURSDAY,FRIDAY,SATURDAY,SUNDAY")
+                .build();
+        Reserva pendienteLarga = Reserva.builder()
+                .id(9L)
+                .cancha(canchaMock)
+                .fecha(LocalDate.now().plusDays(1))
+                .horaInicio(LocalTime.of(18, 0))
+                .horaFin(LocalTime.of(20, 0))
+                .estadoReserva(EstadoReserva.PENDIENTE_PAGO)
+                .build();
+
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
+        when(franjaHorariaRepository.findById(2L)).thenReturn(Optional.of(franjaSiguiente));
+        when(franjaHorariaRepository.findByCanchaIdAndCanchaActivaTrue(1L)).thenReturn(List.of(franjaMock, franjaSiguiente));
+        when(redisLockService.acquireLock(eq(1L), any(LocalDate.class), eq(LocalTime.of(19, 30)))).thenReturn(true);
+        when(bloqueoCanchaRepository.findBlocksForDate(eq(1L), any(LocalDate.class))).thenReturn(Collections.emptyList());
+        when(reservaRepository.findActiveReservationsByCanchaAndDate(eq(1L), any(LocalDate.class))).thenReturn(List.of(pendienteLarga));
+
+        ReservaRequest request = new ReservaRequest(1L, 2L, LocalDate.now().plusDays(1), OrigenReserva.APP, null, null);
+
+        assertThrows(SlotNoDisponibleException.class, () -> reservaService.crearReserva(request, "juan@example.com"));
+
+        verify(reservaRepository, never()).save(any());
+        verify(redisLockService).releaseLock(eq(1L), any(LocalDate.class), eq(LocalTime.of(19, 30)));
+    }
+
+    @Test
     void limpiarReservasExpiradas_ShouldCancelExpiredReservations() {
         Reserva expired = Reserva.builder()
                 .id(10L)

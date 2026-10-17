@@ -4,6 +4,7 @@ import com.padel.domain.entity.BloqueoCancha;
 import com.padel.domain.entity.Cancha;
 import com.padel.domain.entity.FranjaHoraria;
 import com.padel.domain.entity.Reserva;
+import com.padel.domain.enums.EstadoReserva;
 import com.padel.dto.response.DisponibilidadResponse;
 import com.padel.dto.response.DisponibilidadResponse.OpcionDuracion;
 import com.padel.dto.response.DisponibilidadResponse.SlotDisponibilidad;
@@ -90,7 +91,9 @@ public class DisponibilidadServiceImpl implements DisponibilidadService {
 
                     if (activeReserva.isPresent()) {
                         disponible = false;
-                        motivo = "Reservado";
+                        motivo = activeReserva.get().getEstadoReserva() == EstadoReserva.PENDIENTE_PAGO
+                                ? "En proceso de pago"
+                                : "Reservado";
                     } else if (redisLockService.hasLock(canchaId, fecha, start)) {
                         disponible = false;
                         motivo = "En proceso de pago";

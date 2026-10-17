@@ -417,6 +417,14 @@ TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 # Email (Resend)
 RESEND_API_KEY=tu_api_key
 RESEND_FROM=noreply@tudominio.com
+
+# Frontend público (Netlify): MercadoPago redirige acá al terminar el checkout y
+# los mails de recuperación de contraseña arman su link con esta URL.
+FRONTEND_URL=https://tu-sitio.netlify.app
+
+# Opcional: zona horaria del club (default America/Argentina/Buenos_Aires). Render corre
+# en UTC; sin esto "hoy", los horarios pasados y los cron quedaban corridos 3 horas.
+APP_TIMEZONE=America/Argentina/Buenos_Aires
 ```
 
 ---

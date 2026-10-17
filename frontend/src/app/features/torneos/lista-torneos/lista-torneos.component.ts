@@ -26,7 +26,7 @@ export class ListaTorneosComponent implements OnInit {
   guardando = signal<boolean>(false);
   categorias: CategoriaJugador[] = ['PRIMERA', 'SEGUNDA', 'TERCERA', 'CUARTA', 'QUINTA', 'SEXTA', 'SEPTIMA', 'OCTAVA'];
   tipos: TipoTorneo[] = ['LIGA', 'TORNEO', 'TORNEO_EXPRESS'];
-  estados: EstadoTorneo[] = ['INSCRIPCION_ABIERTA', 'EN_CURSO', 'FINALIZADO', 'CANCELADO'];
+  estados: EstadoTorneo[] = ['INSCRIPCION_ABIERTA', 'EN_CURSO', 'SUSPENDIDO', 'FINALIZADO', 'CANCELADO'];
   // La fecha de inicio nunca puede ser anterior a hoy (el día en que se crea el
   // torneo) y el año no puede irse de un rango razonable (evita typos como
   // escribir "20260" en vez de "2026" en el input de fecha).
@@ -110,6 +110,8 @@ export class ListaTorneosComponent implements OnInit {
         return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
       case 'EN_CURSO':
         return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+      case 'SUSPENDIDO':
+        return 'bg-orange-500/10 text-orange-400 border border-orange-500/20';
       case 'FINALIZADO':
         return 'bg-slate-800 text-slate-400 border border-slate-700';
       case 'CANCELADO':

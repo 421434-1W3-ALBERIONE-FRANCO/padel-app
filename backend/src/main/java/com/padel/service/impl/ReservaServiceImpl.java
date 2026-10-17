@@ -18,6 +18,7 @@ import com.padel.service.RedisLockService;
 import com.padel.service.ReservaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -144,12 +145,12 @@ public class ReservaServiceImpl implements ReservaService {
                 throw new SlotNoDisponibleException("La cancha está bloqueada en ese horario");
             }
 
-            // 2. Evaluar si existe una Reserva CONFIRMADA o COMPLETADA (solapamiento en todo el rango)
+            // 2. Evaluar si existe una Reserva pendiente de pago, CONFIRMADA o COMPLETADA (solapamiento en todo el rango)
             List<Reserva> activeReservations = reservaRepository.findActiveReservationsByCanchaAndDate(cancha.getId(), fecha);
             boolean isReserved = activeReservations.stream()
                     .anyMatch(r -> horaInicio.isBefore(r.getHoraFin()) && r.getHoraInicio().isBefore(horaFin));
             if (isReserved) {
-                throw new SlotNoDisponibleException("La cancha ya está reservada en ese horario");
+                throw new SlotNoDisponibleException("La cancha ya está reservada (o en proceso de pago) en ese horario");
             }
 
             // Precio prorrateado por las franjas que cubre (cada tramo con su tarifa base/nocturna).
@@ -238,19 +239,28 @@ public class ReservaServiceImpl implements ReservaService {
         }
 
         // Validar estado actual de la reserva
-        if (reserva.getEstadoReserva() == EstadoReserva.COMPLETADA || reserva.getEstadoReserva() == EstadoReserva.CANCELADA) {
+        if (reserva.getEstadoReserva() == EstadoReserva.COMPLETADA
+                || reserva.getEstadoReserva() == EstadoReserva.CANCELADA
+                || reserva.getEstadoReserva() == EstadoReserva.NO_SHOW) {
             throw new ReservaNoModificableException("No se puede cancelar una reserva que ya está en estado " + reserva.getEstadoReserva());
+        }
+
+        // Un jugador no puede cancelar un turno que ya empezó o ya se jugó (las reservas pasadas siguen
+        // CONFIRMADAS porque nada las pasa a COMPLETADA). El staff sí puede, para corregir la agenda.
+        if (!isAdminOrRecepcion && !LocalDateTime.of(reserva.getFecha(), reserva.getHoraInicio()).isAfter(LocalDateTime.now())) {
+            throw new ReservaNoModificableException("No se puede cancelar un turno que ya comenzó o finalizó");
         }
 
         // Cancelar la reserva
         reserva.setEstadoReserva(EstadoReserva.CANCELADA);
-        reserva.setMotivoCancelacion(motivo != null ? motivo : "Cancelada por el usuario");
+        reserva.setMotivoCancelacion(motivo != null && !motivo.isBlank() ? motivo : "Cancelada por el usuario");
         Reserva updatedReserva = reservaRepository.save(reserva);
 
         // Liberar el lock de Redis
         redisLockService.releaseLock(reserva.getCancha().getId(), reserva.getFecha(), reserva.getHoraInicio());
 
         // Enviar notificación asíncrona por WhatsApp
+        prepararParaNotificacionAsync(updatedReserva);
         notificacionService.enviarCancelacion(updatedReserva);
 
         log.info("Reserva ID {} cancelada exitosamente", id);
@@ -367,9 +377,18 @@ public class ReservaServiceImpl implements ReservaService {
         redisLockService.releaseLock(reserva.getCancha().getId(), reserva.getFecha(), reserva.getHoraInicio());
 
         // Enviar notificación asíncrona por WhatsApp
+        prepararParaNotificacionAsync(updatedReserva);
         notificacionService.enviarConfirmacion(updatedReserva);
 
         log.info("Reserva ID {} confirmada exitosamente", id);
         return reservaMapper.toResponse(updatedReserva);
+    }
+
+    // Las notificaciones de WhatsApp corren en otro hilo (@Async) y leen usuario y cancha, que son LAZY:
+    // se inicializan acá, dentro de la transacción, para que ese hilo no use la sesión de Hibernate
+    // de éste (no es thread-safe y puede estar cerrada -> LazyInitializationException).
+    private void prepararParaNotificacionAsync(Reserva reserva) {
+        Hibernate.initialize(reserva.getUsuario());
+        Hibernate.initialize(reserva.getCancha());
     }
 }

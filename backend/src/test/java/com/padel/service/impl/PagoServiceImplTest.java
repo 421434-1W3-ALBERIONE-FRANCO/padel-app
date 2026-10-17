@@ -13,6 +13,7 @@ import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.MetodoPago;
 import com.padel.domain.enums.RolUsuario;
+import com.padel.domain.enums.TipoNotificacion;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
 import com.padel.exception.ResourceNotFoundException;
@@ -22,11 +23,13 @@ import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.service.EmailService;
+import com.padel.service.NotificacionInAppService;
 import com.padel.service.ReservaService;
 import com.padel.service.ConsumoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
@@ -43,6 +46,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -62,6 +66,8 @@ class PagoServiceImplTest {
     private PagoMapper pagoMapper;
     @Mock
     private EmailService emailService;
+    @Mock
+    private NotificacionInAppService notificacionInAppService;
 
     @InjectMocks
     private PagoServiceImpl pagoService;
@@ -74,6 +80,7 @@ class PagoServiceImplTest {
     @BeforeEach
     void setUp() {
         ReflectionTestUtils.setField(pagoService, "accessToken", "TEST-TOKEN");
+        ReflectionTestUtils.setField(pagoService, "frontendUrl", "https://club.netlify.app/");
 
         usuarioMock = Usuario.builder()
                 .id(1L)
@@ -133,6 +140,14 @@ class PagoServiceImplTest {
             assertEquals("pref-123", response.preferenceId());
             assertEquals("http://initpoint.com", response.initPoint());
             verify(pagoRepository).save(any(Pago.class));
+
+            // MercadoPago devuelve al usuario al frontend configurado (no a localhost).
+            ArgumentCaptor<PreferenceRequest> captor = ArgumentCaptor.forClass(PreferenceRequest.class);
+            verify(mockedClient.constructed().get(0)).create(captor.capture());
+            assertEquals("https://club.netlify.app/reservas/mis-reservas?status=success", captor.getValue().getBackUrls().getSuccess());
+            assertEquals("https://club.netlify.app/pagos/checkout/1?status=failure", captor.getValue().getBackUrls().getFailure());
+        } catch (Exception e) {
+            fail(e);
         }
     }
 
@@ -228,6 +243,79 @@ class PagoServiceImplTest {
 
         verify(pagoRepository, never()).save(any());
         verify(reservaService, never()).confirmarReserva(anyLong());
+    }
+
+    @Test
+    void procesarWebhook_ApprovedPayment_ReservaVencida_RegistraPagoYNotifica() {
+        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
+        Payment paymentMock = mock(Payment.class);
+        when(paymentMock.getStatus()).thenReturn("approved");
+        when(paymentMock.getExternalReference()).thenReturn("1");
+
+        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pagoMock));
+        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+
+        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
+                (mock, context) -> {
+                    when(mock.get(999L)).thenReturn(paymentMock);
+                })) {
+
+            pagoService.procesarWebhook("payment", "999");
+
+            assertEquals(EstadoPago.APROBADO, pagoMock.getEstado());
+            verify(pagoRepository).save(pagoMock);
+            verify(reservaService, never()).confirmarReserva(anyLong());
+            verify(notificacionInAppService).crear(eq(usuarioMock), eq(TipoNotificacion.RESERVA_CANCELADA_FALTA_PAGO), any(), any(), eq(1L));
+        }
+    }
+
+    @Test
+    void procesarWebhook_PagoSinExternalReference_SeIgnora() {
+        Payment paymentMock = mock(Payment.class);
+        when(paymentMock.getStatus()).thenReturn("approved");
+        when(paymentMock.getExternalReference()).thenReturn(null);
+        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
+
+        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
+                (mock, context) -> {
+                    when(mock.get(999L)).thenReturn(paymentMock);
+                })) {
+
+            assertDoesNotThrow(() -> pagoService.procesarWebhook("payment", "999"));
+
+            verify(pagoRepository, never()).save(any());
+            verify(reservaService, never()).confirmarReserva(anyLong());
+        }
+    }
+
+    @Test
+    void procesarWebhook_MismoPagoMp_ReutilizaSuRegistro() {
+        // Primero llegó "in_process" (quedó asociado al pago 999) y ahora "approved": no debe tomar
+        // otro pago pendiente de la reserva (mp_payment_id es único en la base).
+        Pago otroPendiente = Pago.builder().id(5L).reserva(reservaMock).usuario(usuarioMock)
+                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).build();
+        pagoMock.setMpPaymentId("999");
+
+        Payment paymentMock = mock(Payment.class);
+        when(paymentMock.getStatus()).thenReturn("approved");
+        when(paymentMock.getExternalReference()).thenReturn("1");
+        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.of(pagoMock));
+        lenient().when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(otroPendiente, pagoMock));
+        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+
+        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
+                (mock, context) -> {
+                    when(mock.get(999L)).thenReturn(paymentMock);
+                })) {
+
+            pagoService.procesarWebhook("payment", "999");
+
+            assertEquals(EstadoPago.APROBADO, pagoMock.getEstado());
+            assertEquals(EstadoPago.PENDIENTE, otroPendiente.getEstado());
+            assertNull(otroPendiente.getMpPaymentId());
+            verify(reservaService).confirmarReserva(1L);
+        }
     }
 
     @Test

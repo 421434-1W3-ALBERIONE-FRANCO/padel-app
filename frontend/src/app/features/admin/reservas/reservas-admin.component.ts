@@ -83,6 +83,24 @@ export class ReservasAdminComponent implements OnInit {
     });
   }
 
+  // Confirmación manual de una reserva pendiente que se cobra en el club (efectivo / mostrador).
+  confirmandoId = signal<number | null>(null);
+
+  confirmarPago(r: ReservaResponse): void {
+    this.confirmandoId.set(r.id);
+    this.reservaService.confirmarReserva(r.id).subscribe({
+      next: () => {
+        this.confirmandoId.set(null);
+        this.toast.success('Reserva confirmada.');
+        this.cargar();
+      },
+      error: (err) => {
+        this.confirmandoId.set(null);
+        this.toast.error(err.error?.message || 'No se pudo confirmar la reserva.');
+      }
+    });
+  }
+
   badgeClase(estado: EstadoReserva): string {
     switch (estado) {
       case 'CONFIRMADA': return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';

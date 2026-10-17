@@ -57,16 +57,26 @@ export class OcupacionAdminComponent implements OnInit, OnDestroy {
     return estado === 'CONFIRMADA' || estado === 'PENDIENTE_PAGO' || estado === 'COMPLETADA';
   }
 
+  private static readonly DIAS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+
   grid = computed<FilaCancha[]>(() => {
     const fecha = this.fecha();
+    const diaSemana = OcupacionAdminComponent.DIAS[new Date(`${fecha}T00:00:00`).getDay()];
     const reservas = this.reservas().filter(r => r.fecha === fecha && this.ocupa(r.estadoReserva));
+    const hhmm = (t: string) => t.substring(0, 5);
     return this.base().map(({ cancha, franjas }) => {
-      const celdas = [...franjas]
+      // Solo las franjas que aplican al día elegido (una cancha puede tener horarios distintos
+      // entre semana y el fin de semana), y una franja está ocupada si alguna reserva se superpone:
+      // con duración variable una reserva larga cubre también las franjas siguientes.
+      const celdas = franjas
+        .filter(f => f.diasAplicables.includes(diaSemana))
         .sort((a, b) => a.horaInicio.localeCompare(b.horaInicio))
         .map(f => ({
           horaInicio: f.horaInicio,
           horaFin: f.horaFin,
-          ocupada: reservas.some(r => r.canchaId === cancha.id && r.horaInicio?.substring(0, 5) === f.horaInicio.substring(0, 5))
+          ocupada: reservas.some(r => r.canchaId === cancha.id
+            && hhmm(r.horaInicio) < hhmm(f.horaFin)
+            && hhmm(f.horaInicio) < hhmm(r.horaFin))
         }));
       return {
         nombre: cancha.nombre,

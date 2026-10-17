@@ -12,7 +12,7 @@ import {
   TurnoResponse
 } from '../../../shared/models/control-horario.model';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
-import { todayIsoDate } from '../../../shared/utils/date.util';
+import { firstDayOfMonthIsoDate, todayIsoDate } from '../../../shared/utils/date.util';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
@@ -49,8 +49,7 @@ export class ControlHorarioComponent implements OnInit {
   desde = '';
   hasta = todayIsoDate();
   ngOnInit(): void {
-    const hoy = new Date();
-    this.desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().substring(0, 10);
+    this.desde = firstDayOfMonthIsoDate();
     this.cargarEmpleados();
   }
   private cargarEmpleados(): void {

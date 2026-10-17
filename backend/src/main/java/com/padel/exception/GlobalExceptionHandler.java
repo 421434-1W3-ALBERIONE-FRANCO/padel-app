@@ -2,15 +2,20 @@ package com.padel.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
@@ -243,6 +248,23 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
     }
 
+    // Login de una cuenta desactivada (DisabledException) u otro fallo de autenticación distinto de
+    // credenciales incorrectas: antes caía en el handler genérico y respondía 500.
+    @ExceptionHandler(AuthenticationException.class)
+    public ResponseEntity<ApiError> handleAuthenticationException(AuthenticationException ex, HttpServletRequest request) {
+        String mensaje = ex instanceof DisabledException
+                ? "La cuenta está desactivada. Contactá al club."
+                : "No se pudo autenticar al usuario";
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.UNAUTHORIZED.value(),
+                HttpStatus.UNAUTHORIZED.getReasonPhrase(),
+                mensaje,
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.UNAUTHORIZED);
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiError> handleAccessDeniedException(AccessDeniedException ex, HttpServletRequest request) {
         ApiError error = new ApiError(
@@ -255,8 +277,53 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.FORBIDDEN);
     }
 
+    // Parámetro de path/query con formato inválido (ej. /rankings/NOVENA, ?fecha=17-10-2026, ?cancha=abc).
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiError> handleTypeMismatchException(MethodArgumentTypeMismatchException ex, HttpServletRequest request) {
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.BAD_REQUEST.value(),
+                HttpStatus.BAD_REQUEST.getReasonPhrase(),
+                "El valor '" + ex.getValue() + "' no es válido para el parámetro '" + ex.getName() + "'",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    // Violación de una restricción de la base (unicidad, FK): es un conflicto de datos, no un error interno.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrityViolationException(DataIntegrityViolationException ex, HttpServletRequest request) {
+        log.warn("Violación de integridad de datos en {}: {}", request.getRequestURI(), ex.getMostSpecificCause().getMessage());
+        ApiError error = new ApiError(
+                LocalDateTime.now(),
+                HttpStatus.CONFLICT.value(),
+                HttpStatus.CONFLICT.getReasonPhrase(),
+                "La operación entra en conflicto con datos existentes (registro duplicado o en uso).",
+                request.getRequestURI()
+        );
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGenericException(Exception ex, HttpServletRequest request) {
+        // Excepciones propias de Spring MVC que ya traen su status (ruta inexistente -> 404, método no
+        // soportado -> 405, falta un parámetro obligatorio -> 400, content-type inválido -> 415...).
+        // Sin esto el catch-all las convertía en 500.
+        if (ex instanceof ErrorResponse errorResponse) {
+            HttpStatus status = HttpStatus.resolve(errorResponse.getStatusCode().value());
+            if (status == null) {
+                status = HttpStatus.BAD_REQUEST;
+            }
+            ApiError error = new ApiError(
+                    LocalDateTime.now(),
+                    status.value(),
+                    status.getReasonPhrase(),
+                    mensajeParaErrorDeFramework(status),
+                    request.getRequestURI()
+            );
+            return new ResponseEntity<>(error, status);
+        }
+
         // No exponer ex.getMessage() al cliente: puede filtrar detalles internos (SQL, stacktraces,
         // configuración de terceros). El detalle completo queda solo en el log del servidor.
         log.error("Error no controlado en {}: {}", request.getRequestURI(), ex.getMessage(), ex);
@@ -268,5 +335,15 @@ public class GlobalExceptionHandler {
                 request.getRequestURI()
         );
         return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    private String mensajeParaErrorDeFramework(HttpStatus status) {
+        return switch (status) {
+            case NOT_FOUND -> "El recurso solicitado no existe";
+            case METHOD_NOT_ALLOWED -> "Método HTTP no soportado para este recurso";
+            case UNSUPPORTED_MEDIA_TYPE -> "Tipo de contenido no soportado";
+            case NOT_ACCEPTABLE -> "Formato de respuesta no soportado";
+            default -> "La solicitud es inválida o está incompleta";
+        };
     }
 }

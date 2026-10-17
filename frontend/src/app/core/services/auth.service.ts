@@ -48,10 +48,14 @@ export class AuthService {
     return this.http.post<void>(`${this.API_URL}/auth/resetear-password`, request);
   }
 
-  logout(): void {
+  /**
+   * @param notificarServidor false cuando el token ya no es válido (401): el backend no podría
+   *        identificar al usuario y el POST /auth/logout solo fallaría.
+   */
+  logout(notificarServidor = true): void {
     // Cierra la sesión de trabajo del staff en el backend (fire-and-forget: un error de red
     // no debe impedir el cierre local). Cubre tanto el botón manual como el timeout de inactividad.
-    if (this.getToken()) {
+    if (notificarServidor && this.getToken()) {
       this.http.post<void>(`${this.API_URL}/auth/logout`, {}).subscribe({ next: () => {}, error: () => {} });
     }
     localStorage.removeItem(this.TOKEN_KEY);
@@ -76,7 +80,7 @@ export class AuthService {
 
     if (token && userJson) {
       if (this.isTokenExpired(token)) {
-        this.logout();
+        this.logout(false);
         return;
       }
       try {

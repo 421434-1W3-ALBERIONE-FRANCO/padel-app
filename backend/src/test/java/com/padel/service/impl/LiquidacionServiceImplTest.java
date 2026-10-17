@@ -79,6 +79,17 @@ class LiquidacionServiceImplTest {
     }
 
     @Test
+    void liquidar_ShouldThrowDatosInvalidos_WhenPeriodoSeSuperponeConOtraLiquidacion() {
+        LiquidacionRequest request = new LiquidacionRequest(1L, LocalDate.of(2026, 7, 15), LocalDate.of(2026, 8, 15));
+        when(usuarioRepository.findById(1L)).thenReturn(Optional.of(recepcionistaMock));
+        when(liquidacionSueldoRepository.existsByEmpleadoIdAndPeriodoDesdeLessThanEqualAndPeriodoHastaGreaterThanEqual(
+                1L, LocalDate.of(2026, 8, 15), LocalDate.of(2026, 7, 15))).thenReturn(true);
+
+        assertThrows(DatosInvalidosException.class, () -> liquidacionService.liquidar(request, "admin@example.com"));
+        verify(liquidacionSueldoRepository, never()).save(any());
+    }
+
+    @Test
     void liquidar_ShouldConsolidateSessionsBankAndCommissions() {
         LiquidacionRequest request = new LiquidacionRequest(1L, LocalDate.of(2026, 7, 1), LocalDate.of(2026, 7, 31));
 
