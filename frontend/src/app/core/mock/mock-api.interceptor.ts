@@ -224,7 +224,11 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   }
   if (path === '/reservas' && req.method === 'GET') {
     const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
-    return ok(db.reservas);
+    // Espeja el backend: con ?fecha= solo ese día, ordenado por hora de inicio y cancha.
+    const fecha = req.params.get('fecha');
+    if (!fecha) return ok(db.reservas);
+    return ok(db.reservas.filter((r: any) => r.fecha === fecha)
+      .sort((a: any, b: any) => a.horaInicio.localeCompare(b.horaInicio) || a.canchaNombre.localeCompare(b.canchaNombre) || a.id - b.id));
   }
   if (path === '/reservas' && req.method === 'POST') {
     if (!auth) return err(401, 'No autenticado');

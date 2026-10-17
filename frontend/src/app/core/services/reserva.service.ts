@@ -31,8 +31,13 @@ export class ReservaService {
     return this.http.get<ReservaResponse>(`${this.API_URL}/${id}`);
   }
 
-  getAllReservas(): Observable<ReservaResponse[]> {
-    return this.http.get<ReservaResponse[]>(this.API_URL);
+  /** Staff: todo el historial o, con `fecha` (YYYY-MM-DD), solo las reservas de ese día ordenadas por hora y cancha. */
+  getAllReservas(fecha?: string): Observable<ReservaResponse[]> {
+    let params = new HttpParams();
+    if (fecha) {
+      params = params.set('fecha', fecha);
+    }
+    return this.http.get<ReservaResponse[]>(this.API_URL, { params });
   }
 
   /** Staff: confirma una reserva PENDIENTE_PAGO que se cobra en el club (efectivo, alta por recepción). */

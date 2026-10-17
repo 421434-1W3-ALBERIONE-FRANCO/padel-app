@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Repository
@@ -26,7 +27,19 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("fecha") LocalDate fecha
     );
 
+    // Reservas de un día (todos los estados) para las vistas de staff que refrescan seguido: ocupación en vivo
+    // y carga de consumos. Ordenadas como se juegan. Trae usuario y cancha en la misma consulta porque el mapper
+    // los lee y, al ser LAZY, cada usuario y cancha distintos costaban una consulta más en cada refresco.
+    @Query("SELECT r FROM Reserva r JOIN FETCH r.usuario JOIN FETCH r.cancha c WHERE r.fecha = :fecha ORDER BY r.horaInicio, c.nombre, r.id")
+    List<Reserva> findDelDia(@Param("fecha") LocalDate fecha);
+
     List<Reserva> findByEstadoReservaAndCreatedAtBefore(EstadoReserva estadoReserva, LocalDateTime threshold);
+
+    // Reservas CONFIRMADAS cuyo turno ya terminó (fecha + horaFin <= ahora): las de días anteriores y las de hoy
+    // ya finalizadas. Un turno empieza y termina el mismo día (las franjas no cruzan la medianoche), así que
+    // alcanza con comparar fecha y hora por separado.
+    @Query("SELECT r FROM Reserva r WHERE r.estadoReserva = 'CONFIRMADA' AND (r.fecha < :hoy OR (r.fecha = :hoy AND r.horaFin <= :hora))")
+    List<Reserva> findConfirmadasFinalizadas(@Param("hoy") LocalDate hoy, @Param("hora") LocalTime hora);
 
     List<Reserva> findByFechaAndEstadoReservaAndRecordatorioEnviadoFalse(LocalDate fecha, EstadoReserva estadoReserva);
 }

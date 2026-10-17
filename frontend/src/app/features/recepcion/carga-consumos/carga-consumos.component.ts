@@ -5,7 +5,7 @@ import { Router, RouterLink } from '@angular/router';
 import { ReservaService } from '../../../core/services/reserva.service';
 import { ProductoService } from '../../../core/services/producto.service';
 import { ConsumoService } from '../../../core/services/consumo.service';
-import { ReservaResponse } from '../../../shared/models/reserva.model';
+import { EstadoReserva, ReservaResponse } from '../../../shared/models/reserva.model';
 import { ProductoResponse } from '../../../shared/models/producto.model';
 import { ConsumoResponse } from '../../../shared/models/consumo.model';
 import { ToastService } from '../../../core/services/toast.service';
@@ -56,11 +56,10 @@ export class CargaConsumosComponent implements OnInit {
     // Fecha local: toISOString() es UTC y desde las 21 h mostraba los turnos de mañana.
     const hoyStr = todayIsoDate();
 
-    this.reservaService.getAllReservas().subscribe({
+    this.reservaService.getAllReservas(hoyStr).subscribe({
       next: (data) => {
-        // Filtramos reservas de hoy que no estén canceladas
-        const filtradas = data.filter(r => r.fecha === hoyStr && r.estadoReserva !== 'CANCELADA');
-        this.reservasHoy.set(filtradas);
+        // El backend ya trae solo las de hoy, ordenadas por hora; descartamos las canceladas
+        this.reservasHoy.set(data.filter(r => r.estadoReserva !== 'CANCELADA'));
         this.cargandoReservas.set(false);
       },
       error: (err) => {
@@ -132,6 +131,15 @@ export class CargaConsumosComponent implements OnInit {
 
   calcularTotalTab(): number {
     return this.consumosTab().reduce((sum, item) => sum + item.subtotal, 0);
+  }
+
+  // Un turno ya jugado (COMPLETADA: el backend la marca al pasar la hora de fin) no se pinta como pendiente.
+  claseEstado(estado: EstadoReserva): string {
+    switch (estado) {
+      case 'CONFIRMADA': return 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+      case 'COMPLETADA': return 'bg-primary-500/10 text-primary-400 border border-primary-500/20';
+      default: return 'bg-amber-500/10 text-amber-400 border border-amber-500/20';
+    }
   }
 
   irAFacturacion() {

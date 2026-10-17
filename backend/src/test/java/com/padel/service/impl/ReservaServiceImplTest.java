@@ -434,6 +434,70 @@ class ReservaServiceImplTest {
     }
 
     @Test
+    void completarReservasFinalizadas_PasaACompletadaLasConfirmadasCuyoTurnoTermino() {
+        Reserva deAyer = Reserva.builder()
+                .id(20L)
+                .usuario(usuarioMock)
+                .cancha(canchaMock)
+                .fecha(LocalDate.now().minusDays(1))
+                .horaInicio(LocalTime.of(18, 0))
+                .horaFin(LocalTime.of(19, 30))
+                .estadoReserva(EstadoReserva.CONFIRMADA)
+                .build();
+        Reserva deLaSemanaPasada = Reserva.builder()
+                .id(21L)
+                .usuario(usuarioMock)
+                .cancha(canchaMock)
+                .fecha(LocalDate.now().minusDays(7))
+                .horaInicio(LocalTime.of(10, 0))
+                .horaFin(LocalTime.of(11, 30))
+                .estadoReserva(EstadoReserva.CONFIRMADA)
+                .build();
+        when(reservaRepository.findConfirmadasFinalizadas(any(LocalDate.class), any(LocalTime.class)))
+                .thenReturn(List.of(deAyer, deLaSemanaPasada));
+
+        LocalDateTime antes = LocalDateTime.now();
+        reservaService.completarReservasFinalizadas();
+        LocalDateTime despues = LocalDateTime.now();
+
+        assertEquals(EstadoReserva.COMPLETADA, deAyer.getEstadoReserva());
+        assertEquals(EstadoReserva.COMPLETADA, deLaSemanaPasada.getEstadoReserva());
+        verify(reservaRepository).saveAll(List.of(deAyer, deLaSemanaPasada));
+        // Cerrar un turno ya jugado no libera locks ni manda avisos.
+        verifyNoInteractions(redisLockService, notificacionService, notificacionInAppService);
+
+        // El corte es el momento de la ejecución, con fecha y hora tomadas del mismo instante.
+        ArgumentCaptor<LocalDate> fecha = ArgumentCaptor.forClass(LocalDate.class);
+        ArgumentCaptor<LocalTime> hora = ArgumentCaptor.forClass(LocalTime.class);
+        verify(reservaRepository).findConfirmadasFinalizadas(fecha.capture(), hora.capture());
+        LocalDateTime corte = LocalDateTime.of(fecha.getValue(), hora.getValue());
+        assertFalse(corte.isBefore(antes));
+        assertFalse(corte.isAfter(despues));
+    }
+
+    @Test
+    void completarReservasFinalizadas_SinTurnosTerminadosNoGuardaNada() {
+        when(reservaRepository.findConfirmadasFinalizadas(any(LocalDate.class), any(LocalTime.class)))
+                .thenReturn(List.of());
+
+        reservaService.completarReservasFinalizadas();
+
+        verify(reservaRepository, never()).saveAll(any());
+    }
+
+    @Test
+    void obtenerPorFecha_DevuelveLasReservasDelDiaSinRecorrerElHistorial() {
+        LocalDate fecha = LocalDate.now().plusDays(1);
+        when(reservaRepository.findDelDia(fecha)).thenReturn(List.of(reservaMock));
+        when(reservaMapper.toResponse(reservaMock)).thenReturn(responseMock);
+
+        List<ReservaResponse> result = reservaService.obtenerPorFecha(fecha);
+
+        assertEquals(List.of(responseMock), result);
+        verify(reservaRepository, never()).findAll();
+    }
+
+    @Test
     void confirmarReserva_HappyPath() {
         when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
         when(reservaRepository.save(any(Reserva.class))).thenReturn(reservaMock);

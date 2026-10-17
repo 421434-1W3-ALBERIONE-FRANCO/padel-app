@@ -62,6 +62,7 @@ export class OcupacionAdminComponent implements OnInit, OnDestroy {
   grid = computed<FilaCancha[]>(() => {
     const fecha = this.fecha();
     const diaSemana = OcupacionAdminComponent.DIAS[new Date(`${fecha}T00:00:00`).getDay()];
+    // El backend ya filtra por día, pero al cambiar la fecha la lista sigue siendo la anterior hasta que llega la nueva.
     const reservas = this.reservas().filter(r => r.fecha === fecha && this.ocupa(r.estadoReserva));
     const hhmm = (t: string) => t.substring(0, 5);
     return this.base().map(({ cancha, franjas }) => {
@@ -129,9 +130,19 @@ export class OcupacionAdminComponent implements OnInit, OnDestroy {
     });
   }
 
+  cambiarFecha(fecha: string): void {
+    this.fecha.set(fecha);
+    this.refrescarReservas(false);
+  }
+
   refrescarReservas(silencioso: boolean): void {
-    this.reservaService.getAllReservas().subscribe({
+    // Se pide solo el día elegido: sin fecha el backend devuelve todo el historial (input vacío -> no se consulta).
+    const fecha = this.fecha();
+    if (!fecha) return;
+    this.reservaService.getAllReservas(fecha).subscribe({
       next: (data) => {
+        // Si mientras tanto se eligió otra fecha, esta respuesta quedó vieja (la reemplaza la de la fecha nueva).
+        if (fecha !== this.fecha()) return;
         this.reservas.set(data);
         this.ultimaActualizacion.set(new Date().toLocaleTimeString('es-AR'));
       },

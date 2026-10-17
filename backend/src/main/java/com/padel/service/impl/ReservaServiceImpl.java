@@ -245,8 +245,8 @@ public class ReservaServiceImpl implements ReservaService {
             throw new ReservaNoModificableException("No se puede cancelar una reserva que ya está en estado " + reserva.getEstadoReserva());
         }
 
-        // Un jugador no puede cancelar un turno que ya empezó o ya se jugó (las reservas pasadas siguen
-        // CONFIRMADAS porque nada las pasa a COMPLETADA). El staff sí puede, para corregir la agenda.
+        // Un jugador no puede cancelar un turno que ya empezó o ya se jugó (la reserva sigue CONFIRMADA hasta
+        // que el scheduler la pasa a COMPLETADA, después de la hora de fin). El staff sí puede, para corregir la agenda.
         if (!isAdminOrRecepcion && !LocalDateTime.of(reserva.getFecha(), reserva.getHoraInicio()).isAfter(LocalDateTime.now())) {
             throw new ReservaNoModificableException("No se puede cancelar un turno que ya comenzó o finalizó");
         }
@@ -306,6 +306,14 @@ public class ReservaServiceImpl implements ReservaService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ReservaResponse> obtenerPorFecha(LocalDate fecha) {
+        return reservaRepository.findDelDia(fecha).stream()
+                .map(reservaMapper::toResponse)
+                .toList();
+    }
+
+    @Override
     public void limpiarReservasExpiradas() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(15);
         log.info("Ejecutando limpieza de reservas huérfanas pendientes de pago anteriores a {}", threshold);
@@ -331,6 +339,21 @@ public class ReservaServiceImpl implements ReservaService {
                     r.getId()
             );
         }
+    }
+
+    @Override
+    public void completarReservasFinalizadas() {
+        // Fecha y hora salen del mismo instante: con LocalDate.now() y LocalTime.now() por separado, justo a la
+        // medianoche podían quedar de días distintos.
+        LocalDateTime ahora = LocalDateTime.now();
+        List<Reserva> finalizadas = reservaRepository.findConfirmadasFinalizadas(ahora.toLocalDate(), ahora.toLocalTime());
+        if (finalizadas.isEmpty()) {
+            return;
+        }
+
+        finalizadas.forEach(r -> r.setEstadoReserva(EstadoReserva.COMPLETADA));
+        reservaRepository.saveAll(finalizadas);
+        log.info("Reservas marcadas como COMPLETADA por turno finalizado: {}", finalizadas.size());
     }
 
     @Override
