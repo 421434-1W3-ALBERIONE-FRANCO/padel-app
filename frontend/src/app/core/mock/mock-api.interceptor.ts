@@ -23,7 +23,7 @@ function fechaMaximaReservable(): string {
 
 function seed() {
   return {
-    nextId: { cancha: 3, franja: 3, bloqueo: 1, reserva: 1, bono: 2, producto: 4, usuario: 4, torneo: 1, inscripcionTorneo: 1, partidoTorneo: 1, ranking: 1, solicitud: 1, postulacion: 1 },
+    nextId: { cancha: 3, franja: 3, bloqueo: 1, reserva: 1, bono: 2, producto: 4, usuario: 4, torneo: 1, inscripcionTorneo: 1, partidoTorneo: 1, ranking: 1, solicitud: 1, postulacion: 1, match: 1 },
     usuarios: [
       { id: 1, nombre: 'Admin', apellido: 'Dev', email: 'admin@test.com', telefono: '', rol: 'ADMIN', activo: true, password: 'admin123' },
       { id: 2, nombre: 'Juan', apellido: 'Jugador', email: 'juan@test.com', telefono: '', rol: 'JUGADOR', activo: true, password: 'test123' },
@@ -34,6 +34,30 @@ function seed() {
     partidosTorneo: [] as any[],
     rankingJugadores: [] as any[],
     solicitudesPartido: [] as any[],
+    // Match de parejas: jugadores ficticios del mazo de desarrollo (no son usuarios que inicien sesión).
+    jugadoresMatch: [
+      { usuarioId: 101, nombre: 'Sofía', apellido: 'Ibarra', email: 'sofia.ibarra@demo.local', telefono: '3515550101', categoria: 'CUARTA', posicion: 'REVES', puntos: 340, teElige: true,
+        bio: 'Juego tres veces por semana, busco pareja fija para la liga de los martes.',
+        disponibilidad: [['TUESDAY', 'NOCHE'], ['THURSDAY', 'NOCHE'], ['SATURDAY', 'MANANA'], ['SATURDAY', 'TARDE']] },
+      { usuarioId: 102, nombre: 'Tomás', apellido: 'Reyes', email: 'tomas.reyes@demo.local', telefono: '3515550102', categoria: 'QUINTA', posicion: 'DRIVE', puntos: 210, teElige: false,
+        bio: 'Recién subí de categoría y quiero sumar partidos.',
+        disponibilidad: [['WEDNESDAY', 'TARDE'], ['SATURDAY', 'MANANA'], ['SUNDAY', 'TARDE']] },
+      { usuarioId: 103, nombre: 'Valentina', apellido: 'Gómez', email: 'valentina.gomez@demo.local', telefono: '3515550103', categoria: 'CUARTA', posicion: 'REVES', puntos: 300, teElige: true,
+        bio: 'Prefiero cancha techada. Disponible después del trabajo.',
+        disponibilidad: [['MONDAY', 'NOCHE'], ['WEDNESDAY', 'NOCHE'], ['FRIDAY', 'NOCHE']] },
+      { usuarioId: 104, nombre: 'Nicolás', apellido: 'Peralta', email: 'nicolas.peralta@demo.local', telefono: null, categoria: 'TERCERA', posicion: 'INDISTINTO', puntos: 410, teElige: false,
+        bio: 'Entreno para torneos express los fines de semana.',
+        disponibilidad: [['SATURDAY', 'MANANA'], ['SUNDAY', 'MANANA']] },
+      { usuarioId: 105, nombre: 'Camila', apellido: 'Suárez', email: 'camila.suarez@demo.local', telefono: '3515550105', categoria: 'CUARTA', posicion: 'DRIVE', puntos: 280, teElige: false,
+        bio: 'Busco partidos amistosos y competitivos.',
+        disponibilidad: [['TUESDAY', 'NOCHE'], ['THURSDAY', 'NOCHE'], ['FRIDAY', 'NOCHE']] },
+      { usuarioId: 106, nombre: 'Martín', apellido: 'Sosa', email: 'martin.sosa@demo.local', telefono: '3515550106', categoria: 'QUINTA', posicion: 'REVES', puntos: 150, teElige: true,
+        bio: 'Juego de revés, me sumo a lo que sea.',
+        disponibilidad: [['MONDAY', 'NOCHE'], ['TUESDAY', 'NOCHE'], ['SATURDAY', 'TARDE']] }
+    ] as any[],
+    perfilesJugador: [] as any[],
+    swipesMatch: [] as any[],
+    matchesPareja: [] as any[],
     canchas: [
       { id: 1, nombre: 'Cancha Central', tipoSuelo: 'BLINDEX', techada: true, tieneLuz: true, activa: true },
       { id: 2, nombre: 'Cancha 2', tipoSuelo: 'SINTETICO', techada: false, tieneLuz: true, activa: true }
@@ -91,6 +115,41 @@ function requireRol(auth: { rol: string } | null, roles: string[]) {
   if (!auth) return err(401, 'No autenticado');
   if (!roles.includes(auth.rol)) return err(403, 'No tiene permisos para acceder a este recurso');
   return null;
+}
+
+// ---- Auxiliares del match (espejan MatchServiceImpl) ----
+const CATEGORIAS = ['PRIMERA', 'SEGUNDA', 'TERCERA', 'CUARTA', 'QUINTA', 'SEXTA', 'SEPTIMA', 'OCTAVA'];
+const ORDEN_DIAS = ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'];
+const ORDEN_BLOQUES = ['MANANA', 'TARDE', 'NOCHE'];
+
+function bloqueDe(hora: string): string {
+  const h = +hora.substring(0, 2);
+  return h < 12 ? 'MANANA' : h < 18 ? 'TARDE' : 'NOCHE';
+}
+function bloquesEnComun(a: string[][], b: string[][]): string[][] {
+  return a.filter(x => b.some(y => y[0] === x[0] && y[1] === x[1]));
+}
+function aBloques(lista: string[][]) {
+  return [...lista]
+    .sort((x, y) => ORDEN_DIAS.indexOf(x[0]) - ORDEN_DIAS.indexOf(y[0]) || ORDEN_BLOQUES.indexOf(x[1]) - ORDEN_BLOQUES.indexOf(y[1]))
+    .map(x => ({ diaSemana: x[0], bloque: x[1] }));
+}
+function afinidadMatch(yo: any, otro: any, comunes: number): number {
+  const disponibilidad = Math.min(comunes, 6) / 6;
+  const categoria = CATEGORIAS.indexOf(yo.categoria) === CATEGORIAS.indexOf(otro.categoria) ? 1 : 0.6;
+  const posicion = yo.posicion === 'INDISTINTO' || otro.posicion === 'INDISTINTO' ? 0.8 : yo.posicion !== otro.posicion ? 1 : 0.4;
+  return Math.round(100 * (0.5 * disponibilidad + 0.3 * categoria + 0.2 * posicion));
+}
+function perfilResponse(p: any) {
+  return { id: p.id, usuarioId: p.usuarioId, categoria: p.categoria, posicion: p.posicion, bio: p.bio, visibleEnMatch: p.visibleEnMatch, disponibilidad: aBloques(p.disponibilidad) };
+}
+function parejaResponse(m: any, miPerfil: any) {
+  const j = db.jugadoresMatch.find((x: any) => x.usuarioId === m.companeroId);
+  return {
+    id: m.id, companeroId: j.usuarioId, nombre: j.nombre + ' ' + j.apellido, iniciales: (j.nombre.charAt(0) + j.apellido.charAt(0)).toUpperCase(),
+    categoria: j.categoria, posicion: j.posicion, email: j.email, telefono: j.telefono,
+    coincidencias: aBloques(bloquesEnComun(miPerfil?.disponibilidad ?? [], j.disponibilidad)), createdAt: m.createdAt
+  };
 }
 
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
@@ -679,6 +738,121 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     }
     persist();
     return ok(s);
+  }
+
+  // ---- MATCH DE PAREJAS ----
+  if (path === '/jugadores/me/perfil' && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    const perfil = db.perfilesJugador.find((p: any) => p.email === auth.email);
+    return perfil ? ok(perfilResponse(perfil)) : err(404, 'Todavía no completaste tu perfil de jugador');
+  }
+  if (path === '/jugadores/me/perfil' && req.method === 'PUT') {
+    if (!auth) return err(401, 'No autenticado');
+    const body = req.body as any;
+    if (!body.disponibilidad?.length) return err(400, 'Error de validación: Indicá al menos un horario en el que puedas jugar');
+    const usuario = db.usuarios.find((u: any) => u.email === auth.email);
+    let perfil = db.perfilesJugador.find((p: any) => p.email === auth.email);
+    if (!perfil) {
+      perfil = { id: db.perfilesJugador.length + 1, email: auth.email, usuarioId: usuario?.id ?? 0 };
+      db.perfilesJugador.push(perfil);
+    }
+    Object.assign(perfil, {
+      categoria: body.categoria, posicion: body.posicion, bio: body.bio || null,
+      visibleEnMatch: body.visibleEnMatch !== false,
+      disponibilidad: body.disponibilidad.map((b: any) => [b.diaSemana, b.bloque])
+    });
+    persist();
+    return ok(perfilResponse(perfil));
+  }
+  if (path.startsWith('/match/candidatos') && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    const perfil = db.perfilesJugador.find((p: any) => p.email === auth.email);
+    if (!perfil) return err(409, 'Completá tu perfil de jugador para usar el match');
+    if (!perfil.visibleEnMatch) return err(409, 'Tu perfil está oculto: activá la visibilidad para usar el match');
+    const respondidos = new Set(db.swipesMatch.filter((x: any) => x.origen === auth.email).map((x: any) => x.destinoId));
+    const candidatos = db.jugadoresMatch
+      .filter((j: any) => !respondidos.has(j.usuarioId))
+      .filter((j: any) => Math.abs(CATEGORIAS.indexOf(j.categoria) - CATEGORIAS.indexOf(perfil.categoria)) <= 1)
+      .map((j: any) => ({ j, comunes: bloquesEnComun(perfil.disponibilidad, j.disponibilidad) }))
+      .filter((x: any) => x.comunes.length > 0)
+      .map((x: any) => ({
+        usuarioId: x.j.usuarioId, nombre: x.j.nombre + ' ' + x.j.apellido.charAt(0) + '.', iniciales: (x.j.nombre.charAt(0) + x.j.apellido.charAt(0)).toUpperCase(),
+        categoria: x.j.categoria, posicion: x.j.posicion, bio: x.j.bio, puntosRanking: x.j.puntos,
+        afinidad: afinidadMatch(perfil, x.j, x.comunes.length),
+        disponibilidad: aBloques(x.j.disponibilidad), coincidencias: aBloques(x.comunes)
+      }))
+      .sort((a: any, b: any) => b.afinidad - a.afinidad || a.usuarioId - b.usuarioId);
+    return ok(candidatos);
+  }
+  if (path === '/match/swipes' && req.method === 'POST') {
+    if (!auth) return err(401, 'No autenticado');
+    const body = req.body as any;
+    const perfil = db.perfilesJugador.find((p: any) => p.email === auth.email);
+    if (!perfil) return err(409, 'Completá tu perfil de jugador para usar el match');
+    const jugador = db.jugadoresMatch.find((j: any) => j.usuarioId === body.usuarioId);
+    if (!jugador) return err(404, 'El jugador no está disponible en el match');
+    if (db.swipesMatch.some((x: any) => x.origen === auth.email && x.destinoId === body.usuarioId)) return err(409, 'Ya respondiste a este jugador');
+    db.swipesMatch.push({ origen: auth.email, destinoId: body.usuarioId, tipo: body.tipo });
+    // En el mock, los jugadores marcados con teElige ya te dieron "me interesa".
+    if (body.tipo === 'LIKE' && jugador.teElige) {
+      const match = { id: db.nextId.match++, email: auth.email, companeroId: jugador.usuarioId, createdAt: nowIso() };
+      db.matchesPareja.push(match);
+      persist();
+      return ok({ match: true, pareja: parejaResponse(match, perfil) }, 201);
+    }
+    persist();
+    return ok({ match: false }, 201);
+  }
+  if (path === '/match/parejas' && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    const perfil = db.perfilesJugador.find((p: any) => p.email === auth.email);
+    return ok(db.matchesPareja.filter((m: any) => m.email === auth.email).reverse().map((m: any) => parejaResponse(m, perfil)));
+  }
+  if (segs[0] === 'match' && segs[1] === 'parejas' && segs[3] === 'turnos-sugeridos' && req.method === 'GET') {
+    if (!auth) return err(401, 'No autenticado');
+    const match = db.matchesPareja.find((m: any) => m.id === +segs[2] && m.email === auth.email);
+    if (!match) return err(404, 'Match no encontrado');
+    const perfil = db.perfilesJugador.find((p: any) => p.email === auth.email);
+    const jugador = db.jugadoresMatch.find((j: any) => j.usuarioId === match.companeroId);
+    const comunes = bloquesEnComun(perfil?.disponibilidad ?? [], jugador?.disponibilidad ?? []);
+    const turnos: any[] = [];
+    const hoy = new Date();
+    for (let d = 0; d < 7 && turnos.length < 30; d++) {
+      const dia = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + d);
+      const fecha = dia.getFullYear() + '-' + String(dia.getMonth() + 1).padStart(2, '0') + '-' + String(dia.getDate()).padStart(2, '0');
+      if (fecha > fechaMaximaReservable()) break;
+      const dow = DIAS[dia.getDay()];
+      for (const f of db.franjas.filter((x: any) => x.diasAplicables.includes(dow))) {
+        const cancha = db.canchas.find((c: any) => c.id === f.canchaId && c.activa);
+        if (!cancha) continue;
+        if (!comunes.some((b: any) => b[0] === dow && b[1] === bloqueDe(f.horaInicio))) continue;
+        if (new Date(fecha + 'T' + f.horaInicio + ':00') < hoy) continue;
+        const ocupada = db.reservas.some((r: any) => r.canchaId === f.canchaId && r.franjaId === f.id && r.fecha === fecha && r.estadoReserva !== 'CANCELADA');
+        if (ocupada) continue;
+        turnos.push({ fecha, canchaId: cancha.id, canchaNombre: cancha.nombre, franjaId: f.id, horaInicio: f.horaInicio + ':00', horaFin: f.horaFin + ':00',
+          duracionMin: f.duracionMin, precio: f.precioBase, bloque: bloqueDe(f.horaInicio) });
+      }
+    }
+    return ok(turnos.slice(0, 30));
+  }
+  if (segs[0] === 'match' && segs[1] === 'parejas' && segs[3] === 'reservas' && req.method === 'POST') {
+    if (!auth) return err(401, 'No autenticado');
+    const match = db.matchesPareja.find((m: any) => m.id === +segs[2] && m.email === auth.email);
+    if (!match) return err(404, 'Match no encontrado');
+    const body = req.body as any;
+    const cancha = db.canchas.find((c: any) => c.id === body.canchaId);
+    const franja = db.franjas.find((f: any) => f.id === body.franjaId);
+    if (!cancha || !franja) return err(404, 'Cancha o franja no encontrada');
+    const ocupado = db.reservas.some((r: any) => r.canchaId === body.canchaId && r.franjaId === body.franjaId && r.fecha === body.fecha && r.estadoReserva !== 'CANCELADA');
+    if (ocupado) return err(409, 'La cancha ya está reservada (o en proceso de pago) en ese horario');
+    const usuario = db.usuarios.find((u: any) => u.email === auth.email)!;
+    const r = {
+      id: db.nextId.reserva++, usuarioId: usuario.id, usuarioEmail: usuario.email, canchaId: cancha.id, canchaNombre: cancha.nombre,
+      franjaId: franja.id, fecha: body.fecha, horaInicio: franja.horaInicio + ':00', horaFin: franja.horaFin + ':00',
+      precioTotal: franja.precioBase, estadoReserva: 'PENDIENTE_PAGO', origen: 'APP', motivoCancelacion: null, createdAt: nowIso(), updatedAt: null
+    };
+    db.reservas.push(r); persist();
+    return ok(r, 201);
   }
 
   return err(404, `Mock no implementado para ${req.method} ${path}`);

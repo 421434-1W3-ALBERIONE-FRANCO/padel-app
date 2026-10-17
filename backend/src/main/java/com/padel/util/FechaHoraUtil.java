@@ -15,6 +15,16 @@ public class FechaHoraUtil {
      * el año debe estar entre el actual y el actual + MAX_ANIOS_A_FUTURO. Se aplica a
      * cualquier fecha de inicio/fin de torneos, bloqueos, bonos y solicitudes de partido.
      */
+    /**
+     * Último día en que se puede reservar: fin del mes en curso, o del mes siguiente si estamos en la
+     * última semana del mes (ej. a fin de diciembre ya se reserva enero).
+     */
+    public static LocalDate fechaMaximaReservable(LocalDate hoy) {
+        int diasParaFinDeMes = hoy.lengthOfMonth() - hoy.getDayOfMonth();
+        LocalDate mesLimite = diasParaFinDeMes <= 6 ? hoy.plusMonths(1) : hoy;
+        return mesLimite.withDayOfMonth(mesLimite.lengthOfMonth());
+    }
+
     public void validarAnioRazonable(LocalDate fecha, String campo) {
         if (fecha == null) {
             return;

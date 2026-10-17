@@ -28,6 +28,8 @@ import { ListaTorneosComponent } from './features/torneos/lista-torneos/lista-to
 import { TorneoDetalleComponent } from './features/torneos/torneo-detalle/torneo-detalle.component';
 import { RankingJugadoresComponent } from './features/ranking/ranking-jugadores/ranking-jugadores.component';
 import { TablonSolicitudesComponent } from './features/solicitudes/tablon-solicitudes/tablon-solicitudes.component';
+import { MatchComponent } from './features/match/match/match.component';
+import { PerfilJugadorComponent } from './features/match/perfil-jugador/perfil-jugador.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
 
 export const routes: Routes = [
@@ -140,6 +142,16 @@ export const routes: Routes = [
   {
     path: 'ranking',
     component: RankingJugadoresComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'match',
+    component: MatchComponent,
+    canActivate: [authGuard]
+  },
+  {
+    path: 'perfil/jugador',
+    component: PerfilJugadorComponent,
     canActivate: [authGuard]
   },
   {

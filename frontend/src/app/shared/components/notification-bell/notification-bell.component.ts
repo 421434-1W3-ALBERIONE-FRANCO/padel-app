@@ -1,5 +1,6 @@
 import { Component, OnInit, OnDestroy, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Router } from '@angular/router';
 import { NotificacionService } from '../../../core/services/notificacion.service';
 import { NotificacionResponse } from '../../models/notificacion.model';
 
@@ -52,6 +53,7 @@ import { NotificacionResponse } from '../../models/notificacion.model';
 })
 export class NotificationBellComponent implements OnInit, OnDestroy {
   private notificacionService = inject(NotificacionService);
+  private router = inject(Router);
 
   contador = this.notificacionService.contadorNoLeidas;
   notificaciones = this.notificacionService.notificaciones;
@@ -75,6 +77,11 @@ export class NotificationBellComponent implements OnInit, OnDestroy {
   marcarLeida(n: NotificacionResponse): void {
     if (!n.leida) {
       this.notificacionService.marcarLeida(n.id).subscribe({ error: () => {} });
+    }
+    // Los avisos del match llevan directo a "Mis matches" (contacto y turnos para jugar juntos).
+    if (n.tipo === 'MATCH_NUEVO' || n.tipo === 'MATCH_TURNO_RESERVADO') {
+      this.abierto.set(false);
+      this.router.navigate(['/match'], { queryParams: { vista: 'matches' } });
     }
   }
 

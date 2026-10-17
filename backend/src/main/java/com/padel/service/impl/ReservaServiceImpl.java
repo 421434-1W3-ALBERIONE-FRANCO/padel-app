@@ -16,6 +16,7 @@ import com.padel.service.NotificacionInAppService;
 import com.padel.service.NotificacionService;
 import com.padel.service.RedisLockService;
 import com.padel.service.ReservaService;
+import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -217,9 +218,7 @@ public class ReservaServiceImpl implements ReservaService {
     // Reservas habilitadas solo dentro del mes en curso; en la última semana del mes
     // se habilita también el mes siguiente completo (ej. fin de diciembre -> reservas de enero).
     private LocalDate calcularFechaMaximaReservable(LocalDate hoy) {
-        int diasParaFinDeMes = hoy.lengthOfMonth() - hoy.getDayOfMonth();
-        LocalDate mesLimite = diasParaFinDeMes <= 6 ? hoy.plusMonths(1) : hoy;
-        return mesLimite.withDayOfMonth(mesLimite.lengthOfMonth());
+        return FechaHoraUtil.fechaMaximaReservable(hoy);
     }
 
     @Override
