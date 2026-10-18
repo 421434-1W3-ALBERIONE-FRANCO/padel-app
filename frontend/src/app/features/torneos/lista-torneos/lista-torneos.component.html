@@ -1,176 +1,189 @@
-<div class="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black text-slate-100 p-4 sm:p-6 md:p-8 font-sans">
-
-  <div class="max-w-6xl mx-auto mb-8 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-    <div>
-      <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-teal-400 to-emerald-400 bg-clip-text text-transparent">
-        Torneos y Ligas
-      </h1>
-      <p class="text-slate-400 text-sm mt-1">Torneos, ligas y torneos express organizados en el club.</p>
-    </div>
-
-    <button
-      *ngIf="currentUser()?.rol === 'ADMIN'"
-      (click)="toggleFormulario()"
-      class="bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-400 hover:to-emerald-400 px-5 py-2.5 rounded-xl text-slate-950 font-bold text-sm shadow-lg shadow-teal-500/10 transition duration-150 flex items-center gap-2">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
-      {{ mostrarFormulario() ? 'Cerrar' : 'Crear Torneo' }}
-    </button>
-  </div>
-
-
-
-  <!-- Formulario de creación (ADMIN) -->
-  <div *ngIf="mostrarFormulario()" class="max-w-6xl mx-auto mb-8 bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6">
-    <h2 class="text-lg font-bold text-slate-100 mb-4">Nuevo Torneo</h2>
-    <form [formGroup]="torneoForm" (ngSubmit)="crearTorneo()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Nombre</label>
-        <input formControlName="nombre" type="text"
-          [class.border-red-500]="invalido('nombre')"
-          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
-        <p *ngIf="invalido('nombre')" class="text-[11px] text-red-400 mt-1">El nombre es obligatorio.</p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Tipo</label>
-        <select formControlName="tipo" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
-          <option *ngFor="let t of tipos" [value]="t">{{ t }}</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Formato</label>
-        <select formControlName="formato" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
-          <option value="ELIMINACION_DIRECTA">Eliminación directa</option>
-          <option value="LIGA_TODOS_CONTRA_TODOS">Todos contra todos (liga)</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Categoría</label>
-        <select formControlName="categoria" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
-          <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha de inicio</label>
-        <input formControlName="fechaInicio" type="date" [min]="fechaMin" [max]="fechaMax"
-          [class.border-red-500]="invalido('fechaInicio')"
-          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
-        <p *ngIf="invalido('fechaInicio')" class="text-[11px] text-red-400 mt-1">La fecha de inicio no puede ser anterior a hoy ({{ fechaMin }}) ni posterior a {{ fechaMax }}.</p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Fecha de fin</label>
-        <input formControlName="fechaFin" type="date" [min]="fechaMin" [max]="fechaMax"
-          [class.border-red-500]="invalido('fechaFin')"
-          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
-        <p *ngIf="invalido('fechaFin')" class="text-[11px] text-red-400 mt-1">La fecha de fin no puede ser anterior a hoy ({{ fechaMin }}) ni posterior a {{ fechaMax }}.</p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Máximo de parejas</label>
-        <input formControlName="maxParejas" type="number" min="2"
-          [class.border-red-500]="invalido('maxParejas')"
-          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
-        <p *ngIf="invalido('maxParejas')" class="text-[11px] text-red-400 mt-1">Debe admitir al menos 2 parejas.</p>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Precio de inscripción</label>
-        <input formControlName="precioInscripcion" type="number" min="0"
-          [class.border-red-500]="invalido('precioInscripcion')"
-          class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
-        <p *ngIf="invalido('precioInscripcion')" class="text-[11px] text-red-400 mt-1">El precio no puede ser negativo.</p>
-      </div>
-      <div class="md:col-span-2">
-        <label class="block text-xs font-semibold text-slate-400 mb-1">Descripción</label>
-        <textarea formControlName="descripcion" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm"></textarea>
-      </div>
-      <div *ngIf="torneoForm.invalid && (torneoForm.dirty || torneoForm.touched)" class="md:col-span-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
-        Completá los campos obligatorios marcados en rojo antes de guardar.
-      </div>
-      <div class="md:col-span-2 flex justify-end">
-        <button type="submit" [disabled]="guardando()" class="bg-teal-500 hover:bg-teal-400 disabled:opacity-50 px-6 py-2.5 rounded-xl text-slate-950 font-bold text-sm transition">
-          {{ guardando() ? 'Guardando...' : 'Guardar Torneo' }}
-        </button>
-      </div>
-    </form>
+<!-- overflow-x-clip y no hidden: un contenedor "hidden" igual se puede desplazar con scrollIntoView. -->
+<div class="min-h-screen bg-dark-950 text-slate-100 p-4 sm:p-6 md:p-8 relative overflow-x-clip">
+  <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="absolute top-0 left-[-10%] w-[600px] h-[300px] rounded-full bg-primary-500/5 blur-[120px]"></div>
+    <div class="absolute top-20 right-[-10%] w-[500px] h-[300px] rounded-full bg-accent-500/5 blur-[120px]"></div>
   </div>
 
-  <!-- Filtros -->
-  <div class="max-w-6xl mx-auto mb-6 bg-slate-900/30 border border-slate-900 rounded-2xl p-4 flex flex-wrap items-end gap-3" [formGroup]="filtroForm">
-    <div>
-      <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Categoría</label>
-      <select formControlName="categoria" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
-        <option value="">Todas</option>
-        <option *ngFor="let c of categorias" [value]="c">{{ c }}</option>
-      </select>
-    </div>
-    <div>
-      <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Tipo</label>
-      <select formControlName="tipo" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
-        <option value="">Todos</option>
-        <option *ngFor="let t of tipos" [value]="t">{{ t }}</option>
-      </select>
-    </div>
-    <div>
-      <label class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase">Estado</label>
-      <select formControlName="estado" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
-        <option value="">Todos</option>
-        <option *ngFor="let e of estados" [value]="e">{{ e }}</option>
-      </select>
-    </div>
-    <button (click)="aplicarFiltros()" class="bg-slate-800 hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition">Filtrar</button>
-    <button (click)="limpiarFiltros()" class="text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition">Limpiar</button>
-  </div>
-
-  <!-- Skeleton -->
-  <div *ngIf="cargando()" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <div *ngFor="let i of [1,2,3]" class="bg-slate-900/30 border border-slate-900 rounded-2xl p-6 flex flex-col gap-4 animate-pulse">
-      <div class="h-6 bg-slate-800 rounded-md w-2/3"></div>
-      <div class="h-4 bg-slate-800 rounded-md w-1/2"></div>
-      <div class="h-10 bg-slate-800 rounded-xl w-full mt-2"></div>
-    </div>
-  </div>
-
-  <!-- Empty state -->
-  <div *ngIf="!cargando() && torneos().length === 0" class="max-w-6xl mx-auto bg-slate-900/10 border border-slate-900/50 rounded-3xl p-12 text-center">
-    <h3 class="text-base font-bold text-slate-400">No hay torneos que coincidan con la búsqueda</h3>
-  </div>
-
-  <!-- Listado -->
-  <div *ngIf="!cargando() && torneos().length > 0" class="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-    <a
-      *ngFor="let t of torneos()"
-      [routerLink]="['/torneos', t.id]"
-      class="bg-slate-900/40 backdrop-blur-xl border border-slate-900 rounded-2xl p-6 shadow-xl flex flex-col gap-4 hover:border-teal-500/30 transition">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <h3 class="text-lg font-extrabold text-slate-100">{{ t.nombre }}</h3>
-          <p class="text-xs text-slate-500 mt-0.5">{{ t.tipo }} · {{ t.categoria }}</p>
-        </div>
-        <span [class]="claseEstado(t.estado)" class="px-2.5 py-0.5 text-[10px] font-bold rounded-full uppercase tracking-wider whitespace-nowrap">
-          {{ t.estado }}
-        </span>
-      </div>
-
-      <div class="grid grid-cols-2 gap-2 bg-slate-950/50 border border-slate-950 rounded-xl p-3 text-xs">
-        <div>
-          <span class="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">Parejas</span>
-          <span class="text-sm font-bold text-slate-300">{{ t.parejasInscriptas }} / {{ t.maxParejas }}</span>
-        </div>
-        <div>
-          <span class="text-[10px] text-slate-500 block uppercase tracking-wider font-semibold">Precio</span>
-          <span class="text-sm font-bold text-teal-400">${{ t.precioInscripcion | number:'1.2-2' }}</span>
-        </div>
-      </div>
-
-      <div class="text-xs text-slate-400 border-t border-slate-950 pt-3">
-        {{ t.fechaInicio | date:'dd/MM/yyyy' }} - {{ t.fechaFin | date:'dd/MM/yyyy' }}
-      </div>
+  <div class="max-w-6xl mx-auto relative z-10">
+    <a routerLink="/dashboard" class="mb-4 inline-flex items-center gap-1.5 text-slate-400 hover:text-slate-200 text-sm font-semibold transition">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+      Volver al panel
     </a>
-  </div>
 
-  <div class="max-w-6xl mx-auto mt-8">
-    <a routerLink="/dashboard" class="text-slate-400 hover:text-slate-200 text-sm font-semibold flex items-center gap-1.5 transition">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
-      Volver al Panel de Control
-    </a>
-  </div>
+    <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-primary-400 to-accent-400 bg-clip-text text-transparent font-display">
+          Torneos y ligas
+        </h1>
+        <p class="text-slate-400 text-sm mt-1">Torneos, ligas y torneos express del club. Cada color es una categoría.</p>
+      </div>
 
+      <button *ngIf="currentUser()?.rol === 'ADMIN'" type="button" (click)="toggleFormulario()" class="btn-primary px-5 py-2.5 text-sm flex items-center gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+        {{ mostrarFormulario() ? 'Cerrar' : 'Crear torneo' }}
+      </button>
+    </div>
+
+    <!-- Formulario de creación (ADMIN) -->
+    <div *ngIf="mostrarFormulario()" class="mb-8 rounded-3xl border border-white/5 bg-surface-1/40 p-5 sm:p-6">
+      <h2 class="text-lg font-bold text-slate-100 font-display mb-4">Nuevo torneo</h2>
+      <form [formGroup]="torneoForm" (ngSubmit)="crearTorneo()" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label for="nombre" class="block text-xs font-semibold text-slate-400 mb-1">Nombre</label>
+          <input id="nombre" formControlName="nombre" type="text"
+            [class.border-red-500]="invalido('nombre')"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-primary-500" />
+          <p *ngIf="invalido('nombre')" class="text-[11px] text-red-400 mt-1">El nombre es obligatorio.</p>
+        </div>
+        <div>
+          <label for="tipo" class="block text-xs font-semibold text-slate-400 mb-1">Tipo</label>
+          <select id="tipo" formControlName="tipo" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+            <option *ngFor="let t of tipos" [value]="t">{{ etiquetaTipo(t) }}</option>
+          </select>
+        </div>
+        <div>
+          <label for="formato" class="block text-xs font-semibold text-slate-400 mb-1">Formato</label>
+          <select id="formato" formControlName="formato" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+            <option value="ELIMINACION_DIRECTA">Eliminación directa</option>
+            <option value="LIGA_TODOS_CONTRA_TODOS">Todos contra todos (liga)</option>
+          </select>
+        </div>
+        <div>
+          <label for="categoria" class="block text-xs font-semibold text-slate-400 mb-1">Categoría</label>
+          <select id="categoria" formControlName="categoria" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm">
+            <option *ngFor="let c of categorias" [value]="c">{{ nombreCategoria(c) }}</option>
+          </select>
+        </div>
+        <div>
+          <label for="fechaInicio" class="block text-xs font-semibold text-slate-400 mb-1">Fecha de inicio</label>
+          <input id="fechaInicio" formControlName="fechaInicio" type="date" [min]="fechaMin" [max]="fechaMax"
+            [class.border-red-500]="invalido('fechaInicio')"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+          <p *ngIf="invalido('fechaInicio')" class="text-[11px] text-red-400 mt-1">La fecha de inicio no puede ser anterior a hoy ({{ fechaMin }}) ni posterior a {{ fechaMax }}.</p>
+        </div>
+        <div>
+          <label for="fechaFin" class="block text-xs font-semibold text-slate-400 mb-1">Fecha de fin</label>
+          <input id="fechaFin" formControlName="fechaFin" type="date" [min]="fechaMin" [max]="fechaMax"
+            [class.border-red-500]="invalido('fechaFin')"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+          <p *ngIf="invalido('fechaFin')" class="text-[11px] text-red-400 mt-1">La fecha de fin no puede ser anterior a hoy ({{ fechaMin }}) ni posterior a {{ fechaMax }}.</p>
+        </div>
+        <div>
+          <label for="maxParejas" class="block text-xs font-semibold text-slate-400 mb-1">Máximo de parejas</label>
+          <input id="maxParejas" formControlName="maxParejas" type="number" min="2"
+            [class.border-red-500]="invalido('maxParejas')"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+          <p *ngIf="invalido('maxParejas')" class="text-[11px] text-red-400 mt-1">Debe admitir al menos 2 parejas.</p>
+        </div>
+        <div>
+          <label for="precioInscripcion" class="block text-xs font-semibold text-slate-400 mb-1">Precio de inscripción</label>
+          <input id="precioInscripcion" formControlName="precioInscripcion" type="number" min="0"
+            [class.border-red-500]="invalido('precioInscripcion')"
+            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm" />
+          <p *ngIf="invalido('precioInscripcion')" class="text-[11px] text-red-400 mt-1">El precio no puede ser negativo.</p>
+        </div>
+        <div class="md:col-span-2">
+          <label for="descripcion" class="block text-xs font-semibold text-slate-400 mb-1">Descripción</label>
+          <textarea id="descripcion" formControlName="descripcion" rows="2" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-sm resize-none"></textarea>
+        </div>
+        <div *ngIf="torneoForm.invalid && (torneoForm.dirty || torneoForm.touched)" class="md:col-span-2 text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+          Completá los campos obligatorios marcados en rojo antes de guardar.
+        </div>
+        <div class="md:col-span-2 flex justify-end">
+          <button type="submit" [disabled]="guardando()" class="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
+            {{ guardando() ? 'Guardando...' : 'Guardar torneo' }}
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Filtros -->
+    <div class="mb-6 rounded-2xl border border-white/5 bg-surface-1/40 p-4 flex flex-wrap items-end gap-3" [formGroup]="filtroForm">
+      <div>
+        <label for="filtroCategoria" class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">Categoría</label>
+        <select id="filtroCategoria" formControlName="categoria" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+          <option value="">Todas</option>
+          <option *ngFor="let c of categorias" [value]="c">{{ nombreCategoria(c) }}</option>
+        </select>
+      </div>
+      <div>
+        <label for="filtroTipo" class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">Tipo</label>
+        <select id="filtroTipo" formControlName="tipo" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+          <option value="">Todos</option>
+          <option *ngFor="let t of tipos" [value]="t">{{ etiquetaTipo(t) }}</option>
+        </select>
+      </div>
+      <div>
+        <label for="filtroEstado" class="block text-[10px] font-semibold text-slate-500 mb-1 uppercase tracking-wider">Estado</label>
+        <select id="filtroEstado" formControlName="estado" class="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs">
+          <option value="">Todos</option>
+          <option *ngFor="let e of estados" [value]="e">{{ etiquetaEstado(e) }}</option>
+        </select>
+      </div>
+      <button type="button" (click)="aplicarFiltros()" class="bg-white/10 hover:bg-white/15 px-4 py-2 rounded-xl text-xs font-bold transition">Filtrar</button>
+      <button type="button" (click)="limpiarFiltros()" class="text-slate-400 hover:text-slate-200 px-4 py-2 rounded-xl text-xs font-bold transition">Limpiar</button>
+    </div>
+
+    <!-- Skeleton -->
+    <div *ngIf="cargando()" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div *ngFor="let i of [1, 2, 3]" class="h-72 rounded-[1.75rem] border border-white/5 bg-surface-1/40 animate-pulse"></div>
+    </div>
+
+    <!-- Sin resultados -->
+    <div *ngIf="!cargando() && torneos().length === 0" class="rounded-3xl border border-white/5 bg-surface-1/40 p-12 text-center">
+      <h3 class="text-base font-bold text-slate-400">No hay torneos que coincidan con la búsqueda</h3>
+    </div>
+
+    <!-- Pósters -->
+    <div *ngIf="!cargando() && torneos().length > 0" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <a *ngFor="let t of torneosOrdenados()" [routerLink]="['/torneos', t.id]"
+         class="group relative isolate overflow-hidden rounded-[1.75rem] border border-white/10 bg-surface-1 p-5 flex flex-col min-h-[18rem] transition duration-200 hover:-translate-y-0.5 hover:border-white/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-400"
+         [ngClass]="t.estado === 'CANCELADO' || t.estado === 'FINALIZADO' ? 'saturate-[0.6]' : ''"
+         [style.background-image]="fondoPoster(t.categoria)">
+        <span aria-hidden="true"
+              class="pointer-events-none select-none absolute -right-2 -top-5 -z-10 font-display font-black leading-none text-[7.5rem] opacity-[0.16] transition duration-300 group-hover:opacity-25 group-hover:scale-105 origin-top-right"
+              [style.color]="colorCategoria(t.categoria)">{{ numeroCategoria(t.categoria) }}</span>
+
+        <div class="flex items-start justify-between gap-2">
+          <span class="px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-[0.14em]"
+                [style.color]="colorCategoria(t.categoria)"
+                [style.border-color]="colorCategoria(t.categoria) + '66'"
+                [style.background-color]="colorCategoria(t.categoria) + '1f'">
+            {{ nombreCategoria(t.categoria) }}
+          </span>
+          <span class="px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-[0.14em] whitespace-nowrap" [ngClass]="claseEstadoTorneo(t.estado)">
+            {{ etiquetaEstado(t.estado) }}
+          </span>
+        </div>
+
+        <div class="mt-auto pt-10">
+          <p class="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400">{{ etiquetaTipo(t.tipo) }} · {{ etiquetaFormato(t.formato) }}</p>
+          <h3 class="mt-1 font-display text-2xl font-extrabold leading-tight text-white line-clamp-2 break-words">{{ t.nombre }}</h3>
+          <p class="mt-1 text-xs text-slate-400">{{ fechaCorta(t.fechaInicio) }} → {{ fechaCorta(t.fechaFin) }} · {{ precio(t.precioInscripcion) }}</p>
+
+          <div class="mt-4">
+            <div class="flex items-center justify-between gap-2 text-[11px]">
+              <span class="font-semibold text-slate-200 tabular-nums">{{ t.parejasInscriptas }}/{{ t.maxParejas }} parejas</span>
+              <span *ngIf="t.estado === 'INSCRIPCION_ABIERTA'" class="text-slate-500">{{ lugaresLibres(t) }}</span>
+            </div>
+            <div class="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div class="h-full rounded-full" [style.width.%]="cupo(t)" [style.background-color]="colorCategoria(t.categoria)"></div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-white/10 flex items-center justify-between gap-2 text-xs">
+            <ng-container *ngIf="cuenta(t) as c; else sinCuenta">
+              <span class="text-slate-400">Empieza en</span>
+              <span class="font-display font-bold text-white tabular-nums">{{ c.dias }}d {{ dosDigitos(c.horas) }}h {{ dosDigitos(c.minutos) }}m</span>
+            </ng-container>
+            <ng-template #sinCuenta>
+              <span class="text-slate-400">{{ t.estado === 'EN_CURSO' ? 'Se está jugando' : etiquetaEstado(t.estado) }}</span>
+              <span class="font-semibold text-slate-200 group-hover:text-white transition">{{ accion(t) }} →</span>
+            </ng-template>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
 </div>

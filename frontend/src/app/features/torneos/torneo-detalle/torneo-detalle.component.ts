@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -6,11 +6,37 @@ import { TorneoService } from '../../../core/services/torneo.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { InscripcionTorneoResponse, PartidoTorneoResponse, TorneoResponse } from '../../../shared/models/torneo.model';
 import { ToastService } from '../../../core/services/toast.service';
+import { CuadroEliminacionComponent } from '../cuadro-eliminacion/cuadro-eliminacion.component';
+import { TablaLigaComponent } from '../tabla-liga/tabla-liga.component';
+import { construirCuadro, finalJugada } from '../utils/cuadro-eliminacion.util';
+import { calcularTablaLiga } from '../utils/tabla-liga.util';
+import {
+  claseEstadoTorneo,
+  colorCategoria,
+  cuentaRegresiva,
+  dosDigitos,
+  etiquetaEstado,
+  etiquetaFormato,
+  etiquetaTipo,
+  fechaCorta,
+  fondoPoster,
+  jugadoresDePareja,
+  nombreCategoria,
+  numeroCategoria
+} from '../utils/torneo-visual.util';
+
+type Pestana = 'juego' | 'parejas';
+type CampoSets = 'setsPareja1' | 'setsPareja2';
+
+interface Campeon {
+  inscripcionId: number;
+  jugadores: string[];
+}
 
 @Component({
   selector: 'app-torneo-detalle',
   standalone: true,
-  imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule],
+  imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule, CuadroEliminacionComponent, TablaLigaComponent],
   templateUrl: './torneo-detalle.component.html'
 })
 export class TorneoDetalleComponent implements OnInit {
@@ -20,6 +46,18 @@ export class TorneoDetalleComponent implements OnInit {
   private authService = inject(AuthService);
   private fb = inject(FormBuilder);
 
+  readonly claseEstadoTorneo = claseEstadoTorneo;
+  readonly colorCategoria = colorCategoria;
+  readonly dosDigitos = dosDigitos;
+  readonly etiquetaEstado = etiquetaEstado;
+  readonly etiquetaFormato = etiquetaFormato;
+  readonly etiquetaTipo = etiquetaTipo;
+  readonly fechaCorta = fechaCorta;
+  readonly fondoPoster = fondoPoster;
+  readonly jugadoresDePareja = jugadoresDePareja;
+  readonly nombreCategoria = nombreCategoria;
+  readonly numeroCategoria = numeroCategoria;
+
   currentUser = this.authService.currentUser;
   torneoId = Number(this.route.snapshot.paramMap.get('id'));
 
@@ -27,20 +65,80 @@ export class TorneoDetalleComponent implements OnInit {
   inscripciones = signal<InscripcionTorneoResponse[]>([]);
   partidos = signal<PartidoTorneoResponse[]>([]);
 
-  activeTab = signal<'inscripciones' | 'fixture'>('inscripciones');
+  pestana = signal<Pestana>('juego');
   cargando = signal<boolean>(true);
   procesando = signal<boolean>(false);
+  private primeraCarga = true;
 
-  editandoResultadoId = signal<number | null>(null);
+  // Reloj de la cuenta regresiva: con minutos de resolución alcanza un tic cada 30 s.
+  ahora = signal(new Date());
+
+  esLiga = computed(() => this.torneo()?.formato === 'LIGA_TODOS_CONTRA_TODOS');
+  confirmadas = computed(() => this.inscripciones().filter(i => i.estado === 'CONFIRMADA'));
+  /** Las confirmadas primero; las canceladas quedan al final, atenuadas. */
+  inscripcionesOrdenadas = computed(() => [
+    ...this.confirmadas(),
+    ...this.inscripciones().filter(i => i.estado !== 'CONFIRMADA')
+  ]);
+  miInscripcion = computed(() => {
+    const id = this.currentUser()?.id;
+    return id == null ? null : this.confirmadas().find(i => i.jugador1Id === id || i.jugador2Id === id) ?? null;
+  });
+  miInscripcionId = computed(() => this.miInscripcion()?.id ?? null);
+  companero = computed(() => {
+    const inscripcion = this.miInscripcion();
+    if (!inscripcion) return null;
+    return inscripcion.jugador1Id === this.currentUser()?.id ? inscripcion.jugador2Nombre : inscripcion.jugador1Nombre;
+  });
+
+  /** En eliminación directa, la pareja que ganó la final; en una liga terminada, la primera de la tabla. */
+  campeon = computed<Campeon | null>(() => {
+    const torneo = this.torneo();
+    if (!torneo) return null;
+    if (this.esLiga()) {
+      if (torneo.estado !== 'FINALIZADO') return null;
+      const primera = calcularTablaLiga(this.partidos())[0];
+      return primera ? { inscripcionId: primera.inscripcionId, jugadores: jugadoresDePareja(primera.nombres) } : null;
+    }
+    const final = finalJugada(construirCuadro(this.partidos()));
+    if (!final || final.ganadorInscripcionId == null) return null;
+    const nombres = final.ganadorInscripcionId === final.inscripcion1Id ? final.inscripcion1Nombres : final.inscripcion2Nombres;
+    return { inscripcionId: final.ganadorInscripcionId, jugadores: jugadoresDePareja(nombres) };
+  });
+  campeonEsMio = computed(() => {
+    const campeon = this.campeon();
+    return !!campeon && campeon.inscripcionId === this.miInscripcionId();
+  });
+
+  cuenta = computed(() => {
+    const torneo = this.torneo();
+    return torneo?.estado === 'INSCRIPCION_ABIERTA' ? cuentaRegresiva(torneo.fechaInicio, this.ahora()) : null;
+  });
+  cupo = computed(() => {
+    const torneo = this.torneo();
+    return torneo && torneo.maxParejas > 0 ? Math.min(100, Math.round(torneo.parejasInscriptas / torneo.maxParejas * 100)) : 0;
+  });
+  // Los pases directos (sin rival) no cuentan como partidos.
+  partidosConRival = computed(() => this.partidos().filter(p => p.inscripcion2Id != null));
+  partidosJugados = computed(() => this.partidosConRival().filter(p => p.estado === 'FINALIZADO').length);
+  puedeCargarResultados = computed(() => this.esAdminORecepcion() && this.torneo()?.estado === 'EN_CURSO');
+
+  // Carga de resultados (modal compartido por el cuadro y la liga)
+  partidoEnCarga = signal<PartidoTorneoResponse | null>(null);
 
   inscripcionForm: FormGroup = this.fb.group({
     companeroEmail: ['', [Validators.required, Validators.email]]
   });
 
   resultadoForm: FormGroup = this.fb.group({
-    setsPareja1: [0, [Validators.required, Validators.min(0)]],
-    setsPareja2: [0, [Validators.required, Validators.min(0)]]
+    setsPareja1: [0, [Validators.required, Validators.min(0), Validators.max(9)]],
+    setsPareja2: [0, [Validators.required, Validators.min(0), Validators.max(9)]]
   });
+
+  constructor() {
+    const reloj = setInterval(() => this.ahora.set(new Date()), 30_000);
+    inject(DestroyRef).onDestroy(() => clearInterval(reloj));
+  }
 
   ngOnInit() {
     this.cargarTodo();
@@ -52,6 +150,11 @@ export class TorneoDetalleComponent implements OnInit {
     this.torneoService.obtenerPorId(this.torneoId).subscribe({
       next: (data) => {
         this.torneo.set(data);
+        if (this.primeraCarga) {
+          // Con la inscripción abierta lo útil es anotarse; después, seguir el cuadro o la tabla.
+          this.pestana.set(data.estado === 'INSCRIPCION_ABIERTA' ? 'parejas' : 'juego');
+          this.primeraCarga = false;
+        }
         this.cargarInscripciones();
         this.cargarPartidos();
       },
@@ -78,18 +181,16 @@ export class TorneoDetalleComponent implements OnInit {
     });
   }
 
-  setTab(tab: 'inscripciones' | 'fixture') {
-    this.activeTab.set(tab);
+  setPestana(pestana: Pestana) {
+    this.pestana.set(pestana);
   }
 
   private mostrarError(msg: string) {
     this.toast.error(msg);
-
   }
 
   private mostrarExito(msg: string) {
     this.toast.success(msg);
-
   }
 
   inscribirPareja() {
@@ -120,7 +221,8 @@ export class TorneoDetalleComponent implements OnInit {
       next: () => {
         this.procesando.set(false);
         this.mostrarExito('Inscripción cancelada');
-        this.cargarInscripciones();
+        // También el torneo: el cupo del encabezado cambia.
+        this.cargarTodo();
       },
       error: (err) => {
         this.mostrarError(err.error?.message || 'Error al cancelar la inscripción');
@@ -194,8 +296,8 @@ export class TorneoDetalleComponent implements OnInit {
     this.torneoService.generarFixture(this.torneoId).subscribe({
       next: () => {
         this.procesando.set(false);
-        this.mostrarExito('Fixture generado exitosamente');
-        this.activeTab.set('fixture');
+        this.mostrarExito(this.esLiga() ? 'Fixture generado: ya se pueden cargar los resultados' : 'Cuadro sorteado');
+        this.pestana.set('juego');
         this.cargarTodo();
       },
       error: (err) => {
@@ -220,26 +322,55 @@ export class TorneoDetalleComponent implements OnInit {
     });
   }
 
-  editarResultado(partido: PartidoTorneoResponse) {
-    this.editandoResultadoId.set(partido.id);
+  // --- Resultados ---
+
+  abrirCargaResultado(partido: PartidoTorneoResponse) {
     this.resultadoForm.reset({ setsPareja1: 0, setsPareja2: 0 });
+    this.partidoEnCarga.set(partido);
   }
 
-  cancelarEdicionResultado() {
-    this.editandoResultadoId.set(null);
+  cerrarCargaResultado() {
+    this.partidoEnCarga.set(null);
   }
 
-  guardarResultado(partidoId: number) {
+  ajustarSets(campo: CampoSets, delta: number) {
+    const control = this.resultadoForm.get(campo);
+    if (!control) return;
+    const valor = Math.max(0, Math.min(9, (Number(control.value) || 0) + delta));
+    control.setValue(valor);
+    control.markAsDirty();
+  }
+
+  empate(): boolean {
+    const { setsPareja1, setsPareja2 } = this.resultadoForm.value;
+    return Number(setsPareja1) === Number(setsPareja2);
+  }
+
+  /** Quién gana con los sets cargados hasta ahora (1, 2 o null si están iguales). */
+  ganadorParcial(): 1 | 2 | null {
+    const { setsPareja1, setsPareja2 } = this.resultadoForm.value;
+    if (Number(setsPareja1) === Number(setsPareja2)) return null;
+    return Number(setsPareja1) > Number(setsPareja2) ? 1 : 2;
+  }
+
+  guardarResultado() {
+    const partido = this.partidoEnCarga();
+    if (!partido) return;
     if (this.resultadoForm.invalid) {
       this.resultadoForm.markAllAsTouched();
-      this.mostrarError('Ingresá un resultado válido para ambas parejas.');
+      this.mostrarError('Ingresá los sets de las dos parejas (de 0 a 9).');
+      return;
+    }
+    if (this.empate()) {
+      this.mostrarError('El resultado no puede terminar en empate.');
       return;
     }
     this.procesando.set(true);
-    this.torneoService.cargarResultado(this.torneoId, partidoId, this.resultadoForm.value).subscribe({
+    const { setsPareja1, setsPareja2 } = this.resultadoForm.value;
+    this.torneoService.cargarResultado(this.torneoId, partido.id, { setsPareja1: Number(setsPareja1), setsPareja2: Number(setsPareja2) }).subscribe({
       next: () => {
         this.procesando.set(false);
-        this.editandoResultadoId.set(null);
+        this.partidoEnCarga.set(null);
         this.mostrarExito('Resultado cargado');
         // Se recarga también el torneo: con el último resultado de una liga pasa a FINALIZADO.
         this.cargarTodo();
@@ -251,9 +382,16 @@ export class TorneoDetalleComponent implements OnInit {
     });
   }
 
+  @HostListener('document:keydown.escape')
+  cerrarModales() {
+    if (this.procesando()) return;
+    this.partidoEnCarga.set(null);
+    this.mostrarModalSuspension.set(false);
+  }
+
   esMiInscripcion(inscripcion: InscripcionTorneoResponse): boolean {
-    const email = this.currentUser()?.email;
-    return !!email && (inscripcion.jugador1Email === email || inscripcion.jugador2Email === email);
+    const id = this.currentUser()?.id;
+    return id != null && (inscripcion.jugador1Id === id || inscripcion.jugador2Id === id);
   }
 
   esAdmin(): boolean {
@@ -280,19 +418,28 @@ export class TorneoDetalleComponent implements OnInit {
     return partidos.length > 0 && partidos.every(p => p.estado === 'FINALIZADO');
   }
 
+  /** Con la final jugada, "siguiente ronda" cierra el torneo en el backend. */
+  ultimaRondaEsFinal(): boolean {
+    return this.partidosDeUltimaRonda().length === 1;
+  }
+
   invalidoInscripcion(campo: string): boolean {
     const control = this.inscripcionForm.get(campo);
     return !!control && control.invalid && (control.touched || control.dirty);
   }
 
-  invalidoResultado(campo: string): boolean {
-    const control = this.resultadoForm.get(campo);
-    return !!control && control.invalid && (control.touched || control.dirty);
+  iniciales(nombre: string): string {
+    return nombre.split(/\s+/).filter(Boolean).slice(0, 2).map(p => p.charAt(0)).join('').toUpperCase();
   }
 
-  claseEstadoPartido(estado: string): string {
-    return estado === 'FINALIZADO'
-      ? 'bg-emerald-500/10 text-emerald-400'
-      : 'bg-amber-500/10 text-amber-400';
+  /** "$ 12.000" con el separador de miles argentino (Intl del navegador: la app no registra es-AR en Angular). */
+  precio(valor: number): string {
+    return valor > 0 ? `$ ${valor.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : 'Gratis';
+  }
+
+  lugaresLibres(torneo: TorneoResponse): string {
+    const libres = Math.max(0, torneo.maxParejas - torneo.parejasInscriptas);
+    if (libres === 0) return 'Cupo completo';
+    return libres === 1 ? 'Queda 1 lugar' : `Quedan ${libres} lugares`;
   }
 }

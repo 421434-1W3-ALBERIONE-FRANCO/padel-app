@@ -80,6 +80,144 @@ function seed() {
   };
 }
 
+// ---- Torneos de ejemplo ----
+// Muestran el cuadro, la liga y los pósters sin backend. Se agregan una vez por versión (también sobre una
+// base vieja guardada en localStorage) y usan ids desde 9000 para no chocar con los que se crean a mano.
+const VERSION_TORNEOS_DEMO = 1;
+
+function torneosDemo() {
+  const hoy = new Date();
+  const dia = (delta: number) => {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + delta);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  // Juan (2) y Lucía (3) son usuarios del mock; el resto, jugadores ficticios.
+  const nombres: Record<number, string> = {
+    2: 'Juan Jugador', 3: 'Lucía Fernández',
+    201: 'Martina López', 202: 'Facundo Díaz', 203: 'Agustina Romero', 204: 'Joaquín Medina',
+    205: 'Florencia Castro', 206: 'Ignacio Torres', 207: 'Camila Herrera', 208: 'Lautaro Aguirre',
+    209: 'Julieta Molina', 210: 'Santiago Rojas', 211: 'Valentina Ruiz', 212: 'Matías Benítez',
+    213: 'Rocío Acosta', 214: 'Gonzalo Vera', 215: 'Paula Ríos', 216: 'Federico Luna',
+    217: 'Milagros Ortiz', 218: 'Bruno Sosa', 219: 'Carolina Navarro', 220: 'Emiliano Paz',
+    221: 'Brenda Silva', 222: 'Tomás Godoy', 223: 'Ailén Correa', 224: 'Nahuel Ibáñez',
+    225: 'Sol Domínguez', 226: 'Franco Cabrera', 227: 'Micaela Ledesma', 228: 'Ramiro Quiroga',
+    229: 'Antonella Vega', 230: 'Leandro Ponce', 231: 'Pilar Moreno', 232: 'Kevin Arias',
+    233: 'Daniela Figueroa', 234: 'Hernán Ojeda'
+  };
+  const email = (id: number) => id === 2 ? 'juan@test.com' : id === 3 ? 'lucia@test.com'
+    : `${nombres[id].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, '.')}@demo.local`;
+
+  const torneos: any[] = [];
+  const inscripciones: any[] = [];
+  const partidos: any[] = [];
+  const torneo = (id: number, datos: any) => torneos.push({ id, motivoSuspension: null, createdAt: nowIso(), ...datos });
+  const pareja = (id: number, torneoId: number, j1: number, j2: number) => inscripciones.push({
+    id, torneoId, estado: 'CONFIRMADA',
+    jugador1Id: j1, jugador1Nombre: nombres[j1], jugador1Email: email(j1),
+    jugador2Id: j2, jugador2Nombre: nombres[j2], jugador2Email: email(j2)
+  });
+  const nombresPareja = (id: number) => {
+    const i = inscripciones.find(x => x.id === id);
+    return `${i.jugador1Nombre} / ${i.jugador2Nombre}`;
+  };
+  // sets: [pareja 1, pareja 2], o null si está por jugar. Sin rival es un pase directo (gana la pareja 1).
+  const partido = (id: number, torneoId: number, ronda: string, numeroRonda: number, p1: number, p2: number | null, sets: [number, number] | null) => {
+    const ganador = p2 == null ? p1 : sets ? (sets[0] > sets[1] ? p1 : p2) : null;
+    partidos.push({
+      id, torneoId, ronda, numeroRonda, fechaHora: null,
+      inscripcion1Id: p1, inscripcion1Nombres: nombresPareja(p1),
+      inscripcion2Id: p2, inscripcion2Nombres: p2 == null ? null : nombresPareja(p2),
+      setsPareja1: sets ? sets[0] : null, setsPareja2: sets ? sets[1] : null,
+      ganadorInscripcionId: ganador, estado: ganador == null ? 'PENDIENTE' : 'FINALIZADO'
+    });
+  };
+
+  // Eliminación directa en juego: Juan y Lucía ganaron los cuartos y esperan la semifinal.
+  torneo(9001, {
+    nombre: 'Copa Primavera', tipo: 'TORNEO', formato: 'ELIMINACION_DIRECTA', categoria: 'CUARTA', estado: 'EN_CURSO',
+    fechaInicio: dia(-5), fechaFin: dia(9), maxParejas: 8, precioInscripcion: 18000,
+    descripcion: 'Eliminación directa a dos sets con súper tie-break. Pelotas nuevas en cada partido.'
+  });
+  pareja(9101, 9001, 2, 3); pareja(9102, 9001, 201, 202); pareja(9103, 9001, 203, 204); pareja(9104, 9001, 205, 206);
+  pareja(9105, 9001, 207, 208); pareja(9106, 9001, 209, 210); pareja(9107, 9001, 211, 212); pareja(9108, 9001, 213, 214);
+  partido(9201, 9001, 'Cuartos de Final', 1, 9101, 9104, [2, 1]);
+  partido(9202, 9001, 'Cuartos de Final', 1, 9106, 9102, [0, 2]);
+  partido(9203, 9001, 'Cuartos de Final', 1, 9103, 9107, [2, 0]);
+  partido(9204, 9001, 'Cuartos de Final', 1, 9108, 9105, [1, 2]);
+  partido(9205, 9001, 'Semifinal', 2, 9101, 9102, null);
+  partido(9206, 9001, 'Semifinal', 2, 9103, 9105, [2, 1]);
+
+  // Liga a mitad de camino: 6 de 10 partidos jugados.
+  torneo(9002, {
+    nombre: 'Liga de los Martes', tipo: 'LIGA', formato: 'LIGA_TODOS_CONTRA_TODOS', categoria: 'QUINTA', estado: 'EN_CURSO',
+    fechaInicio: dia(-21), fechaFin: dia(28), maxParejas: 6, precioInscripcion: 25000,
+    descripcion: 'Una fecha por semana, los martes de 20 a 23 h. Todos contra todos a dos sets.'
+  });
+  pareja(9111, 9002, 2, 3); pareja(9112, 9002, 215, 216); pareja(9113, 9002, 217, 218); pareja(9114, 9002, 219, 220); pareja(9115, 9002, 221, 222);
+  partido(9211, 9002, 'Liga', 1, 9111, 9112, [2, 0]);
+  partido(9212, 9002, 'Liga', 1, 9111, 9113, [1, 2]);
+  partido(9213, 9002, 'Liga', 1, 9111, 9114, null);
+  partido(9214, 9002, 'Liga', 1, 9111, 9115, null);
+  partido(9215, 9002, 'Liga', 1, 9112, 9113, [2, 1]);
+  partido(9216, 9002, 'Liga', 1, 9112, 9114, [0, 2]);
+  partido(9217, 9002, 'Liga', 1, 9112, 9115, null);
+  partido(9218, 9002, 'Liga', 1, 9113, 9114, [2, 0]);
+  partido(9219, 9002, 'Liga', 1, 9113, 9115, [2, 1]);
+  partido(9220, 9002, 'Liga', 1, 9114, 9115, null);
+
+  // Express terminado con 6 parejas: en la semifinal una pasa directo.
+  torneo(9003, {
+    nombre: 'Express Nocturno', tipo: 'TORNEO_EXPRESS', formato: 'ELIMINACION_DIRECTA', categoria: 'TERCERA', estado: 'FINALIZADO',
+    fechaInicio: dia(-12), fechaFin: dia(-12), maxParejas: 6, precioInscripcion: 12000,
+    descripcion: 'Una sola noche, de 20 a 1 h. Partidos cortos y tercer tiempo en el club.'
+  });
+  pareja(9121, 9003, 223, 224); pareja(9122, 9003, 225, 226); pareja(9123, 9003, 227, 228);
+  pareja(9124, 9003, 229, 230); pareja(9125, 9003, 231, 232); pareja(9126, 9003, 233, 234);
+  partido(9231, 9003, 'Cuartos de Final', 1, 9121, 9122, [2, 1]);
+  partido(9232, 9003, 'Cuartos de Final', 1, 9123, 9124, [0, 2]);
+  partido(9233, 9003, 'Cuartos de Final', 1, 9125, 9126, [2, 1]);
+  partido(9234, 9003, 'Semifinal', 2, 9121, 9124, [2, 0]);
+  partido(9235, 9003, 'Semifinal', 2, 9125, null, null);
+  partido(9236, 9003, 'Final', 3, 9121, 9125, [1, 2]);
+
+  // Inscripción abierta: cuenta regresiva en el póster y cuadro proyectado con 5 parejas.
+  torneo(9004, {
+    nombre: 'Torneo Aniversario', tipo: 'TORNEO', formato: 'ELIMINACION_DIRECTA', categoria: 'SEXTA', estado: 'INSCRIPCION_ABIERTA',
+    fechaInicio: dia(9), fechaFin: dia(11), maxParejas: 16, precioInscripcion: 15000,
+    descripcion: 'Festejamos los 10 años del club: premios para campeones y subcampeones.'
+  });
+  pareja(9131, 9004, 201, 202); pareja(9132, 9004, 203, 204); pareja(9133, 9004, 215, 216);
+  pareja(9134, 9004, 221, 222); pareja(9135, 9004, 225, 226);
+
+  // Liga terminada: las dos primeras empatan en todo y define el partido entre ellas.
+  torneo(9005, {
+    nombre: 'Liga de Invierno', tipo: 'LIGA', formato: 'LIGA_TODOS_CONTRA_TODOS', categoria: 'PRIMERA', estado: 'FINALIZADO',
+    fechaInicio: dia(-60), fechaFin: dia(-20), maxParejas: 4, precioInscripcion: 30000,
+    descripcion: 'La liga más exigente del club, a tres sets.'
+  });
+  pareja(9141, 9005, 213, 214); pareja(9142, 9005, 219, 220); pareja(9143, 9005, 217, 218); pareja(9144, 9005, 209, 210);
+  partido(9241, 9005, 'Liga', 1, 9141, 9142, [2, 1]);
+  partido(9242, 9005, 'Liga', 1, 9141, 9143, [2, 0]);
+  partido(9243, 9005, 'Liga', 1, 9141, 9144, [1, 2]);
+  partido(9244, 9005, 'Liga', 1, 9142, 9143, [2, 1]);
+  partido(9245, 9005, 'Liga', 1, 9142, 9144, [2, 0]);
+  partido(9246, 9005, 'Liga', 1, 9143, 9144, [0, 2]);
+
+  return { torneos, inscripciones, partidos };
+}
+
+/** Agrega (o renueva) los torneos de ejemplo; devuelve true si cambió la base. */
+function asegurarTorneosDemo(base: any): boolean {
+  if (base.versionTorneosDemo === VERSION_TORNEOS_DEMO) return false;
+  const demo = torneosDemo();
+  const esDemo = (x: any) => x.id >= 9000;
+  base.torneos = [...base.torneos.filter((t: any) => !esDemo(t)), ...demo.torneos];
+  base.inscripcionesTorneo = [...base.inscripcionesTorneo.filter((i: any) => !esDemo(i)), ...demo.inscripciones];
+  base.partidosTorneo = [...base.partidosTorneo.filter((p: any) => !esDemo(p)), ...demo.partidos];
+  base.versionTorneosDemo = VERSION_TORNEOS_DEMO;
+  return true;
+}
+
 function loadDb() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -98,6 +236,8 @@ const db = loadDb();
 function persist() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(db)); } catch { /* storage unavailable, mock stays in-memory only */ }
 }
+
+if (asegurarTorneosDemo(db)) persist();
 
 function decodeAuth(req: any): { email: string; rol: string } | null {
   const header = req.headers.get('Authorization');
@@ -446,11 +586,11 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     if (cantidad <= 16) return 'Octavos de Final';
     return `Ronda de ${cantidad}`;
   }
-  function actualizarRanking(jugadorId: number, categoria: string, gano: boolean) {
-    const jugador = db.usuarios.find((u: any) => u.id === jugadorId);
+  // Nombre y email salen de la inscripción: los jugadores de los torneos de ejemplo no son usuarios.
+  function actualizarRanking(jugadorId: number, nombre: string, email: string, categoria: string, gano: boolean) {
     let r = db.rankingJugadores.find((x: any) => x.jugadorId === jugadorId && x.categoria === categoria);
     if (!r) {
-      r = { id: db.nextId.ranking++, jugadorId, jugadorNombre: nombreCompleto(jugador), jugadorEmail: jugador.email, categoria, puntos: 0, partidosJugados: 0, partidosGanados: 0 };
+      r = { id: db.nextId.ranking++, jugadorId, jugadorNombre: nombre, jugadorEmail: email, categoria, puntos: 0, partidosJugados: 0, partidosGanados: 0 };
       db.rankingJugadores.push(r);
     }
     r.partidosJugados += 1;
@@ -581,6 +721,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
     const t = db.torneos.find((x: any) => x.id === +segs[1]);
     if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
+    if (t.estado !== 'EN_CURSO') return err(409, `El torneo no está en curso (estado actual: ${t.estado})`);
     const p = db.partidosTorneo.find((x: any) => x.id === +segs[3] && x.torneoId === +segs[1]);
     if (!p) return err(404, 'Partido no encontrado con ID: ' + segs[3]);
     if (p.estado === 'FINALIZADO') return err(409, 'El resultado de este partido ya fue cargado');
@@ -595,10 +736,15 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     p.setsPareja1 = body.setsPareja1; p.setsPareja2 = body.setsPareja2;
     p.ganadorInscripcionId = iGanadora.id; p.estado = 'FINALIZADO';
 
-    actualizarRanking(iGanadora.jugador1Id, t.categoria, true);
-    actualizarRanking(iGanadora.jugador2Id, t.categoria, true);
-    actualizarRanking(iPerdedora.jugador1Id, t.categoria, false);
-    actualizarRanking(iPerdedora.jugador2Id, t.categoria, false);
+    actualizarRanking(iGanadora.jugador1Id, iGanadora.jugador1Nombre, iGanadora.jugador1Email, t.categoria, true);
+    actualizarRanking(iGanadora.jugador2Id, iGanadora.jugador2Nombre, iGanadora.jugador2Email, t.categoria, true);
+    actualizarRanking(iPerdedora.jugador1Id, iPerdedora.jugador1Nombre, iPerdedora.jugador1Email, t.categoria, false);
+    actualizarRanking(iPerdedora.jugador2Id, iPerdedora.jugador2Nombre, iPerdedora.jugador2Email, t.categoria, false);
+    // Como el backend: una liga termina sola con su último resultado.
+    if (t.formato === 'LIGA_TODOS_CONTRA_TODOS'
+      && db.partidosTorneo.filter((x: any) => x.torneoId === t.id).every((x: any) => x.estado === 'FINALIZADO')) {
+      t.estado = 'FINALIZADO';
+    }
     persist();
     return ok(p);
   }
@@ -607,6 +753,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     const t = db.torneos.find((x: any) => x.id === +segs[1]);
     if (!t) return err(404, 'Torneo no encontrado con ID: ' + segs[1]);
     if (t.formato !== 'ELIMINACION_DIRECTA') return err(400, 'Sólo los torneos de eliminación directa avanzan por rondas');
+    if (t.estado !== 'EN_CURSO') return err(409, `El torneo no está en curso (estado actual: ${t.estado})`);
     const partidosDelTorneo = db.partidosTorneo.filter((p: any) => p.torneoId === t.id);
     if (partidosDelTorneo.length === 0) return err(409, 'Primero hay que generar el fixture del torneo');
     const ultimaRonda = Math.max(...partidosDelTorneo.map((p: any) => p.numeroRonda));
