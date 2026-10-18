@@ -1,3 +1,5 @@
+import { MetodoMostrador } from './pago.model';
+
 export type EstadoBono = 'ACTIVO' | 'VENCIDO' | 'AGOTADO';
 
 export interface CrearBonoRequest {
@@ -6,6 +8,8 @@ export interface CrearBonoRequest {
   horasTotales: number;
   precioPagado: number;
   fechaVencimiento: string;
+  /** Cómo se cobró la venta; obligatorio salvo que el bono sea sin cargo. */
+  metodo?: MetodoMostrador | null;
 }
 
 export interface BonoResponse {

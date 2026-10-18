@@ -44,10 +44,10 @@
               <span class="inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border" [ngClass]="badgeClase(r.estadoReserva)">{{ r.estadoReserva }}</span>
             </td>
             <td class="px-4 py-3 text-right whitespace-nowrap">
-              <button *ngIf="r.estadoReserva === 'PENDIENTE_PAGO'" (click)="confirmarPago(r)" [disabled]="confirmandoId() === r.id"
-                      title="Confirmar el turno cobrado en el club"
-                      class="text-emerald-400 hover:text-emerald-300 text-xs font-bold mr-3 disabled:opacity-50">
-                {{ confirmandoId() === r.id ? 'Confirmando...' : 'Confirmar' }}
+              <button *ngIf="r.estadoReserva === 'PENDIENTE_PAGO'" (click)="abrirCobro(r)"
+                      title="Cobrar el turno en el club (o confirmarlo para que pague al llegar)"
+                      class="text-emerald-400 hover:text-emerald-300 text-xs font-bold mr-3">
+                Cobrar
               </button>
               <button *ngIf="puedeCancelar(r)" (click)="abrirCancelacion(r)" class="text-red-400 hover:text-red-300 text-xs font-bold">Cancelar</button>
               <span *ngIf="!puedeCancelar(r)" class="text-slate-600 text-xs">—</span>
@@ -60,6 +60,12 @@
       </table>
     </div>
   </div>
+
+  <!-- Cobro en el mostrador -->
+  <app-cobro-mostrador *ngIf="reservaACobrar() as r"
+                       [cliente]="r.usuarioEmail" [detalle]="r.canchaNombre + ' · ' + r.fecha + ' ' + r.horaInicio.substring(0, 5)"
+                       [monto]="r.precioTotal" [procesando]="cobrando()" [permitirSinCobro]="true"
+                       (cobrar)="cobrar($event)" (sinCobro)="confirmarSinCobro()" (cerrar)="cerrarCobro()"></app-cobro-mostrador>
 
   <!-- Modal de cancelación -->
   <div *ngIf="reservaParaCancelar()" class="fixed inset-0 z-[90] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" (click)="cerrarCancelacion()">

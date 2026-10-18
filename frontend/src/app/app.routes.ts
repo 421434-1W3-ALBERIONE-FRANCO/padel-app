@@ -23,6 +23,7 @@ import { ProductosAdminComponent } from './features/admin/productos/productos-ad
 import { CargaConsumosComponent } from './features/recepcion/carga-consumos/carga-consumos.component';
 import { AltaTurnoComponent } from './features/recepcion/alta-turno/alta-turno.component';
 import { CierreCuentaComponent } from './features/recepcion/cierre-cuenta/cierre-cuenta.component';
+import { CajaDiariaComponent } from './features/recepcion/caja-diaria/caja-diaria.component';
 import { ExperienceComponent } from './features/experience/experience.component';
 import { ListaTorneosComponent } from './features/torneos/lista-torneos/lista-torneos.component';
 import { TorneoDetalleComponent } from './features/torneos/torneo-detalle/torneo-detalle.component';
@@ -101,6 +102,12 @@ export const routes: Routes = [
   {
     path: 'recepcion/cierre-cuenta/:reservaId',
     component: CierreCuentaComponent,
+    canActivate: [authGuard],
+    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+  },
+  {
+    path: 'recepcion/caja',
+    component: CajaDiariaComponent,
     canActivate: [authGuard],
     data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
   },

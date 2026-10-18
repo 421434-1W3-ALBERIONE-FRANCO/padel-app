@@ -6,11 +6,14 @@ import { ReservaService } from '../../../core/services/reserva.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ReservaResponse } from '../../../shared/models/reserva.model';
+import { MetodoMostrador } from '../../../shared/models/pago.model';
+import { CobroMostradorComponent } from '../../../shared/components/cobro-mostrador/cobro-mostrador.component';
+import { formatearPesos } from '../../../shared/utils/moneda.util';
 
 @Component({
   selector: 'app-mis-reservas',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, CobroMostradorComponent],
   templateUrl: './mis-reservas.component.html',
   styleUrls: ['./mis-reservas.component.css']
 })
@@ -61,19 +64,42 @@ export class MisReservasComponent implements OnInit {
     return inicio.getTime() > Date.now();
   }
 
-  // Staff: confirma una reserva pendiente que se cobra en el club (efectivo / mostrador).
-  confirmandoId = signal<number | null>(null);
+  // Staff: turno pendiente que se paga en el club. Se cobra en el mostrador (queda en la caja del día) o se
+  // confirma para que pague al llegar (queda pendiente de cobro en la caja).
+  reservaACobrar = signal<ReservaResponse | null>(null);
+  cobrando = signal<boolean>(false);
 
-  confirmarPagoEnClub(r: ReservaResponse) {
-    this.confirmandoId.set(r.id);
-    this.reservaService.confirmarReserva(r.id).subscribe({
-      next: () => {
-        this.confirmandoId.set(null);
-        this.toast.success('Reserva confirmada.');
+  cobrar(metodo: MetodoMostrador) {
+    const r = this.reservaACobrar();
+    if (!r) return;
+    this.cobrando.set(true);
+    this.reservaService.cobrarEnMostrador(r.id, metodo).subscribe({
+      next: (pago) => {
+        this.cobrando.set(false);
+        this.reservaACobrar.set(null);
+        this.toast.success(`Cobro registrado: ${formatearPesos(pago.monto)} ${metodo === 'EFECTIVO' ? 'en efectivo' : 'con tarjeta'}. Turno confirmado.`);
         this.cargarReservas();
       },
       error: (err) => {
-        this.confirmandoId.set(null);
+        this.cobrando.set(false);
+        this.toast.error(err.error?.message || 'No se pudo registrar el cobro.');
+      }
+    });
+  }
+
+  confirmarSinCobro() {
+    const r = this.reservaACobrar();
+    if (!r) return;
+    this.cobrando.set(true);
+    this.reservaService.confirmarReserva(r.id).subscribe({
+      next: () => {
+        this.cobrando.set(false);
+        this.reservaACobrar.set(null);
+        this.toast.success('Turno confirmado para pagar al llegar. Queda pendiente de cobro en la caja del día.');
+        this.cargarReservas();
+      },
+      error: (err) => {
+        this.cobrando.set(false);
         this.toast.error(err.error?.message || 'No se pudo confirmar la reserva.');
       }
     });

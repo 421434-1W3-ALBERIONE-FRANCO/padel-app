@@ -11,6 +11,8 @@ import { ToastService } from '../../../core/services/toast.service';
 import { CanchaResponse } from '../../../shared/models/cancha.model';
 import { OpcionDuracion, SlotDisponibilidad } from '../../../shared/models/disponibilidad.model';
 import { UsuarioResponse } from '../../../shared/models/usuario.model';
+import { MetodoMostrador } from '../../../shared/models/pago.model';
+import { CobroMostradorComponent } from '../../../shared/components/cobro-mostrador/cobro-mostrador.component';
 
 function toIso(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -19,7 +21,7 @@ function toIso(d: Date): string {
 @Component({
   selector: 'app-alta-turno',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, CobroMostradorComponent],
   templateUrl: './alta-turno.component.html'
 })
 export class AltaTurnoComponent implements OnInit {
@@ -112,13 +114,23 @@ export class AltaTurnoComponent implements OnInit {
   }
 
   precioSel = computed(() => this.duracionSel()?.precio ?? this.slotSel()?.precio ?? 0);
+  canchaSel = computed(() => this.canchas().find(c => c.id === this.canchaId()) ?? null);
+
+  // Antes de crear el turno se elige cómo se paga: en el acto (efectivo o tarjeta) o al llegar.
+  mostrarCobro = signal<boolean>(false);
 
   confirmar(): void {
+    if (!this.clienteSeleccionado()) { this.toast.error('Elegí un cliente.'); return; }
+    if (!this.slotSel() || !this.canchaId()) { this.toast.error('Elegí un horario disponible.'); return; }
+    this.mostrarCobro.set(true);
+  }
+
+  /** Crea el turno y lo cobra con `metodo`, o lo confirma sin cobro (null: paga al llegar). */
+  crearTurno(metodo: MetodoMostrador | null): void {
     const cliente = this.clienteSeleccionado();
     const slot = this.slotSel();
     const id = this.canchaId();
-    if (!cliente) { this.toast.error('Elegí un cliente.'); return; }
-    if (!slot || !id) { this.toast.error('Elegí un horario disponible.'); return; }
+    if (!cliente || !slot || !id) return;
 
     this.creando.set(true);
     this.reservaService.crearReserva({
@@ -129,19 +141,26 @@ export class AltaTurnoComponent implements OnInit {
       duracionMin: this.duracionSel()?.duracionMin,
       usuarioId: cliente.id
     }).pipe(
-      // El turno dado de alta por recepción se cobra en el club: se confirma en el acto. Si quedara
-      // PENDIENTE_PAGO, el scheduler lo cancelaba a los 15 minutos "por falta de pago".
-      switchMap(reserva => this.reservaService.confirmarReserva(reserva.id))
+      // El turno dado de alta por recepción no puede quedar PENDIENTE_PAGO: el scheduler lo cancelaba a los
+      // 15 minutos "por falta de pago". Se cobra en el acto o se confirma para que pague al llegar.
+      switchMap(reserva => metodo
+        ? this.reservaService.cobrarEnMostrador(reserva.id, metodo)
+        : this.reservaService.confirmarReserva(reserva.id))
     ).subscribe({
       next: () => {
         this.creando.set(false);
-        this.toast.success(`Turno confirmado para ${cliente.nombre} ${cliente.apellido}. El cobro se registra en el club.`);
+        this.mostrarCobro.set(false);
+        const nombre = `${cliente.nombre} ${cliente.apellido}`;
+        this.toast.success(metodo
+          ? `Turno confirmado para ${nombre}. Cobro registrado ${metodo === 'EFECTIVO' ? 'en efectivo' : 'con tarjeta'}.`
+          : `Turno confirmado para ${nombre}. Paga al llegar: queda pendiente en la caja del día.`);
         this.slotSel.set(null);
         this.duracionSel.set(null);
         this.cargarDisponibilidad();
       },
       error: (err) => {
         this.creando.set(false);
+        this.mostrarCobro.set(false);
         this.toast.error(err.error?.message || 'No se pudo crear el turno.');
         this.cargarDisponibilidad();
       }

@@ -25,12 +25,3 @@ export interface ConsumoResponse {
   estadoPago: EstadoConsumoPago;
   createdAt: string;
 }
-
-export interface MetodoTotal {
-  metodo: string;
-  total: number;
-}
-
-export interface CajaDiariaResponse {
-  detalles: MetodoTotal[];
-}

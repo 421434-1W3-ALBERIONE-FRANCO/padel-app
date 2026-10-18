@@ -121,11 +121,10 @@
           </a>
           <button 
             *ngIf="esPersonal() && r.estadoReserva === 'PENDIENTE_PAGO'"
-            (click)="confirmarPagoEnClub(r)"
-            [disabled]="confirmandoId() === r.id"
-            title="Confirmar el turno cobrado en el club"
-            class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-semibold transition duration-150 disabled:opacity-50">
-            {{ confirmandoId() === r.id ? 'Confirmando...' : 'Confirmar (cobro en club)' }}
+            (click)="reservaACobrar.set(r)"
+            title="Cobrar el turno en el club (o confirmarlo para que pague al llegar)"
+            class="bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2 rounded-xl text-xs font-semibold transition duration-150">
+            Cobrar en el club
           </button>
           <button 
             *ngIf="puedeCancelar(r)"
@@ -200,4 +199,10 @@
       </div>
     </div>
   </div>
+
+  <!-- Staff: cobro en el mostrador -->
+  <app-cobro-mostrador *ngIf="reservaACobrar() as r"
+                       [cliente]="r.usuarioEmail" [detalle]="r.canchaNombre + ' · ' + r.fecha + ' ' + r.horaInicio.substring(0, 5)"
+                       [monto]="r.precioTotal" [procesando]="cobrando()" [permitirSinCobro]="true"
+                       (cobrar)="cobrar($event)" (sinCobro)="confirmarSinCobro()" (cerrar)="reservaACobrar.set(null)"></app-cobro-mostrador>
 </div>

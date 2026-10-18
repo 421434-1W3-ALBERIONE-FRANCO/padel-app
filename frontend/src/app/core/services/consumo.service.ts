@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ConsumoRequest, ConsumoResponse, CerrarCuentaRequest, CajaDiariaResponse } from '../../shared/models/consumo.model';
+import { ConsumoRequest, ConsumoResponse, CerrarCuentaRequest } from '../../shared/models/consumo.model';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -21,11 +21,5 @@ export class ConsumoService {
 
   cerrarCuenta(reservaId: number, request: CerrarCuentaRequest): Observable<void> {
     return this.http.put<void>(`${this.BASE_URL}/reservas/${reservaId}/cerrar-cuenta`, request);
-  }
-
-  obtenerCajaDiaria(fecha: string): Observable<CajaDiariaResponse> {
-    return this.http.get<CajaDiariaResponse>(`${this.BASE_URL}/reportes/caja-diaria`, {
-      params: { fecha }
-    });
   }
 }

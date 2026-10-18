@@ -9,6 +9,7 @@ import com.padel.domain.entity.Cancha;
 import com.padel.domain.entity.Pago;
 import com.padel.domain.entity.Reserva;
 import com.padel.domain.entity.Usuario;
+import com.padel.domain.enums.ConceptoPago;
 import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.MetodoPago;
@@ -16,6 +17,8 @@ import com.padel.domain.enums.RolUsuario;
 import com.padel.domain.enums.TipoNotificacion;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
+import com.padel.exception.DatosInvalidosException;
+import com.padel.exception.EstadoInvalidoException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.ReservaNoModificableException;
 import com.padel.mapper.PagoMapper;
@@ -122,7 +125,7 @@ class PagoServiceImplTest {
     void crearPreferencia_HappyPath() {
         when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
-        when(pagoRepository.findByReservaIdAndEstado(1L, EstadoPago.PENDIENTE)).thenReturn(Optional.empty());
+        when(pagoRepository.findByReservaIdAndEstadoAndConcepto(1L, EstadoPago.PENDIENTE, ConceptoPago.TURNO)).thenReturn(Optional.empty());
         when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
 
         Preference preferenceMock = mock(Preference.class);
@@ -346,7 +349,7 @@ class PagoServiceImplTest {
     void obtenerPorId_HappyPath() {
         when(pagoRepository.findById(1L)).thenReturn(Optional.of(pagoMock));
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
-        PagoResponse responseDto = new PagoResponse(1L, 1L, 1L, "juan@example.com", new BigDecimal("1200.00"),
+        PagoResponse responseDto = new PagoResponse(1L, 1L, null, ConceptoPago.TURNO, 1L, "juan@example.com", new BigDecimal("1200.00"),
                 MetodoPago.MERCADOPAGO, EstadoPago.PENDIENTE, "pref-123", null, LocalDateTime.now(), LocalDateTime.now());
         when(pagoMapper.toResponse(pagoMock)).thenReturn(responseDto);
 
@@ -354,5 +357,82 @@ class PagoServiceImplTest {
 
         assertNotNull(result);
         assertEquals(1L, result.id());
+    }
+
+    // --- Cobro en el mostrador ---
+
+    private Usuario recepcionista() {
+        return Usuario.builder().id(9L).nombre("Ana").apellido("Recepción").email("ana@club.com")
+                .rol(RolUsuario.RECEPCIONISTA).activo(true).build();
+    }
+
+    @Test
+    void registrarCobroMostrador_TurnoPendiente_RegistraPagoYConfirma() {
+        Usuario staff = recepcionista();
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(false);
+        when(usuarioRepository.findByEmail("ana@club.com")).thenReturn(Optional.of(staff));
+        when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "ana@club.com");
+
+        ArgumentCaptor<Pago> captor = ArgumentCaptor.forClass(Pago.class);
+        verify(pagoRepository).save(captor.capture());
+        Pago pago = captor.getValue();
+        assertEquals(MetodoPago.EFECTIVO, pago.getMetodo());
+        assertEquals(EstadoPago.APROBADO, pago.getEstado());
+        assertEquals(ConceptoPago.TURNO, pago.getConcepto());
+        assertEquals(new BigDecimal("1200.00"), pago.getMonto());
+        assertSame(usuarioMock, pago.getUsuario(), "El pago queda a nombre del dueño de la reserva");
+        assertSame(staff, pago.getAtendidoPor());
+        verify(reservaService).confirmarReserva(1L);
+    }
+
+    @Test
+    void registrarCobroMostrador_TurnoConfirmadoParaCobrarAlLlegar_SoloRegistraElPago() {
+        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(false);
+        when(usuarioRepository.findByEmail("ana@club.com")).thenReturn(Optional.of(recepcionista()));
+        when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        pagoService.registrarCobroMostrador(1L, MetodoPago.TARJETA, "ana@club.com");
+
+        verify(pagoRepository).save(argThat(p -> p.getMetodo() == MetodoPago.TARJETA && p.getEstado() == EstadoPago.APROBADO));
+        verify(reservaService, never()).confirmarReserva(anyLong());
+    }
+
+    @Test
+    void registrarCobroMostrador_MetodoQueNoEsDeMostrador_SeRechaza() {
+        assertThrows(DatosInvalidosException.class, () ->
+                pagoService.registrarCobroMostrador(1L, MetodoPago.MERCADOPAGO, "ana@club.com"));
+        assertThrows(DatosInvalidosException.class, () ->
+                pagoService.registrarCobroMostrador(1L, MetodoPago.BONO, "ana@club.com"));
+
+        verify(pagoRepository, never()).save(any());
+    }
+
+    @Test
+    void registrarCobroMostrador_TurnoYaCobrado_NoCobraDosVeces() {
+        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(true);
+
+        assertThrows(EstadoInvalidoException.class, () ->
+                pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "ana@club.com"));
+
+        verify(pagoRepository, never()).save(any());
+        verify(reservaService, never()).confirmarReserva(anyLong());
+    }
+
+    @Test
+    void registrarCobroMostrador_ReservaCancelada_SeRechaza() {
+        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
+        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+
+        assertThrows(ReservaNoModificableException.class, () ->
+                pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "ana@club.com"));
+
+        verify(pagoRepository, never()).save(any());
     }
 }

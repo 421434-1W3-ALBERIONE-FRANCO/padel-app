@@ -1,6 +1,7 @@
 package com.padel.service.impl;
 
 import com.padel.domain.entity.*;
+import com.padel.domain.enums.ConceptoPago;
 import com.padel.domain.enums.EstadoBono;
 import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.EstadoReserva;
@@ -11,6 +12,7 @@ import com.padel.dto.request.CrearBonoRequest;
 import com.padel.dto.response.BonoResponse;
 import com.padel.dto.response.PagoResponse;
 import com.padel.exception.BonoNoDisponibleException;
+import com.padel.exception.DatosInvalidosException;
 import com.padel.exception.ReservaNoModificableException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.mapper.BonoMapper;
@@ -55,6 +57,12 @@ public class BonoServiceImpl implements BonoService {
         log.info("Asignando bono de tipo {} al usuario {} (vendido por {})", request.tipo(), request.usuarioEmail(), staffEmail);
         fechaHoraUtil.validarAnioRazonable(request.fechaVencimiento(), "la fecha de vencimiento");
 
+        // La venta entra a la caja: hace falta saber cómo se cobró (un bono sin cargo no genera pago).
+        boolean conCargo = request.precioPagado().signum() > 0;
+        if (conCargo && (request.metodo() == null || !request.metodo().esCobroEnMostrador())) {
+            throw new DatosInvalidosException("Indicá cómo se cobró el bono: en efectivo o con tarjeta");
+        }
+
         Usuario usuario = usuarioRepository.findByEmail(request.usuarioEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + request.usuarioEmail()));
 
@@ -77,6 +85,19 @@ public class BonoServiceImpl implements BonoService {
 
         Bono saved = bonoRepository.save(bono);
         log.info("Bono ID {} asignado correctamente", saved.getId());
+
+        if (conCargo) {
+            pagoRepository.save(Pago.builder()
+                    .bono(saved)
+                    .usuario(usuario)
+                    .monto(request.precioPagado())
+                    .metodo(request.metodo())
+                    .estado(EstadoPago.APROBADO)
+                    .concepto(ConceptoPago.BONO)
+                    .atendidoPor(staff)
+                    .build());
+            log.info("Venta del bono ID {} registrada en caja: {} en {}", saved.getId(), request.precioPagado(), request.metodo());
+        }
 
         if (staff.getRol() == RolUsuario.RECEPCIONISTA && configuracionSistemaService.obtenerEntidad().isComisionesHabilitadas()) {
             comisionService.registrarComisionBono(staff, saved);

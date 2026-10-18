@@ -4,11 +4,14 @@ import { FormsModule } from '@angular/forms';
 import { ReservaService } from '../../../core/services/reserva.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { EstadoReserva, ReservaResponse } from '../../../shared/models/reserva.model';
+import { MetodoMostrador } from '../../../shared/models/pago.model';
+import { CobroMostradorComponent } from '../../../shared/components/cobro-mostrador/cobro-mostrador.component';
+import { formatearPesos } from '../../../shared/utils/moneda.util';
 
 @Component({
   selector: 'app-reservas-admin',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CobroMostradorComponent],
   templateUrl: './reservas-admin.component.html'
 })
 export class ReservasAdminComponent implements OnInit {
@@ -83,19 +86,50 @@ export class ReservasAdminComponent implements OnInit {
     });
   }
 
-  // Confirmación manual de una reserva pendiente que se cobra en el club (efectivo / mostrador).
-  confirmandoId = signal<number | null>(null);
+  // Turno pendiente que se paga en el club: se cobra en el mostrador (queda en la caja del día) o se
+  // confirma para que pague al llegar (queda como pendiente de cobro en la caja).
+  reservaACobrar = signal<ReservaResponse | null>(null);
+  cobrando = signal<boolean>(false);
 
-  confirmarPago(r: ReservaResponse): void {
-    this.confirmandoId.set(r.id);
-    this.reservaService.confirmarReserva(r.id).subscribe({
-      next: () => {
-        this.confirmandoId.set(null);
-        this.toast.success('Reserva confirmada.');
+  abrirCobro(r: ReservaResponse): void {
+    this.reservaACobrar.set(r);
+  }
+
+  cerrarCobro(): void {
+    this.reservaACobrar.set(null);
+  }
+
+  cobrar(metodo: MetodoMostrador): void {
+    const r = this.reservaACobrar();
+    if (!r) return;
+    this.cobrando.set(true);
+    this.reservaService.cobrarEnMostrador(r.id, metodo).subscribe({
+      next: (pago) => {
+        this.cobrando.set(false);
+        this.reservaACobrar.set(null);
+        this.toast.success(`Cobro registrado: ${formatearPesos(pago.monto)} ${metodo === 'EFECTIVO' ? 'en efectivo' : 'con tarjeta'}. Turno confirmado.`);
         this.cargar();
       },
       error: (err) => {
-        this.confirmandoId.set(null);
+        this.cobrando.set(false);
+        this.toast.error(err.error?.message || 'No se pudo registrar el cobro.');
+      }
+    });
+  }
+
+  confirmarSinCobro(): void {
+    const r = this.reservaACobrar();
+    if (!r) return;
+    this.cobrando.set(true);
+    this.reservaService.confirmarReserva(r.id).subscribe({
+      next: () => {
+        this.cobrando.set(false);
+        this.reservaACobrar.set(null);
+        this.toast.success('Turno confirmado para pagar al llegar. Queda pendiente de cobro en la caja del día.');
+        this.cargar();
+      },
+      error: (err) => {
+        this.cobrando.set(false);
         this.toast.error(err.error?.message || 'No se pudo confirmar la reserva.');
       }
     });

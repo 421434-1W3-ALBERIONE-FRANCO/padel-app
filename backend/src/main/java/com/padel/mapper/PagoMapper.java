@@ -8,6 +8,7 @@ import org.mapstruct.Mapping;
 @Mapper(componentModel = "spring")
 public interface PagoMapper {
     @Mapping(target = "reservaId", source = "reserva.id")
+    @Mapping(target = "bonoId", source = "bono.id")
     @Mapping(target = "usuarioId", source = "usuario.id")
     @Mapping(target = "usuarioEmail", source = "usuario.email")
     PagoResponse toResponse(Pago pago);

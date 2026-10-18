@@ -11,6 +11,7 @@ import com.mercadopago.resources.preference.Preference;
 import com.padel.domain.entity.Pago;
 import com.padel.domain.entity.Reserva;
 import com.padel.domain.entity.Usuario;
+import com.padel.domain.enums.ConceptoPago;
 import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.MetodoPago;
@@ -18,6 +19,8 @@ import com.padel.domain.enums.RolUsuario;
 import com.padel.domain.enums.TipoNotificacion;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
+import com.padel.exception.DatosInvalidosException;
+import com.padel.exception.EstadoInvalidoException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.ReservaNoModificableException;
 import com.padel.mapper.PagoMapper;
@@ -119,8 +122,9 @@ public class PagoServiceImpl implements PagoService {
             PreferenceClient client = new PreferenceClient();
             Preference preference = client.create(preferenceRequest);
 
-            // Registrar o actualizar el Pago pendiente
-            Pago pago = pagoRepository.findByReservaIdAndEstado(reservaId, EstadoPago.PENDIENTE)
+            // Registrar o actualizar el Pago pendiente del turno (no el de los consumos, que con Point
+            // también puede quedar pendiente sobre la misma reserva)
+            Pago pago = pagoRepository.findByReservaIdAndEstadoAndConcepto(reservaId, EstadoPago.PENDIENTE, ConceptoPago.TURNO)
                     .orElse(Pago.builder()
                             .reserva(reserva)
                             .usuario(reserva.getUsuario())
@@ -267,5 +271,51 @@ public class PagoServiceImpl implements PagoService {
         }
 
         return pagoMapper.toResponse(pago);
+    }
+
+    /**
+     * Cobro del turno en el mostrador (efectivo o tarjeta): queda un pago APROBADO a nombre del dueño de la
+     * reserva y atendido por quien lo registra. Una reserva PENDIENTE_PAGO se confirma; una ya CONFIRMADA o
+     * COMPLETADA (recepción la confirmó para cobrar al llegar) solo suma el pago.
+     */
+    @Override
+    public PagoResponse registrarCobroMostrador(Long reservaId, MetodoPago metodo, String staffEmail) {
+        log.info("Cobro en mostrador de la reserva ID {} con {} (atendido por {})", reservaId, metodo, staffEmail);
+        if (metodo == null || !metodo.esCobroEnMostrador()) {
+            throw new DatosInvalidosException("En el mostrador el turno se cobra en efectivo o con tarjeta");
+        }
+
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + reservaId));
+
+        EstadoReserva estado = reserva.getEstadoReserva();
+        if (estado != EstadoReserva.PENDIENTE_PAGO && estado != EstadoReserva.CONFIRMADA && estado != EstadoReserva.COMPLETADA) {
+            throw new ReservaNoModificableException("No se puede cobrar una reserva en estado " + estado);
+        }
+        // Un turno pagado online, con bono o ya cobrado en el club no se cobra dos veces.
+        if (pagoRepository.existsByReservaIdAndEstadoAndConcepto(reservaId, EstadoPago.APROBADO, ConceptoPago.TURNO)) {
+            throw new EstadoInvalidoException("El turno ya tiene un cobro registrado");
+        }
+
+        Usuario staff = usuarioRepository.findByEmail(staffEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + staffEmail));
+
+        Pago saved = pagoRepository.save(Pago.builder()
+                .reserva(reserva)
+                .usuario(reserva.getUsuario())
+                .monto(reserva.getPrecioTotal())
+                .metodo(metodo)
+                .estado(EstadoPago.APROBADO)
+                .concepto(ConceptoPago.TURNO)
+                .atendidoPor(staff)
+                .build());
+
+        if (estado == EstadoReserva.PENDIENTE_PAGO) {
+            // Confirma, libera el lock del horario y avisa al jugador.
+            reservaService.confirmarReserva(reservaId);
+        }
+
+        log.info("Cobro en mostrador registrado: pago ID {} por {} en {}", saved.getId(), saved.getMonto(), metodo);
+        return pagoMapper.toResponse(saved);
     }
 }

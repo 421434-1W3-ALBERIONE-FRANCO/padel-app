@@ -195,7 +195,8 @@ class ConsumoServiceImplTest {
 
         assertEquals(EstadoConsumoPago.PAGADO, consumoMock.getEstadoPago());
         assertNotNull(consumoMock.getPago());
-        verify(pagoRepository, times(1)).save(any(Pago.class));
+        // Queda separado del pago del turno de la misma reserva (la caja y el cobro del turno lo distinguen).
+        verify(pagoRepository, times(1)).save(argThat(p -> p.getConcepto() == com.padel.domain.enums.ConceptoPago.CONSUMOS));
         verify(consumoRepository, times(1)).saveAll(anyList());
         verify(comisionService, never()).registrarComisionConsumo(any(), any(), any());
     }

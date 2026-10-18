@@ -10,6 +10,13 @@ const STORAGE_KEY = '__mock_db__';
 
 function nowIso() { return new Date().toISOString(); }
 
+// Fecha y hora local sin zona ("2026-10-18T14:32:05"), como los LocalDateTime del backend: la caja agrupa por día local.
+function ahoraLocal(): string {
+  const d = new Date();
+  const dos = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}T${dos(d.getHours())}:${dos(d.getMinutes())}:${dos(d.getSeconds())}`;
+}
+
 // Espeja ReservaServiceImpl.calcularFechaMaximaReservable: mes en curso, o el
 // siguiente completo si estamos en la última semana del mes actual.
 function fechaMaximaReservable(): string {
@@ -23,7 +30,7 @@ function fechaMaximaReservable(): string {
 
 function seed() {
   return {
-    nextId: { cancha: 3, franja: 3, bloqueo: 1, reserva: 1, bono: 2, producto: 4, usuario: 4, torneo: 1, inscripcionTorneo: 1, partidoTorneo: 1, ranking: 1, solicitud: 1, postulacion: 1, match: 1 },
+    nextId: { cancha: 3, franja: 3, bloqueo: 1, reserva: 1, bono: 2, producto: 4, usuario: 4, torneo: 1, inscripcionTorneo: 1, partidoTorneo: 1, ranking: 1, solicitud: 1, postulacion: 1, match: 1, pago: 1 },
     usuarios: [
       { id: 1, nombre: 'Admin', apellido: 'Dev', email: 'admin@test.com', telefono: '', rol: 'ADMIN', activo: true, password: 'admin123' },
       { id: 2, nombre: 'Juan', apellido: 'Jugador', email: 'juan@test.com', telefono: '', rol: 'JUGADOR', activo: true, password: 'test123' },
@@ -76,7 +83,9 @@ function seed() {
       { id: 2, nombre: 'Agua', categoria: 'BEBIDA', precio: 1000, stock: 60, activo: true },
       { id: 3, nombre: 'Paletas Alquiler', categoria: 'ALQUILER', precio: 2000, stock: 10, activo: true }
     ],
-    consumos: [] as any[]
+    consumos: [] as any[],
+    // Pagos: espejan la tabla pagos (concepto TURNO / CONSUMOS / BONO) para la caja diaria.
+    pagos: [] as any[]
   };
 }
 
@@ -438,9 +447,13 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     if (body.fecha > fechaMaximaReservable()) return err(400, 'Las reservas solo se habilitan dentro del mes en curso (o el siguiente, en la última semana del mes)');
     const ocupado = db.reservas.some((r: any) => r.canchaId === body.canchaId && r.franjaId === body.franjaId && r.fecha === body.fecha && r.estadoReserva !== 'CANCELADA');
     if (ocupado) return err(400, 'El horario seleccionado ya no está disponible');
-    const usuario = db.usuarios.find((u: any) => u.email === auth.email)!;
+    const logueado = db.usuarios.find((u: any) => u.email === auth.email)!;
+    // Espeja ReservaServiceImpl: el staff puede reservar a nombre de un cliente (alta de turno).
+    const usuario = logueado.rol !== 'JUGADOR' && body.usuarioId
+      ? db.usuarios.find((u: any) => u.id === body.usuarioId) ?? logueado
+      : logueado;
     // Espeja ReservaServiceImpl: el origen es un dato de auditoría, un JUGADOR nunca puede falsearlo.
-    const origen = usuario.rol === 'JUGADOR' ? 'APP' : (body.origen ?? 'APP');
+    const origen = logueado.rol === 'JUGADOR' ? 'APP' : (body.origen ?? 'APP');
     const r = {
       id: db.nextId.reserva++, usuarioId: usuario.id, usuarioEmail: usuario.email, canchaId: cancha.id, canchaNombre: cancha.nombre,
       franjaId: franja.id, fecha: body.fecha, horaInicio: franja.horaInicio + ':00', horaFin: franja.horaFin + ':00',
@@ -449,6 +462,38 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     };
     db.reservas.push(r); persist();
     return ok(r, 201);
+  }
+  // ---- COBROS DEL MOSTRADOR (espeja PagoServiceImpl.registrarCobroMostrador) ----
+  if (segs[0] === 'reservas' && segs[2] === 'confirmar' && req.method === 'PUT') {
+    const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
+    const r = db.reservas.find((x: any) => x.id === +segs[1]);
+    if (!r) return err(404, 'Reserva no encontrada con ID: ' + segs[1]);
+    if (r.estadoReserva === 'CONFIRMADA') return ok(r);
+    if (r.estadoReserva !== 'PENDIENTE_PAGO') return err(422, `No se puede confirmar una reserva en estado ${r.estadoReserva}`);
+    r.estadoReserva = 'CONFIRMADA'; r.updatedAt = nowIso(); persist();
+    return ok(r);
+  }
+  if (segs[0] === 'reservas' && segs[2] === 'cobro-mostrador' && req.method === 'POST') {
+    const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
+    const metodo = (req.body as any)?.metodo;
+    if (metodo !== 'EFECTIVO' && metodo !== 'TARJETA') return err(400, 'En el mostrador el turno se cobra en efectivo o con tarjeta');
+    const r = db.reservas.find((x: any) => x.id === +segs[1]);
+    if (!r) return err(404, 'Reserva no encontrada con ID: ' + segs[1]);
+    if (!['PENDIENTE_PAGO', 'CONFIRMADA', 'COMPLETADA'].includes(r.estadoReserva)) return err(422, `No se puede cobrar una reserva en estado ${r.estadoReserva}`);
+    if (turnoCobrado(r.id)) return err(409, 'El turno ya tiene un cobro registrado');
+    const pago = registrarPago({
+      reservaId: r.id, bonoId: null, concepto: 'TURNO', usuarioId: r.usuarioId, usuarioEmail: r.usuarioEmail,
+      monto: r.precioTotal, metodo, estado: 'APROBADO', atendidoPor: nombreDe(usuarioPorEmail(auth!.email))
+    });
+    if (r.estadoReserva === 'PENDIENTE_PAGO') { r.estadoReserva = 'CONFIRMADA'; r.updatedAt = nowIso(); }
+    persist();
+    return ok(pago, 201);
+  }
+  // ---- USUARIOS (listado por rol para el alta de turno) ----
+  if (path === '/usuarios' && req.method === 'GET') {
+    const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
+    const rol = req.params.get('rol');
+    return ok(db.usuarios.filter((u: any) => !rol || u.rol === rol).map(({ password, ...u }: any) => u));
   }
   if (segs[0] === 'reservas' && segs[2] === 'cancelar' && req.method === 'PUT') {
     const r = db.reservas.find((x: any) => x.id === +segs[1]);
@@ -465,8 +510,14 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     const bono = db.bonos.find((b: any) => b.usuarioEmail === auth?.email && b.estado === 'ACTIVO');
     if (!bono || (bono.horasTotales - bono.horasUsadas) < 2) return err(400, 'No tenés saldo de bono suficiente');
     bono.horasUsadas += 2;
-    r.estadoReserva = 'CONFIRMADA'; persist();
-    return ok({ id: 1, reservaId: r.id, usuarioId: r.usuarioId, usuarioEmail: r.usuarioEmail, monto: r.precioTotal, metodo: 'BONO', estado: 'APROBADO', mpPreferenceId: null, mpPaymentId: null, createdAt: nowIso(), updatedAt: nowIso() });
+    r.estadoReserva = 'CONFIRMADA';
+    // Pago del turno con horas de bono: en la caja figura aparte, no es ingreso.
+    const pago = registrarPago({
+      reservaId: r.id, bonoId: null, concepto: 'TURNO', usuarioId: r.usuarioId, usuarioEmail: r.usuarioEmail,
+      monto: r.precioTotal, metodo: 'BONO', estado: 'APROBADO', atendidoPor: null
+    });
+    persist();
+    return ok(pago);
   }
   if (segs[0] === 'reservas' && segs.length === 2 && req.method === 'GET') {
     const r = db.reservas.find((x: any) => x.id === +segs[1]);
@@ -479,11 +530,22 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     return ok(db.bonos.filter((b: any) => b.usuarioEmail === auth.email));
   }
   if (path === '/bonos' && req.method === 'POST') {
-    const denied = requireRol(auth, ['ADMIN']); if (denied) return denied;
+    const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
     const body = req.body as any;
+    // Espeja BonoServiceImpl: la venta con cargo entra a la caja y necesita el medio de pago.
+    const conCargo = Number(body.precioPagado) > 0;
+    if (conCargo && body.metodo !== 'EFECTIVO' && body.metodo !== 'TARJETA') return err(400, 'Indicá cómo se cobró el bono: en efectivo o con tarjeta');
     const usuario = db.usuarios.find((u: any) => u.email === body.usuarioEmail);
-    const b = { id: db.nextId.bono++, usuarioId: usuario?.id ?? 0, usuarioEmail: body.usuarioEmail, tipo: body.tipo, horasTotales: body.horasTotales, horasUsadas: 0, precioPagado: body.precioPagado, fechaVencimiento: body.fechaVencimiento, estado: 'ACTIVO', createdAt: nowIso(), updatedAt: null };
-    db.bonos.push(b); persist();
+    if (!usuario) return err(404, 'Usuario no encontrado con email: ' + body.usuarioEmail);
+    const b = { id: db.nextId.bono++, usuarioId: usuario.id, usuarioEmail: body.usuarioEmail, tipo: body.tipo, horasTotales: body.horasTotales, horasUsadas: 0, precioPagado: body.precioPagado, fechaVencimiento: body.fechaVencimiento, estado: 'ACTIVO', createdAt: nowIso(), updatedAt: null };
+    db.bonos.push(b);
+    if (conCargo) {
+      registrarPago({
+        reservaId: null, bonoId: b.id, concepto: 'BONO', usuarioId: usuario.id, usuarioEmail: usuario.email,
+        monto: Number(body.precioPagado), metodo: body.metodo, estado: 'APROBADO', atendidoPor: nombreDe(usuarioPorEmail(auth!.email))
+      });
+    }
+    persist();
     return ok(b, 201);
   }
   if (segs[0] === 'bonos' && segs.length === 2 && req.method === 'GET') {
@@ -547,17 +609,76 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
     const metodo = (req.body as any).metodo;
     const cobroPresencialInmediato = metodo === 'EFECTIVO' || metodo === 'TARJETA';
-    if (cobroPresencialInmediato) {
-      db.consumos.filter((c: any) => c.reservaId === +segs[1] && c.estadoPago === 'PENDIENTE').forEach((c: any) => c.estadoPago = 'PAGADO');
+    const reserva = db.reservas.find((x: any) => x.id === +segs[1]);
+    const pendientes = db.consumos.filter((c: any) => c.reservaId === +segs[1] && c.estadoPago === 'PENDIENTE');
+    if (pendientes.length > 0 && reserva) {
+      // Espeja ConsumoServiceImpl.cerrarCuenta: un pago de concepto CONSUMOS (aprobado en el acto salvo Point).
+      const pago = registrarPago({
+        reservaId: reserva.id, bonoId: null, concepto: 'CONSUMOS', usuarioId: reserva.usuarioId, usuarioEmail: reserva.usuarioEmail,
+        monto: pendientes.reduce((s: number, c: any) => s + c.subtotal, 0), metodo,
+        estado: cobroPresencialInmediato ? 'APROBADO' : 'PENDIENTE', atendidoPor: nombreDe(usuarioPorEmail(auth!.email))
+      });
+      pendientes.forEach((c: any) => { c.pagoId = pago.id; if (cobroPresencialInmediato) c.estadoPago = 'PAGADO'; });
       persist();
     }
     return ok(null);
   }
 
-  // ---- REPORTES ----
+  // ---- CAJA DIARIA (espeja ReporteServiceImpl) ----
+  function nombreDe(u: any): string { return u ? `${u.nombre} ${u.apellido}` : ''; }
+  function registrarPago(datos: any) {
+    const pago = { id: db.nextId.pago++, mpPreferenceId: null, mpPaymentId: null, createdAt: ahoraLocal(), updatedAt: null, ...datos };
+    db.pagos.push(pago);
+    return pago;
+  }
+  function turnoCobrado(reservaId: number): boolean {
+    return db.pagos.some((p: any) => p.reservaId === reservaId && p.estado === 'APROBADO' && p.concepto === 'TURNO');
+  }
+  function textoTurno(r: any): string {
+    return r ? `${r.canchaNombre} ${r.fecha.substring(8, 10)}/${r.fecha.substring(5, 7)} ${r.horaInicio.substring(0, 5)}` : '';
+  }
+  function detallePago(p: any): string {
+    const reserva = db.reservas.find((r: any) => r.id === p.reservaId);
+    if (p.concepto === 'BONO') {
+      const bono = db.bonos.find((b: any) => b.id === p.bonoId);
+      return bono ? `Bono ${bono.tipo} · ${bono.horasTotales} hs` : 'Venta de bono';
+    }
+    if (p.concepto === 'CONSUMOS') return `Consumos · ${textoTurno(reserva)}`;
+    return (p.metodo === 'BONO' ? 'Turno con horas de bono · ' : 'Turno · ') + textoTurno(reserva);
+  }
   if (path === '/reportes/caja-diaria' && req.method === 'GET') {
     const denied = requireRol(auth, ['ADMIN', 'RECEPCIONISTA']); if (denied) return denied;
-    return ok({ detalles: [{ metodo: 'EFECTIVO', total: 5000 }, { metodo: 'MERCADOPAGO', total: 3200 }] });
+    const fecha = req.params.get('fecha') ?? '';
+    const suma = (lista: any[]) => lista.reduce((s: number, p: any) => s + Number(p.monto), 0);
+    const pagos = db.pagos
+      .filter((p: any) => p.estado === 'APROBADO' && String(p.createdAt).substring(0, 10) === fecha)
+      .sort((a: any, b: any) => String(a.createdAt).localeCompare(String(b.createdAt)) || a.id - b.id);
+    const detalles = ['EFECTIVO', 'TARJETA', 'MERCADOPAGO_POINT', 'MERCADOPAGO', 'BONO']
+      .map(metodo => {
+        const delMetodo = pagos.filter((p: any) => p.metodo === metodo);
+        return { metodo, total: suma(delMetodo), cantidad: delMetodo.length, ingreso: metodo !== 'BONO' };
+      })
+      .filter(d => d.cantidad > 0);
+    const movimientos = pagos.map((p: any) => ({
+      pagoId: p.id, fechaHora: p.createdAt, concepto: p.concepto, detalle: detallePago(p),
+      cliente: nombreDe(db.usuarios.find((u: any) => u.id === p.usuarioId)) || p.usuarioEmail,
+      metodo: p.metodo, monto: p.monto, atendidoPor: p.atendidoPor ?? null, ingreso: p.metodo !== 'BONO'
+    }));
+    const pendientesDeCobro = db.reservas
+      .filter((r: any) => r.fecha === fecha && (r.estadoReserva === 'CONFIRMADA' || r.estadoReserva === 'COMPLETADA')
+        && r.precioTotal > 0 && !turnoCobrado(r.id))
+      .sort((a: any, b: any) => a.horaInicio.localeCompare(b.horaInicio) || a.canchaNombre.localeCompare(b.canchaNombre) || a.id - b.id)
+      .map((r: any) => ({
+        reservaId: r.id, canchaNombre: r.canchaNombre, horaInicio: r.horaInicio, horaFin: r.horaFin,
+        cliente: nombreDe(db.usuarios.find((u: any) => u.id === r.usuarioId)) || r.usuarioEmail,
+        monto: r.precioTotal, estadoReserva: r.estadoReserva
+      }));
+    return ok({
+      fecha,
+      totalIngresos: suma(pagos.filter((p: any) => p.metodo !== 'BONO')),
+      totalEfectivo: suma(pagos.filter((p: any) => p.metodo === 'EFECTIVO')),
+      detalles, movimientos, pendientesDeCobro
+    });
   }
 
   // ---- PAGOS ----

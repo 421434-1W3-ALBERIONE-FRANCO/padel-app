@@ -27,7 +27,9 @@ public class ReporteController {
 
     @GetMapping("/caja-diaria")
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
-    @Operation(summary = "Obtener el reporte de caja diaria", description = "Retorna el total recaudado por método de pago para una fecha dada. Accesible por administradores y recepcionistas.")
+    @Operation(summary = "Obtener el reporte de caja diaria", description = "Para una fecha dada retorna lo cobrado (pagos aprobados) por método y movimiento, " +
+            "el total de ingresos y el efectivo para el arqueo, y los turnos del día confirmados sin cobro registrado. Los turnos pagados " +
+            "con horas de bono se informan aparte: no son ingreso (el dinero entró al vender el bono). Accesible por administradores y recepcionistas.")
     public ResponseEntity<CajaDiariaResponse> obtenerCajaDiaria(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         CajaDiariaResponse response = reporteService.obtenerCajaDiaria(fecha);

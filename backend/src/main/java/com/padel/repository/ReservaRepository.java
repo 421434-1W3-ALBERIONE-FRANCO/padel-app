@@ -42,4 +42,12 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     List<Reserva> findConfirmadasFinalizadas(@Param("hoy") LocalDate hoy, @Param("hora") LocalTime hora);
 
     List<Reserva> findByFechaAndEstadoReservaAndRecordatorioEnviadoFalse(LocalDate fecha, EstadoReserva estadoReserva);
+
+    // Turnos del día confirmados (o ya jugados) sin un pago aprobado del turno: los que recepción confirmó para
+    // cobrar al llegar. La caja diaria los lista como pendientes de cobro. El pago de los consumos no cuenta.
+    @Query("SELECT r FROM Reserva r JOIN FETCH r.usuario JOIN FETCH r.cancha c " +
+           "WHERE r.fecha = :fecha AND r.estadoReserva IN ('CONFIRMADA', 'COMPLETADA') AND r.precioTotal > 0 " +
+           "AND NOT EXISTS (SELECT p.id FROM Pago p WHERE p.reserva = r AND p.estado = 'APROBADO' AND p.concepto = 'TURNO') " +
+           "ORDER BY r.horaInicio, c.nombre, r.id")
+    List<Reserva> findSinCobroDelDia(@Param("fecha") LocalDate fecha);
 }

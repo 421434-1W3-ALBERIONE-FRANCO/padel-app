@@ -3,6 +3,7 @@ package com.padel.service.impl;
 import com.mercadopago.client.point.PointClient;
 import com.mercadopago.client.point.PointPaymentIntentRequest;
 import com.padel.domain.entity.*;
+import com.padel.domain.enums.ConceptoPago;
 import com.padel.domain.enums.EstadoConsumoPago;
 import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.EstadoReserva;
@@ -146,6 +147,7 @@ public class ConsumoServiceImpl implements ConsumoService {
                 .monto(total)
                 .metodo(request.metodo())
                 .estado(estadoPago)
+                .concepto(ConceptoPago.CONSUMOS)
                 .atendidoPor(staff)
                 .build();
 

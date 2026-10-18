@@ -106,4 +106,11 @@
       </div>
     </section>
   </div>
+
+  <app-cobro-mostrador *ngIf="mostrarCobro() && slotSel() as slot"
+                       titulo="Cobrar el turno nuevo"
+                       [cliente]="(clienteSeleccionado()?.nombre ?? '') + ' ' + (clienteSeleccionado()?.apellido ?? '')"
+                       [detalle]="(canchaSel()?.nombre ?? '') + ' · ' + fecha() + ' ' + slot.horaInicio.substring(0, 5)"
+                       [monto]="precioSel()" [procesando]="creando()" [permitirSinCobro]="true"
+                       (cobrar)="crearTurno($event)" (sinCobro)="crearTurno(null)" (cerrar)="mostrarCobro.set(false)"></app-cobro-mostrador>
 </div>

@@ -117,7 +117,23 @@
               class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-teal-500 transition text-xs" />
           </div>
 
-          <!-- Alert error -->
+          <!-- Medio de pago: la venta entra a la caja del día -->
+          <div *ngIf="precioPagado > 0">
+            <span class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">Cobrado con</span>
+            <div class="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Medio de pago del bono">
+              <button *ngFor="let m of metodosCobro" type="button" role="radio" [attr.aria-checked]="metodoCobro === m.valor"
+                      (click)="metodoCobro = m.valor"
+                      class="rounded-xl border px-3 py-2.5 text-xs font-bold transition"
+                      [ngClass]="metodoCobro === m.valor
+                        ? 'border-teal-500/60 bg-teal-500/10 text-teal-300'
+                        : 'border-slate-800 bg-slate-950 text-slate-300 hover:border-slate-600'">
+                {{ m.etiqueta }}
+              </button>
+            </div>
+            <p class="text-[10px] text-slate-500 mt-1.5">Queda registrado en la caja del día.</p>
+          </div>
+
+          <!-- Alert error -->
 
           <!-- Alert success -->
           <div *ngIf="exito()" class="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-3 rounded-xl">

@@ -165,6 +165,12 @@
           class="w-full sm:w-auto btn-secondary py-3.5 px-6">
           Cargar Consumos / Tienda
         </a>
+        <a
+          *ngIf="currentUser()?.rol === 'RECEPCIONISTA'"
+          routerLink="/recepcion/caja"
+          class="w-full sm:w-auto btn-secondary py-3.5 px-6">
+          Caja del Día
+        </a>
       </div>
 
     </ui-card>

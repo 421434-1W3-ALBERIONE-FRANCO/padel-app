@@ -1,5 +1,6 @@
 package com.padel.domain.entity;
 
+import com.padel.domain.enums.ConceptoPago;
 import com.padel.domain.enums.EstadoPago;
 import com.padel.domain.enums.MetodoPago;
 import jakarta.persistence.*;
@@ -20,9 +21,20 @@ public class Pago extends BaseEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    // Null solo en la venta de un bono: ese pago apunta al bono vendido.
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "reserva_id", nullable = false)
+    @JoinColumn(name = "reserva_id")
     private Reserva reserva;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bono_id")
+    private Bono bono;
+
+    // Separa el pago del turno del de los consumos (los dos apuntan a la misma reserva) y de la venta de bonos.
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private ConceptoPago concepto = ConceptoPago.TURNO;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", nullable = false)
