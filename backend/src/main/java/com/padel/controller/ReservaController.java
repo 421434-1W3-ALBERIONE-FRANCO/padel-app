@@ -10,12 +10,14 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -86,14 +88,19 @@ public class ReservaController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
-    @Operation(summary = "Obtener todas las reservas (Admin/Recepción)", description = "Retorna la lista completa de todas las reservas registradas en el sistema. Sólo accesible por administradores y recepcionistas.")
+    @Operation(summary = "Obtener todas las reservas (Admin/Recepción)", description = "Sin parámetros retorna la lista completa de todas las reservas registradas en el sistema. " +
+            "Con `fecha` (yyyy-MM-dd) retorna sólo las de ese día, en todos sus estados, ordenadas por hora de inicio y cancha. Sólo accesible por administradores y recepcionistas.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "200", description = "Lista de reservas obtenida exitosamente"),
+        @ApiResponse(responseCode = "400", description = "Fecha con formato inválido"),
         @ApiResponse(responseCode = "401", description = "No autorizado"),
         @ApiResponse(responseCode = "403", description = "Permisos insuficientes")
     })
-    public ResponseEntity<List<ReservaResponse>> obtenerTodas() {
-        List<ReservaResponse> response = reservaService.obtenerTodas();
+    public ResponseEntity<List<ReservaResponse>> obtenerTodas(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        List<ReservaResponse> response = fecha != null
+                ? reservaService.obtenerPorFecha(fecha)
+                : reservaService.obtenerTodas();
         return ResponseEntity.ok(response);
     }
 
