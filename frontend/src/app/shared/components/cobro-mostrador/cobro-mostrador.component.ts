@@ -16,51 +16,60 @@ interface OpcionMetodo {
  */
 @Component({
   selector: 'app-cobro-mostrador',
-  standalone: true,
   imports: [CommonModule],
   template: `
     <div class="fixed inset-0 z-[90] flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-4" (click)="cerrarSiSePuede()">
       <div role="dialog" aria-modal="true" aria-labelledby="titulo-cobro" (click)="$event.stopPropagation()"
-           class="w-full max-w-md rounded-3xl border border-white/10 bg-dark-950 p-6 shadow-2xl">
+        class="w-full max-w-md rounded-3xl border border-white/10 bg-dark-950 p-6 shadow-2xl">
         <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Cobro en el mostrador</p>
         <h3 id="titulo-cobro" class="font-display text-xl font-bold text-white">{{ titulo() }}</h3>
-        <p *ngIf="cliente()" class="mt-1 text-sm text-slate-300 truncate">{{ cliente() }}</p>
-        <p *ngIf="detalle()" class="text-xs text-slate-500">{{ detalle() }}</p>
-
+        @if (cliente()) {
+          <p class="mt-1 text-sm text-slate-300 truncate">{{ cliente() }}</p>
+        }
+        @if (detalle()) {
+          <p class="text-xs text-slate-500">{{ detalle() }}</p>
+        }
+    
         <div class="mt-5 flex items-baseline justify-between rounded-2xl border border-white/5 bg-surface-1/60 px-4 py-3">
           <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Total</span>
           <span class="font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(monto()) }}</span>
         </div>
-
+    
         <div class="mt-4 grid grid-cols-2 gap-2" role="radiogroup" aria-label="Medio de pago">
-          <button *ngFor="let m of metodos" type="button" role="radio" [attr.aria-checked]="metodo() === m.valor"
-                  (click)="metodo.set(m.valor)" [disabled]="procesando()"
-                  class="rounded-2xl border px-4 py-3 text-left transition disabled:opacity-60"
+          @for (m of metodos; track m) {
+            <button type="button" role="radio" [attr.aria-checked]="metodo() === m.valor"
+              (click)="metodo.set(m.valor)" [disabled]="procesando()"
+              class="rounded-2xl border px-4 py-3 text-left transition disabled:opacity-60"
                   [ngClass]="metodo() === m.valor
                     ? 'border-primary-500/60 bg-primary-500/10'
                     : 'border-white/10 bg-surface-1/40 hover:border-white/20'">
-            <svg class="w-5 h-5 mb-1.5" [ngClass]="metodo() === m.valor ? 'text-primary-300' : 'text-slate-400'"
-                 fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="m.icono" />
-            </svg>
-            <span class="block text-sm font-bold text-white">{{ m.etiqueta }}</span>
-            <span class="block text-[11px] text-slate-500">{{ m.detalle }}</span>
-          </button>
+              <svg class="w-5 h-5 mb-1.5" [ngClass]="metodo() === m.valor ? 'text-primary-300' : 'text-slate-400'"
+                fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="m.icono" />
+              </svg>
+              <span class="block text-sm font-bold text-white">{{ m.etiqueta }}</span>
+              <span class="block text-[11px] text-slate-500">{{ m.detalle }}</span>
+            </button>
+          }
         </div>
-
+    
         <div class="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
           <button type="button" (click)="cerrarSiSePuede()" [disabled]="procesando()" class="btn-secondary py-2.5 px-5 text-sm disabled:opacity-50">Cancelar</button>
-          <button *ngIf="permitirSinCobro()" type="button" (click)="sinCobro.emit()" [disabled]="procesando()"
-                  class="py-2.5 px-4 rounded-xl border border-white/10 text-sm font-semibold text-slate-300 hover:bg-white/5 transition disabled:opacity-50">
-            Paga al llegar
-          </button>
+          @if (permitirSinCobro()) {
+            <button type="button" (click)="sinCobro.emit()" [disabled]="procesando()"
+              class="py-2.5 px-4 rounded-xl border border-white/10 text-sm font-semibold text-slate-300 hover:bg-white/5 transition disabled:opacity-50">
+              Paga al llegar
+            </button>
+          }
           <button type="button" (click)="cobrar.emit(metodo())" [disabled]="procesando()" class="btn-primary py-2.5 px-5 text-sm disabled:opacity-50">
             {{ procesando() ? 'Registrando...' : 'Registrar cobro' }}
           </button>
         </div>
-        <p *ngIf="permitirSinCobro()" class="mt-3 text-[11px] text-slate-500">
-          "Paga al llegar" confirma el turno sin cobrarlo: queda pendiente en la caja del día hasta que se cobre.
-        </p>
+        @if (permitirSinCobro()) {
+          <p class="mt-3 text-[11px] text-slate-500">
+            "Paga al llegar" confirma el turno sin cobrarlo: queda pendiente en la caja del día hasta que se cobre.
+          </p>
+        }
       </div>
     </div>
   `

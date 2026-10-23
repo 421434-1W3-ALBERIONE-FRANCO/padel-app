@@ -1,0 +1,31 @@
+-- Auditoría: quién creó y quién modificó por última vez cada registro ("usuario:{id}" o "sistema").
+-- Antes no quedaba rastro de quién cambió precios, configuración, bonos o cobros.
+ALTER TABLE banco_horas ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE bloqueos_canchas ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE bonos ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE canchas ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE comisiones ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE configuracion_sistema ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE consumos ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE franjas_horarias ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE inscripciones_torneo ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE liquidaciones_sueldo ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE match_parejas ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE match_swipes ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE mensajes_salientes ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE movimientos_banco_horas ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE notificaciones ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE pagos ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE partidos_torneo ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE perfiles_jugador ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE postulaciones_solicitud ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE productos ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE ranking_jugadores ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE reservas ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE sesiones_trabajo ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE solicitudes_partido ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE tokens_recuperacion_password ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE torneos ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE turnos_empleado ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE uso_bono ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);
+ALTER TABLE usuarios ADD COLUMN created_by VARCHAR(50), ADD COLUMN updated_by VARCHAR(50);

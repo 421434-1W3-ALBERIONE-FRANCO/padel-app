@@ -7,7 +7,7 @@ import { ReservaService } from '../../../core/services/reserva.service';
 import { AuthService } from '../../../core/services/auth.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { CajaDiariaResponse, MovimientoCaja, PendienteCobro } from '../../../shared/models/caja.model';
-import { ConceptoPago, MetodoMostrador, MetodoPago } from '../../../shared/models/pago.model';
+import { ConceptoPago, MetodoMostrador, MetodoPago, PagoResponse } from '../../../shared/models/pago.model';
 import { CobroMostradorComponent } from '../../../shared/components/cobro-mostrador/cobro-mostrador.component';
 import { formatearPesos } from '../../../shared/utils/moneda.util';
 import { todayIsoDate } from '../../../shared/utils/date.util';
@@ -23,12 +23,12 @@ const ETIQUETA_METODO: Record<MetodoPago, string> = {
 const ETIQUETA_CONCEPTO: Record<ConceptoPago, string> = {
   TURNO: 'Turno',
   CONSUMOS: 'Consumos',
-  BONO: 'Venta de bono'
+  BONO: 'Venta de bono',
+  REINTEGRO: 'Reintegro'
 };
 
 @Component({
   selector: 'app-caja-diaria',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, CobroMostradorComponent],
   templateUrl: './caja-diaria.component.html'
 })
@@ -64,6 +64,10 @@ export class CajaDiariaComponent implements OnInit {
   pendienteACobrar = signal<PendienteCobro | null>(null);
   cobrando = signal<boolean>(false);
 
+  // Devoluciones por entregar (turnos que canceló el club o el jugador a tiempo). No dependen del día elegido.
+  reintegros = signal<PagoResponse[]>([]);
+  entregandoId = signal<number | null>(null);
+
   constructor() {
     // Con la caja de hoy abierta, se refresca sola: los cobros del mostrador y los pagos online van entrando.
     const reloj = setInterval(() => {
@@ -74,6 +78,32 @@ export class CajaDiariaComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargar();
+  }
+
+  cargarReintegros(): void {
+    this.cajaService.reintegrosPendientes().subscribe({
+      next: (data) => this.reintegros.set(data),
+      error: () => this.reintegros.set([])
+    });
+  }
+
+  entregarReintegro(reintegro: PagoResponse): void {
+    const monto = formatearPesos(Math.abs(reintegro.monto));
+    if (!confirm(`¿Confirmás que le devolviste ${monto} a ${reintegro.usuarioEmail}? Queda en la caja de hoy.`)) return;
+    this.entregandoId.set(reintegro.id);
+    this.cajaService.registrarEntregaReintegro(reintegro.id).subscribe({
+      next: () => {
+        this.entregandoId.set(null);
+        this.toast.success(`Reintegro de ${monto} registrado en la caja.`);
+        this.cargarReintegros();
+        if (this.esHoy()) this.cargar(true);
+      },
+      error: (err) => {
+        this.entregandoId.set(null);
+        this.toast.error(err.error?.message || 'No se pudo registrar el reintegro.');
+        this.cargarReintegros();
+      }
+    });
   }
 
   cambiarFecha(fecha: string): void {
@@ -90,6 +120,7 @@ export class CajaDiariaComponent implements OnInit {
   cargar(silencioso = false): void {
     const fecha = this.fecha();
     if (!silencioso) this.cargando.set(true);
+    this.cargarReintegros();
     this.cajaService.obtenerCajaDiaria(fecha).subscribe({
       next: (caja) => {
         // Si mientras tanto se eligió otra fecha, esta respuesta quedó vieja.
@@ -138,6 +169,7 @@ export class CajaDiariaComponent implements OnInit {
     switch (concepto) {
       case 'CONSUMOS': return 'bg-turquoise-500/10 text-turquoise-300 border-turquoise-500/20';
       case 'BONO': return 'bg-accent-500/10 text-accent-300 border-accent-500/20';
+      case 'REINTEGRO': return 'bg-red-500/10 text-red-300 border-red-500/20';
       default: return 'bg-primary-500/10 text-primary-300 border-primary-500/20';
     }
   }

@@ -4,6 +4,10 @@ import com.padel.domain.enums.TipoSuelo;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeSet;
+
 @Entity
 @Table(name = "canchas")
 @Getter
@@ -39,4 +43,20 @@ public class Cancha extends BaseEntity {
     @Builder.Default
     @Column(name = "duraciones_permitidas", length = 100)
     private String duracionesPermitidas = "90";
+
+    /** Duraciones permitidas como conjunto ordenado ("60,90,120" -> {60, 90, 120}); 90 si no hay ninguna. */
+    public Set<Integer> duracionesPermitidasSet() {
+        Set<Integer> duraciones = new TreeSet<>();
+        if (duracionesPermitidas != null) {
+            Arrays.stream(duracionesPermitidas.split(","))
+                    .map(String::trim)
+                    .filter(d -> !d.isEmpty())
+                    .map(Integer::valueOf)
+                    .forEach(duraciones::add);
+        }
+        if (duraciones.isEmpty()) {
+            duraciones.add(90);
+        }
+        return duraciones;
+    }
 }

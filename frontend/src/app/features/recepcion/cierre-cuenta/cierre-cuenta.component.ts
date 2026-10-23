@@ -11,7 +11,6 @@ import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-cierre-cuenta',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './cierre-cuenta.component.html',
   styleUrls: ['./cierre-cuenta.component.css']
@@ -21,15 +20,15 @@ export class CierreCuentaComponent implements OnInit {
   private toast = inject(ToastService);
   private router = inject(Router);
   private reservaService = inject(ReservaService);
-  private consumoService = inject(ConsumoService);
+  private consumoService = inject(ConsumoService);
   reservaId = signal<number>(0);
   reserva = signal<ReservaResponse | null>(null);
-  consumos = signal<ConsumoResponse[]>([]);
+  consumos = signal<ConsumoResponse[]>([]);
   // UI state
   cargando = signal<boolean>(false);
-  cargandoOperacion = signal<boolean>(false);
+  cargandoOperacion = signal<boolean>(false);
   // Form selections
-  metodoSeleccionado = signal<MetodoPago>('EFECTIVO');
+  metodoSeleccionado = signal<MetodoPago>('EFECTIVO');
   ngOnInit() {
     const idParam = this.route.snapshot.paramMap.get('reservaId');
     if (idParam) {
@@ -38,10 +37,10 @@ export class CierreCuentaComponent implements OnInit {
     } else {
       this.toast.error('ID de reserva inválido.');
     }
-  }
+  }
   cargarDatos() {
     const id = this.reservaId();
-    this.cargando.set(true);
+    this.cargando.set(true);
     this.reservaService.getReserva(id).subscribe({
       next: (res) => {
         this.reserva.set(res);
@@ -52,7 +51,7 @@ export class CierreCuentaComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
+  }
   cargarConsumos(reservaId: number) {
     this.consumoService.obtenerConsumos(reservaId).subscribe({
       next: (data) => {
@@ -64,24 +63,24 @@ export class CierreCuentaComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
+  }
   obtenerPendientes(): ConsumoResponse[] {
     return this.consumos().filter(c => c.estadoPago === 'PENDIENTE');
-  }
+  }
   obtenerPagados(): ConsumoResponse[] {
     return this.consumos().filter(c => c.estadoPago === 'PAGADO');
-  }
+  }
   calcularTotalPendiente(): number {
     return this.obtenerPendientes().reduce((sum, item) => sum + item.subtotal, 0);
-  }
+  }
   cerrarCuenta() {
     const total = this.calcularTotalPendiente();
     if (total === 0) {
       this.toast.error('No hay consumos pendientes para cobrar.');
       return;
-    }
+    }
     const metodo = this.metodoSeleccionado();
-    this.cargandoOperacion.set(true);
+    this.cargandoOperacion.set(true);
     this.consumoService.cerrarCuenta(this.reservaId(), { metodo }).subscribe({
       next: () => {
         this.cargandoOperacion.set(false);

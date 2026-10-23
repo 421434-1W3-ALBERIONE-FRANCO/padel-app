@@ -1,124 +1,159 @@
-<div *ngIf="rondas().length === 0" class="bg-surface-1/40 border border-white/5 rounded-3xl p-8 text-center text-sm text-slate-500">
-  El cuadro aparece cuando haya al menos dos parejas inscriptas.
-</div>
+@if (rondas().length === 0) {
+  <div class="bg-surface-1/40 border border-white/5 rounded-3xl p-8 text-center text-sm text-slate-500">
+    El cuadro aparece cuando haya al menos dos parejas inscriptas.
+  </div>
+}
 
-<div *ngIf="rondas().length > 0">
-  <p *ngIf="rondas().length > 1" class="sm:hidden text-[11px] text-slate-500 mb-2">Deslizá para ver todas las rondas →</p>
-
-  <div class="overflow-x-auto overscroll-x-contain pb-3" role="region" aria-label="Cuadro del torneo" tabindex="0">
-    <div class="relative" [style.width.px]="vista().ancho">
-
-      <!-- Encabezados de ronda -->
-      <div class="relative h-12">
-        <div *ngFor="let ronda of rondas(); let r = index; trackBy: porNumero"
-             class="absolute top-0 flex flex-col gap-0.5" [style.left.px]="xRonda(r)" [style.width.px]="ancho">
-          <span class="font-display text-sm font-bold uppercase tracking-wider text-white truncate">{{ ronda.nombre }}</span>
-          <span [ngSwitch]="estadoRonda(ronda)" class="text-[10px] font-bold uppercase tracking-[0.14em]">
-            <span *ngSwitchCase="'jugada'" class="text-slate-400">Jugada</span>
-            <span *ngSwitchCase="'en-juego'" class="inline-flex items-center gap-1.5 text-turquoise-300">
-              <span class="w-1.5 h-1.5 rounded-full bg-turquoise-400 animate-pulse"></span> En juego
-            </span>
-            <span *ngSwitchDefault class="text-slate-500">A definir</span>
-          </span>
+@if (rondas().length > 0) {
+  <div>
+    @if (rondas().length > 1) {
+      <p class="sm:hidden text-[11px] text-slate-500 mb-2">Deslizá para ver todas las rondas →</p>
+    }
+    <div class="overflow-x-auto overscroll-x-contain pb-3" role="region" aria-label="Cuadro del torneo" tabindex="0">
+      <div class="relative" [style.width.px]="vista().ancho">
+        <!-- Encabezados de ronda -->
+        <div class="relative h-12">
+          @for (ronda of rondas(); track porNumero(r, ronda); let r = $index) {
+            <div
+              class="absolute top-0 flex flex-col gap-0.5" [style.left.px]="xRonda(r)" [style.width.px]="ancho">
+              <span class="font-display text-sm font-bold uppercase tracking-wider text-white truncate">{{ ronda.nombre }}</span>
+              <span class="text-[10px] font-bold uppercase tracking-[0.14em]">
+                @switch (estadoRonda(ronda)) {
+                  @case ('jugada') {
+                    <span class="text-slate-400">Jugada</span>
+                  }
+                  @case ('en-juego') {
+                    <span class="inline-flex items-center gap-1.5 text-turquoise-300">
+                      <span class="w-1.5 h-1.5 rounded-full bg-turquoise-400 animate-pulse"></span> En juego
+                    </span>
+                  }
+                  @default {
+                    <span class="text-slate-500">A definir</span>
+                  }
+                }
+              </span>
+            </div>
+          }
+          <div class="absolute top-0 flex flex-col gap-0.5" [style.left.px]="vista().xCampeon" [style.width.px]="anchoCampeon">
+            <span class="font-display text-sm font-bold uppercase tracking-wider text-amber-300">Campeón</span>
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ final() ? 'Definido' : 'A definir' }}</span>
+          </div>
         </div>
-        <div class="absolute top-0 flex flex-col gap-0.5" [style.left.px]="vista().xCampeon" [style.width.px]="anchoCampeon">
-          <span class="font-display text-sm font-bold uppercase tracking-wider text-amber-300">Campeón</span>
-          <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">{{ final() ? 'Definido' : 'A definir' }}</span>
-        </div>
-      </div>
-
-      <!-- Lienzo: líneas en SVG y casilleros en absoluto -->
-      <div class="relative" [style.height.px]="vista().alto">
-        <svg class="absolute inset-0 pointer-events-none overflow-visible" [attr.width]="vista().ancho" [attr.height]="vista().alto" aria-hidden="true">
-          <g *ngFor="let c of vista().conectores; trackBy: porConector">
-            <path *ngIf="c.tipo === 'mio'" [attr.d]="c.d" fill="none" stroke-width="8" stroke-linecap="round" class="stroke-accent-500/25" />
-            <path [attr.d]="c.d" fill="none" stroke-linecap="round"
+        <!-- Lienzo: líneas en SVG y casilleros en absoluto -->
+        <div class="relative" [style.height.px]="vista().alto">
+          <svg class="absolute inset-0 pointer-events-none overflow-visible" [attr.width]="vista().ancho" [attr.height]="vista().alto" aria-hidden="true">
+            @for (c of vista().conectores; track porConector($index, c)) {
+              <g>
+                @if (c.tipo === 'mio') {
+                  <path [attr.d]="c.d" fill="none" stroke-width="8" stroke-linecap="round" class="stroke-accent-500/25" />
+                }
+                <path [attr.d]="c.d" fill="none" stroke-linecap="round"
                   [attr.stroke-width]="c.tipo === 'mio' ? 2.5 : 2"
                   [attr.stroke-dasharray]="c.tipo === 'posible' ? '5 5' : null"
                   [ngClass]="claseConector(c.tipo)" />
-          </g>
-        </svg>
-
-        <div *ngFor="let v of vista().casilleros; trackBy: porCasillero"
-             class="absolute rounded-2xl border flex flex-col overflow-hidden"
-             [ngClass]="claseCasillero(v)"
-             [attr.data-cruce]="v.cruce.clave" [attr.data-mio]="v.mio ? 'true' : null"
-             [style.left.px]="v.x" [style.top.px]="v.y" [style.width.px]="ancho" [style.height.px]="alto">
-
-          <!-- Franja superior: estado y acción -->
-          <div class="flex items-center justify-between gap-2 px-3 h-6 shrink-0 border-b border-white/5 text-[9px] font-bold uppercase tracking-[0.14em]">
-            <ng-container *ngIf="v.cruce.partido as p; else estadoADefinir">
-              <span *ngIf="p.estado === 'FINALIZADO' && p.inscripcion2Id" class="text-slate-400">Jugado</span>
-              <span *ngIf="p.estado === 'FINALIZADO' && !p.inscripcion2Id" class="text-slate-400">Pase directo</span>
-              <span *ngIf="p.estado === 'PENDIENTE'" class="inline-flex items-center gap-1.5 text-amber-300">
-                <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Por jugar
-              </span>
-            </ng-container>
-            <ng-template #estadoADefinir><span class="text-slate-500">A definir</span></ng-template>
-
-            <button *ngIf="puedeCargar(v)" type="button" (click)="cargarResultado.emit(v.cruce.partido!)"
-                    [attr.aria-label]="'Cargar resultado: ' + v.cruce.partido!.inscripcion1Nombres + ' contra ' + v.cruce.partido!.inscripcion2Nombres"
-                    class="text-primary-400 hover:text-primary-300 transition">
-              Cargar resultado
-            </button>
-            <span *ngIf="!puedeCargar(v) && v.mio" class="text-accent-300">Vos</span>
-            <span *ngIf="!puedeCargar(v) && v.posible" class="text-accent-300">Tu camino</span>
-          </div>
-
-          <ng-container *ngIf="v.cruce.partido as p; else filasADefinir">
-            <div class="flex-1 flex items-center gap-2 px-3 min-w-0" [ngClass]="claseFila(p, p.inscripcion1Id)">
-              <span *ngIf="esMiPareja(p.inscripcion1Id)" class="w-1.5 h-1.5 shrink-0 rounded-full bg-accent-400"></span>
-              <span class="truncate text-xs" [title]="p.inscripcion1Nombres">{{ abreviar(p.inscripcion1Nombres) }}</span>
-              <span class="ml-auto font-display text-sm font-bold tabular-nums" [ngClass]="claseSets(p, p.inscripcion1Id)">{{ p.setsPareja1 ?? '' }}</span>
-            </div>
-            <div class="h-px bg-white/5 mx-3"></div>
-            <div *ngIf="p.inscripcion2Id; else paseDirecto" class="flex-1 flex items-center gap-2 px-3 min-w-0" [ngClass]="claseFila(p, p.inscripcion2Id)">
-              <span *ngIf="esMiPareja(p.inscripcion2Id)" class="w-1.5 h-1.5 shrink-0 rounded-full bg-accent-400"></span>
-              <span class="truncate text-xs" [title]="p.inscripcion2Nombres">{{ abreviar(p.inscripcion2Nombres) }}</span>
-              <span class="ml-auto font-display text-sm font-bold tabular-nums" [ngClass]="claseSets(p, p.inscripcion2Id)">{{ p.setsPareja2 ?? '' }}</span>
-            </div>
-            <ng-template #paseDirecto>
-              <div class="flex-1 flex items-center px-3 text-xs italic text-slate-500">Pase directo</div>
-            </ng-template>
-          </ng-container>
-          <ng-template #filasADefinir>
-            <div class="flex-1 flex items-center px-3 text-xs text-slate-500">A definir</div>
-            <div class="h-px bg-white/5 mx-3"></div>
-            <div class="flex-1 flex items-center px-3 text-xs text-slate-500">A definir</div>
-          </ng-template>
-        </div>
-
-        <!-- Campeón -->
-        <div class="absolute rounded-2xl border flex flex-col justify-center gap-1 px-4 overflow-hidden"
+                </g>
+              }
+            </svg>
+            @for (v of vista().casilleros; track porCasillero($index, v)) {
+              <div
+                class="absolute rounded-2xl border flex flex-col overflow-hidden"
+                [ngClass]="claseCasillero(v)"
+                [attr.data-cruce]="v.cruce.clave" [attr.data-mio]="v.mio ? 'true' : null"
+                [style.left.px]="v.x" [style.top.px]="v.y" [style.width.px]="ancho" [style.height.px]="alto">
+                <!-- Franja superior: estado y acción -->
+                <div class="flex items-center justify-between gap-2 px-3 h-6 shrink-0 border-b border-white/5 text-[9px] font-bold uppercase tracking-[0.14em]">
+                  @if (v.cruce.partido; as p) {
+                    @if (p.estado === 'FINALIZADO' && p.inscripcion2Id) {
+                      <span class="text-slate-400">Jugado</span>
+                    }
+                    @if (p.estado === 'FINALIZADO' && !p.inscripcion2Id) {
+                      <span class="text-slate-400">Pase directo</span>
+                    }
+                    @if (p.estado === 'PENDIENTE') {
+                      <span class="inline-flex items-center gap-1.5 text-amber-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Por jugar
+                      </span>
+                    }
+                  } @else {
+                    <span class="text-slate-500">A definir</span>
+                  }
+                  @if (puedeCargar(v)) {
+                    <button type="button" (click)="cargarResultado.emit(v.cruce.partido!)"
+                      [attr.aria-label]="'Cargar resultado: ' + v.cruce.partido!.inscripcion1Nombres + ' contra ' + v.cruce.partido!.inscripcion2Nombres"
+                      class="text-primary-400 hover:text-primary-300 transition">
+                      Cargar resultado
+                    </button>
+                  }
+                  @if (!puedeCargar(v) && v.mio) {
+                    <span class="text-accent-300">Vos</span>
+                  }
+                  @if (!puedeCargar(v) && v.posible) {
+                    <span class="text-accent-300">Tu camino</span>
+                  }
+                </div>
+                @if (v.cruce.partido; as p) {
+                  <div class="flex-1 flex items-center gap-2 px-3 min-w-0" [ngClass]="claseFila(p, p.inscripcion1Id)">
+                    @if (esMiPareja(p.inscripcion1Id)) {
+                      <span class="w-1.5 h-1.5 shrink-0 rounded-full bg-accent-400"></span>
+                    }
+                    <span class="truncate text-xs" [title]="p.inscripcion1Nombres">{{ abreviar(p.inscripcion1Nombres) }}</span>
+                    <span class="ml-auto font-display text-sm font-bold tabular-nums" [ngClass]="claseSets(p, p.inscripcion1Id)">{{ p.setsPareja1 ?? '' }}</span>
+                  </div>
+                  <div class="h-px bg-white/5 mx-3"></div>
+                  @if (p.inscripcion2Id) {
+                    <div class="flex-1 flex items-center gap-2 px-3 min-w-0" [ngClass]="claseFila(p, p.inscripcion2Id)">
+                      @if (esMiPareja(p.inscripcion2Id)) {
+                        <span class="w-1.5 h-1.5 shrink-0 rounded-full bg-accent-400"></span>
+                      }
+                      <span class="truncate text-xs" [title]="p.inscripcion2Nombres">{{ abreviar(p.inscripcion2Nombres) }}</span>
+                      <span class="ml-auto font-display text-sm font-bold tabular-nums" [ngClass]="claseSets(p, p.inscripcion2Id)">{{ p.setsPareja2 ?? '' }}</span>
+                    </div>
+                  } @else {
+                    <div class="flex-1 flex items-center px-3 text-xs italic text-slate-500">Pase directo</div>
+                  }
+                } @else {
+                  <div class="flex-1 flex items-center px-3 text-xs text-slate-500">A definir</div>
+                  <div class="h-px bg-white/5 mx-3"></div>
+                  <div class="flex-1 flex items-center px-3 text-xs text-slate-500">A definir</div>
+                }
+              </div>
+            }
+            <!-- Campeón -->
+            <div class="absolute rounded-2xl border flex flex-col justify-center gap-1 px-4 overflow-hidden"
              [ngClass]="final()
                ? (campeonEsMio() ? 'border-accent-400/70 bg-gradient-to-br from-amber-400/25 to-accent-500/10 shadow-[0_0_30px_rgba(251,191,36,0.3)]'
                                  : 'border-amber-400/50 bg-gradient-to-br from-amber-400/20 to-transparent shadow-[0_0_30px_rgba(251,191,36,0.22)]')
                : (campeonPosible() ? 'border-dashed border-accent-400/60 bg-accent-500/[0.06]' : 'border-dashed border-white/10 bg-white/[0.02]')"
-             [style.left.px]="vista().xCampeon" [style.top.px]="vista().yCampeon" [style.width.px]="anchoCampeon" [style.height.px]="alto">
-          <ng-container *ngIf="final() as f; else campeonADefinir">
-            <span class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-300">
-              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8m-4-4v4m-5-17h10v5a5 5 0 01-10 0V4zm10 1h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/></svg>
-              {{ campeonEsMio() ? '¡Campeones!' : 'Campeones' }}
-            </span>
-            <span *ngFor="let j of jugadores(f.ganadorInscripcionId === f.inscripcion1Id ? f.inscripcion1Nombres : f.inscripcion2Nombres)"
+              [style.left.px]="vista().xCampeon" [style.top.px]="vista().yCampeon" [style.width.px]="anchoCampeon" [style.height.px]="alto">
+              @if (final(); as f) {
+                <span class="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.16em] text-amber-300">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8m-4-4v4m-5-17h10v5a5 5 0 01-10 0V4zm10 1h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/></svg>
+                  {{ campeonEsMio() ? '¡Campeones!' : 'Campeones' }}
+                </span>
+                @for (j of jugadores(f.ganadorInscripcionId === f.inscripcion1Id ? f.inscripcion1Nombres : f.inscripcion2Nombres); track j) {
+                  <span
                   class="text-xs font-semibold text-white truncate">{{ j }}</span>
-          </ng-container>
-          <ng-template #campeonADefinir>
-            <span class="text-[9px] font-bold uppercase tracking-[0.16em]" [ngClass]="campeonPosible() ? 'text-accent-300' : 'text-slate-500'">
-              {{ campeonPosible() ? 'Tu camino' : 'Campeón' }}
-            </span>
-            <span class="text-xs text-slate-500">A definir</span>
-          </ng-template>
+                }
+              } @else {
+                <span class="text-[9px] font-bold uppercase tracking-[0.16em]" [ngClass]="campeonPosible() ? 'text-accent-300' : 'text-slate-500'">
+                  {{ campeonPosible() ? 'Tu camino' : 'Campeón' }}
+                </span>
+                <span class="text-xs text-slate-500">A definir</span>
+              }
+            </div>
+          </div>
         </div>
       </div>
+      <!-- Referencias -->
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[11px] text-slate-400">
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-primary-500/30 border border-primary-500/40"></span> Ganador</span>
+        @if (camino().jugados.size > 0) {
+          <span class="inline-flex items-center gap-1.5"><span class="w-5 h-0.5 rounded bg-accent-400"></span> Tu camino</span>
+        }
+        @if (camino().posibles.size > 0 || campeonPosible()) {
+          <span class="inline-flex items-center gap-1.5"><span class="w-5 border-t-2 border-dashed border-accent-400/70"></span> Si siguen ganando</span>
+        }
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-dashed border-white/20"></span> A definir</span>
+      </div>
     </div>
-  </div>
-
-  <!-- Referencias -->
-  <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[11px] text-slate-400">
-    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-primary-500/30 border border-primary-500/40"></span> Ganador</span>
-    <span *ngIf="camino().jugados.size > 0" class="inline-flex items-center gap-1.5"><span class="w-5 h-0.5 rounded bg-accent-400"></span> Tu camino</span>
-    <span *ngIf="camino().posibles.size > 0 || campeonPosible()" class="inline-flex items-center gap-1.5"><span class="w-5 border-t-2 border-dashed border-accent-400/70"></span> Si siguen ganando</span>
-    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-dashed border-white/20"></span> A definir</span>
-  </div>
-</div>
+  }

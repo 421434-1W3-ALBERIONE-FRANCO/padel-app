@@ -3,15 +3,20 @@ import { inject } from '@angular/core';
 import { AuthService } from '../services/auth.service';
 import { ToastService } from '../services/toast.service';
 import { catchError, throwError } from 'rxjs';
+import { environment } from '../../../environments/environment';
+
+/** El token solo viaja a nuestra API: nunca a otros orígenes (fuentes, CDNs, servicios de terceros). */
+function esPedidoALaApi(url: string): boolean {
+  return url.startsWith(`${environment.apiUrl}/`) || url === environment.apiUrl;
+}
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const authService = inject(AuthService);
   const toast = inject(ToastService);
-  const token = authService.getToken();
+  const token = esPedidoALaApi(req.url) ? authService.getToken() : null;
 
   let clonedRequest = req;
 
-  // Agregar token si existe en localStorage
   if (token) {
     clonedRequest = req.clone({
       setHeaders: {

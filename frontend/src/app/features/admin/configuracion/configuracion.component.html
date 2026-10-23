@@ -6,41 +6,47 @@
       <h1 class="text-2xl font-extrabold text-white font-display mb-1">Configuración del Sistema</h1>
       <p class="text-slate-400 text-sm mb-8">Parámetros globales administrables: avisos de vencimiento y control horario. La configuración de comisiones se administra en <strong>Personal y Finanzas → Comisiones</strong>.</p>
 
-      <div *ngIf="cargando()" class="text-slate-400 text-sm">Cargando configuración...</div>
+      @if (cargando()) {
+        <div class="text-slate-400 text-sm">Cargando configuración...</div>
+      }
 
-      <form *ngIf="!cargando()" [formGroup]="form" (ngSubmit)="guardar()" class="space-y-6">
-        <div>
-          <label for="diasAvisoVencimientoBono" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-            Días de aviso previo de vencimiento de bono
-          </label>
-          <input
-            id="diasAvisoVencimientoBono"
-            type="number"
-            formControlName="diasAvisoVencimientoBono"
-            class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 px-4 text-sm transition duration-200 outline-none"
-          />
-        </div>
-
-        <div>
-          <label for="horaTopeCierreSesion" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-            Hora tope de cierre de sesión (control horario)
-          </label>
-          <input
-            id="horaTopeCierreSesion"
-            type="time"
-            formControlName="horaTopeCierreSesion"
-            class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 px-4 text-sm transition duration-200 outline-none"
-          />
-        </div>
-
-        <div class="flex items-center gap-3">
-          <button type="submit" [disabled]="guardando()" class="btn-primary py-3.5 px-6">
-            <span *ngIf="!guardando()">Guardar Cambios</span>
-            <span *ngIf="guardando()">Guardando...</span>
-          </button>
-          <a routerLink="/admin" class="btn-secondary py-3.5 px-6">Volver</a>
-        </div>
-      </form>
+      @if (!cargando()) {
+        <form [formGroup]="form" (ngSubmit)="guardar()" class="space-y-6">
+          <div>
+            <label for="diasAvisoVencimientoBono" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Días de aviso previo de vencimiento de bono
+            </label>
+            <input
+              id="diasAvisoVencimientoBono"
+              type="number"
+              formControlName="diasAvisoVencimientoBono"
+              class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 px-4 text-sm transition duration-200 outline-none"
+              />
+          </div>
+          <div>
+            <label for="horaTopeCierreSesion" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+              Hora tope de cierre de sesión (control horario)
+            </label>
+            <input
+              id="horaTopeCierreSesion"
+              type="time"
+              formControlName="horaTopeCierreSesion"
+              class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 px-4 text-sm transition duration-200 outline-none"
+              />
+          </div>
+          <div class="flex items-center gap-3">
+            <button type="submit" [disabled]="guardando()" class="btn-primary py-3.5 px-6">
+              @if (!guardando()) {
+                <span>Guardar Cambios</span>
+              }
+              @if (guardando()) {
+                <span>Guardando...</span>
+              }
+            </button>
+            <a routerLink="/admin" class="btn-secondary py-3.5 px-6">Volver</a>
+          </div>
+        </form>
+      }
     </ui-card>
   </main>
 </div>

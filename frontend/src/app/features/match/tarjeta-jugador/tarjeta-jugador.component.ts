@@ -10,7 +10,6 @@ import { DisponibilidadGridComponent } from '../disponibilidad-grid/disponibilid
 /** Contenido de una carta del mazo: identidad, afinidad, nivel y horarios en común. */
 @Component({
   selector: 'app-tarjeta-jugador',
-  standalone: true,
   imports: [CommonModule, DisponibilidadGridComponent],
   template: `
     <div class="flex items-start gap-4">

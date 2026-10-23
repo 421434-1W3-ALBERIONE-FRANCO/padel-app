@@ -1,13 +1,6 @@
 package com.padel.service.impl;
 
-import com.mercadopago.MercadoPagoConfig;
-import com.mercadopago.client.payment.PaymentClient;
-import com.mercadopago.client.preference.PreferenceBackUrlsRequest;
-import com.mercadopago.client.preference.PreferenceClient;
-import com.mercadopago.client.preference.PreferenceItemRequest;
-import com.mercadopago.client.preference.PreferenceRequest;
-import com.mercadopago.resources.payment.Payment;
-import com.mercadopago.resources.preference.Preference;
+import com.padel.config.ReservasProperties;
 import com.padel.domain.entity.Pago;
 import com.padel.domain.entity.Reserva;
 import com.padel.domain.entity.Usuario;
@@ -21,18 +14,25 @@ import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
 import com.padel.exception.DatosInvalidosException;
 import com.padel.exception.EstadoInvalidoException;
-import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.ReservaNoModificableException;
+import com.padel.exception.ResourceNotFoundException;
+import com.padel.integracion.pagos.PasarelaPagos.NuevaPreferencia;
+import com.padel.integracion.pagos.PasarelaPagos.PagoExterno;
+import com.padel.integracion.pagos.PasarelaPagos.PreferenciaCreada;
+import com.padel.integracion.pagos.PasarelaPagos;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
+import com.padel.security.ControlAcceso;
+import com.padel.service.ConsumoService;
 import com.padel.service.EmailService;
 import com.padel.service.NotificacionInAppService;
 import com.padel.service.PagoService;
+import com.padel.service.ReintegroService;
 import com.padel.service.ReservaService;
-import com.padel.service.ConsumoService;
-import jakarta.annotation.PostConstruct;
+import com.padel.util.EmailUtil;
+import com.padel.util.MonedaUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Hibernate;
@@ -41,7 +41,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.Collections;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Optional;
 
 @Service
@@ -50,98 +51,79 @@ import java.util.Optional;
 @Transactional
 public class PagoServiceImpl implements PagoService {
 
+    /** Referencia externa de un cobro de consumos enviado al Point: "CONSUMOS-{idPago}". */
+    static final String PREFIJO_CONSUMOS = "CONSUMOS-";
+    private static final String MONEDA = "ARS";
+
     private final PagoRepository pagoRepository;
     private final ReservaRepository reservaRepository;
     private final UsuarioRepository usuarioRepository;
     private final ReservaService reservaService;
     private final ConsumoService consumoService;
+    private final ReintegroService reintegroService;
+    private final PasarelaPagos pasarelaPagos;
     private final PagoMapper pagoMapper;
     private final EmailService emailService;
     private final NotificacionInAppService notificacionInAppService;
+    private final ControlAcceso controlAcceso;
+    private final ReservasProperties reservasProperties;
 
-    @Value("${mercadopago.access-token}")
-    private String accessToken;
-
-    // URL pública del frontend (Netlify en prod): MercadoPago redirige ahí al terminar el checkout.
+    // URL pública del frontend: MercadoPago redirige ahí al terminar el checkout.
     @Value("${app.frontend-url:http://localhost:4200}")
     private String frontendUrl;
 
-    @PostConstruct
-    public void init() {
-        log.info("Inicializando SDK de MercadoPago con token de acceso");
-        MercadoPagoConfig.setAccessToken(accessToken);
+    public static String referenciaConsumos(Long pagoId) {
+        return PREFIJO_CONSUMOS + pagoId;
     }
 
     @Override
     public PreferenciaResponse crearPreferencia(Long reservaId, String usuarioEmail) {
-        log.info("Creando preferencia de MercadoPago para reserva ID {} e usuario {}", reservaId, usuarioEmail);
-
-        Reserva reserva = reservaRepository.findById(reservaId)
+        Reserva reserva = reservaRepository.findByIdForUpdate(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + reservaId));
-
-        Usuario usuario = usuarioRepository.findByEmail(usuarioEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + usuarioEmail));
-
-        // Validar permisos
-        boolean isAdminOrRecepcion = usuario.getRol() == RolUsuario.ADMIN || usuario.getRol() == RolUsuario.RECEPCIONISTA;
-        if (!isAdminOrRecepcion && !reserva.getUsuario().getId().equals(usuario.getId())) {
-            throw new ResourceNotFoundException("Reserva no encontrada para el usuario especificado");
-        }
+        Usuario usuario = buscarUsuario(usuarioEmail);
+        controlAcceso.exigirDuenoOStaff(usuario, reserva.getUsuario(), "Reserva");
 
         // Sólo se puede generar un cobro para una reserva que sigue esperando pago
         if (reserva.getEstadoReserva() != EstadoReserva.PENDIENTE_PAGO) {
             throw new ReservaNoModificableException("No se puede generar un cobro para una reserva en estado " + reserva.getEstadoReserva());
         }
-
-        try {
-            // Configurar el ítem
-            PreferenceItemRequest itemRequest = PreferenceItemRequest.builder()
-                    .id(reservaId.toString())
-                    .title("Turno Cancha: " + reserva.getCancha().getNombre() + " (" + reserva.getFecha() + ")")
-                    .quantity(1)
-                    .currencyId("ARS")
-                    .unitPrice(reserva.getPrecioTotal())
-                    .build();
-
-            // Configurar URLs de retorno (antes fijas a localhost: en prod MP devolvía al usuario a su propia PC)
-            String frontend = frontendBaseUrl();
-            PreferenceBackUrlsRequest backUrls = PreferenceBackUrlsRequest.builder()
-                    .success(frontend + "/reservas/mis-reservas?status=success")
-                    .failure(frontend + "/pagos/checkout/" + reservaId + "?status=failure")
-                    .pending(frontend + "/reservas/mis-reservas?status=pending")
-                    .build();
-
-            // Construir la preferencia de pago
-            PreferenceRequest preferenceRequest = PreferenceRequest.builder()
-                    .items(Collections.singletonList(itemRequest))
-                    .backUrls(backUrls)
-                    .externalReference(reservaId.toString())
-                    .autoReturn("approved")
-                    .build();
-
-            PreferenceClient client = new PreferenceClient();
-            Preference preference = client.create(preferenceRequest);
-
-            // Registrar o actualizar el Pago pendiente del turno (no el de los consumos, que con Point
-            // también puede quedar pendiente sobre la misma reserva)
-            Pago pago = pagoRepository.findByReservaIdAndEstadoAndConcepto(reservaId, EstadoPago.PENDIENTE, ConceptoPago.TURNO)
-                    .orElse(Pago.builder()
-                            .reserva(reserva)
-                            .usuario(reserva.getUsuario())
-                            .monto(reserva.getPrecioTotal())
-                            .metodo(MetodoPago.MERCADOPAGO)
-                            .estado(EstadoPago.PENDIENTE)
-                            .build());
-
-            pago.setMpPreferenceId(preference.getId());
-            pagoRepository.save(pago);
-
-            log.info("Preferencia creada exitosamente con ID {}", preference.getId());
-            return new PreferenciaResponse(preference.getId(), preference.getInitPoint());
-        } catch (Exception e) {
-            log.error("Error al crear preferencia de MercadoPago: {}", e.getMessage(), e);
-            throw new RuntimeException("Error al generar la pasarela de pago", e);
+        if (reserva.getPrecioTotal() == null || reserva.getPrecioTotal().signum() <= 0) {
+            throw new DatosInvalidosException("El turno no tiene un importe a cobrar");
         }
+        // La preferencia vence junto con la reserva: antes se podía pagar un turno que el sistema ya había liberado.
+        LocalDateTime creada = reserva.getCreatedAt() != null ? reserva.getCreatedAt() : LocalDateTime.now();
+        LocalDateTime vence = creada.plusMinutes(reservasProperties.getMinutosParaPagar());
+        if (!vence.isAfter(LocalDateTime.now().plusMinutes(1))) {
+            throw new ReservaNoModificableException("El tiempo para pagar esta reserva ya venció");
+        }
+
+        String frontend = frontendBaseUrl();
+        PreferenciaCreada preferencia = pasarelaPagos.crearPreferencia(new NuevaPreferencia(
+                reservaId.toString(),
+                "Turno Cancha: " + reserva.getCancha().getNombre() + " (" + reserva.getFecha() + ")",
+                reserva.getPrecioTotal(),
+                reservaId.toString(),
+                frontend + "/reservas/mis-reservas?status=success",
+                frontend + "/pagos/checkout/" + reservaId + "?status=failure",
+                frontend + "/reservas/mis-reservas?status=pending",
+                vence.atZone(ZoneId.systemDefault()).toOffsetDateTime()));
+
+        // Registrar o actualizar el Pago pendiente del turno (no el de los consumos, que con Point
+        // también puede quedar pendiente sobre la misma reserva)
+        Pago pago = pagoRepository.findByReservaIdAndEstadoAndConcepto(reservaId, EstadoPago.PENDIENTE, ConceptoPago.TURNO)
+                .orElse(Pago.builder()
+                        .reserva(reserva)
+                        .usuario(reserva.getUsuario())
+                        .monto(reserva.getPrecioTotal())
+                        .metodo(MetodoPago.MERCADOPAGO)
+                        .estado(EstadoPago.PENDIENTE)
+                        .concepto(ConceptoPago.TURNO)
+                        .build());
+        pago.setMpPreferenceId(preferencia.id());
+        pagoRepository.save(pago);
+
+        log.info("Preferencia {} creada para la reserva ID {}", preferencia.id(), reservaId);
+        return new PreferenciaResponse(preferencia.id(), preferencia.urlCheckout());
     }
 
     private String frontendBaseUrl() {
@@ -151,107 +133,138 @@ public class PagoServiceImpl implements PagoService {
         return frontendUrl.endsWith("/") ? frontendUrl.substring(0, frontendUrl.length() - 1) : frontendUrl;
     }
 
+    /**
+     * El estado del pago se consulta siempre a MercadoPago (nunca se confía en el cuerpo del webhook) y,
+     * antes de confirmar el turno, se verifica que el monto y la moneda sean los esperados.
+     */
     @Override
     public void procesarWebhook(String type, String paymentId) {
-        log.info("Recibido webhook de MercadoPago: tipo={}, paymentId={}", type, paymentId);
-
         if (!"payment".equalsIgnoreCase(type)) {
-            log.info("Ignorando webhook de tipo: {}", type);
+            log.debug("Webhook de MercadoPago de tipo {} ignorado", type);
+            return;
+        }
+        Optional<Pago> existente = pagoRepository.findByMpPaymentId(paymentId);
+        if (existente.isPresent() && existente.get().getEstado() == EstadoPago.APROBADO) {
+            log.info("Pago MP {} ya procesado como APROBADO (notificación repetida)", paymentId);
             return;
         }
 
-        try {
-            // 1. Verificar idempotencia primero
-            Optional<Pago> existingPagoOpt = pagoRepository.findByMpPaymentId(paymentId);
-            if (existingPagoOpt.isPresent()) {
-                Pago existingPago = existingPagoOpt.get();
-                if (existingPago.getEstado() == EstadoPago.APROBADO) {
-                    log.info("Pago MP ID {} ya procesado previamente en estado APROBADO. Idempotente.", paymentId);
-                    return;
-                }
-            }
+        PagoExterno externo = pasarelaPagos.consultarPago(paymentId);
+        String referencia = externo.referenciaExterna();
+        if (referencia != null && referencia.startsWith(PREFIJO_CONSUMOS)) {
+            procesarCobroDeConsumos(referencia, paymentId, externo);
+            return;
+        }
+        // Un pago que no salió de una preferencia de esta app (sin reservaId) no se puede imputar.
+        if (referencia == null || !referencia.matches("\\d+")) {
+            log.warn("Pago MP {} sin referencia de reserva: se ignora la notificación", paymentId);
+            return;
+        }
+        Long reservaId = Long.parseLong(referencia);
+        Reserva reserva = reservaRepository.findByIdForUpdate(reservaId).orElse(null);
+        if (reserva == null) {
+            log.warn("Pago MP {} referencia la reserva {} que no existe: se ignora", paymentId, reservaId);
+            return;
+        }
 
-            PaymentClient client = new PaymentClient();
-            Payment payment = client.get(Long.parseLong(paymentId));
-            String status = payment.getStatus();
-            String externalReference = payment.getExternalReference();
+        // El mismo pago MP reutiliza su registro; si no, se toma el pendiente del turno que todavía no tiene pago MP.
+        Pago pago = existente.orElseGet(() -> pagoRepository.findByReservaId(reservaId).stream()
+                .filter(p -> p.getEstado() == EstadoPago.PENDIENTE && p.getMpPaymentId() == null
+                        && p.getConcepto() == ConceptoPago.TURNO)
+                .findFirst()
+                .orElseGet(() -> Pago.builder()
+                        .reserva(reserva)
+                        .usuario(reserva.getUsuario())
+                        .monto(reserva.getPrecioTotal())
+                        .metodo(MetodoPago.MERCADOPAGO)
+                        .estado(EstadoPago.PENDIENTE)
+                        .concepto(ConceptoPago.TURNO)
+                        .build()));
+        pago.setMpPaymentId(paymentId);
 
-            // Un pago que no salió de una preferencia de esta app (sin reservaId) no se puede imputar.
-            // Antes reventaba con NumberFormatException -> 500 -> MercadoPago reintentaba el webhook sin fin.
-            if (externalReference == null || !externalReference.matches("\\d+")) {
-                log.warn("Pago MP {} sin external_reference de reserva ({}). Se ignora la notificación.", paymentId, externalReference);
+        if (externo.aprobado()) {
+            if (!montoYMonedaCoinciden(externo, reserva.getPrecioTotal())) {
+                pagoRepository.save(pago);
+                avisarPagoEnRevision(pago, externo);
                 return;
             }
-            Long reservaId = Long.parseLong(externalReference);
-
-            log.info("Detalles del pago MP: status={}, externalReference (reservaId)={}",
-                    status, reservaId);
-
-            // 2. El mismo pago MP (ej. primero in_process y luego approved) reutiliza su registro; si no,
-            //    se toma el pendiente de la reserva que todavía no tiene pago MP asociado (mp_payment_id es único).
-            Pago pago = existingPagoOpt.orElseGet(() -> pagoRepository.findByReservaId(reservaId).stream()
-                    .filter(p -> p.getEstado() == EstadoPago.PENDIENTE && p.getMpPaymentId() == null)
-                    .findFirst()
-                    .orElseGet(() -> {
-                        Reserva reserva = reservaRepository.findById(reservaId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + reservaId));
-                        return Pago.builder()
-                                .reserva(reserva)
-                                .usuario(reserva.getUsuario())
-                                .monto(payment.getTransactionAmount() != null ? payment.getTransactionAmount() : reserva.getPrecioTotal())
-                                .metodo(MetodoPago.MERCADOPAGO)
-                                .estado(EstadoPago.PENDIENTE)
-                                .build();
-                    }));
-
-            pago.setMpPaymentId(paymentId);
-
-            if ("approved".equalsIgnoreCase(status)) {
-                pago.setEstado(EstadoPago.APROBADO);
-                Pago saved = pagoRepository.save(pago);
-                // El email es @Async: se inicializan acá los datos lazy que usa (usuario, reserva, cancha)
-                // para que el otro hilo no dependa de esta sesión de Hibernate.
-                Hibernate.initialize(saved.getUsuario());
-                if (saved.getReserva() != null) {
-                    Hibernate.initialize(saved.getReserva());
-                    Hibernate.initialize(saved.getReserva().getCancha());
-                }
-                emailService.enviarComprobantePago(saved);
-                if (saved.getMetodo() == MetodoPago.MERCADOPAGO_POINT) {
-                    log.info("Pago presencial aprobado en DB. Procediendo a pagar consumos vinculados al Pago ID {}", saved.getId());
-                    consumoService.marcarConsumosComoPagados(saved.getId());
-                } else if (saved.getReserva().getEstadoReserva() == EstadoReserva.PENDIENTE_PAGO
-                        || saved.getReserva().getEstadoReserva() == EstadoReserva.CONFIRMADA) {
-                    log.info("Pago aprobado registrado en DB. Procediendo a confirmar reserva ID {}", reservaId);
-                    reservaService.confirmarReserva(reservaId);
-                } else {
-                    // Pago aprobado que llegó tarde (la reserva ya venció o se canceló). Antes confirmarReserva
-                    // lanzaba excepción, se hacía rollback del pago y MP reintentaba sin fin: el cobro quedaba
-                    // sin registrar. Ahora queda APROBADO para que el club lo reintegre o reubique el turno.
-                    log.warn("Pago MP {} aprobado para la reserva ID {} en estado {}: queda registrado para reintegro manual.",
-                            paymentId, reservaId, saved.getReserva().getEstadoReserva());
-                    notificacionInAppService.crear(
-                            saved.getUsuario(),
-                            TipoNotificacion.RESERVA_CANCELADA_FALTA_PAGO,
-                            "Pago recibido para una reserva vencida",
-                            String.format("Recibimos tu pago de $%s, pero la reserva del %s ya no estaba vigente. "
-                                    + "Contactá al club para reprogramar el turno o pedir el reintegro.",
-                                    saved.getMonto(), saved.getReserva().getFecha()),
-                            reservaId
-                    );
-                }
-            } else if ("rejected".equalsIgnoreCase(status) || "cancelled".equalsIgnoreCase(status)) {
-                pago.setEstado(EstadoPago.RECHAZADO);
-                pagoRepository.save(pago);
-                log.info("Pago rechazado/cancelado registrado para reserva ID {}", reservaId);
+            pago.setEstado(EstadoPago.APROBADO);
+            Pago aprobado = pagoRepository.save(pago);
+            prepararParaEmail(aprobado);
+            emailService.enviarComprobantePago(aprobado);
+            if (reserva.getEstadoReserva() == EstadoReserva.PENDIENTE_PAGO || reserva.getEstadoReserva() == EstadoReserva.CONFIRMADA) {
+                reservaService.confirmarReserva(reservaId);
             } else {
-                pago.setEstado(EstadoPago.PENDIENTE);
-                pagoRepository.save(pago);
-                log.info("Pago en estado pendiente registrado para reserva ID {}", reservaId);
+                // Pago aprobado para una reserva que ya venció o se canceló: se devuelve completo y se le avisa.
+                log.warn("Pago MP {} aprobado para la reserva ID {} en estado {}: se encola el reintegro",
+                        paymentId, reservaId, reserva.getEstadoReserva());
+                reintegroService.reintegrarPagoTardio(aprobado);
             }
-        } catch (Exception e) {
-            log.error("Error al procesar webhook de MercadoPago: {}", e.getMessage(), e);
-            throw new RuntimeException("Error en procesamiento de webhook", e);
+        } else if (externo.rechazadoOCancelado()) {
+            pago.setEstado(EstadoPago.RECHAZADO);
+            pagoRepository.save(pago);
+            log.info("Pago MP {} rechazado/cancelado para la reserva ID {}", paymentId, reservaId);
+        } else {
+            pago.setEstado(EstadoPago.PENDIENTE);
+            pagoRepository.save(pago);
+        }
+    }
+
+    private void procesarCobroDeConsumos(String referencia, String paymentId, PagoExterno externo) {
+        Long pagoId;
+        try {
+            pagoId = Long.parseLong(referencia.substring(PREFIJO_CONSUMOS.length()));
+        } catch (NumberFormatException e) {
+            log.warn("Referencia de consumos inválida en el pago MP {}", paymentId);
+            return;
+        }
+        Pago pago = pagoRepository.findByIdForUpdate(pagoId)
+                .filter(p -> p.getConcepto() == ConceptoPago.CONSUMOS)
+                .orElse(null);
+        if (pago == null || pago.getEstado() == EstadoPago.APROBADO) {
+            return;
+        }
+        pago.setMpPaymentId(paymentId);
+        if (externo.aprobado()) {
+            if (!montoYMonedaCoinciden(externo, pago.getMonto())) {
+                pagoRepository.save(pago);
+                avisarPagoEnRevision(pago, externo);
+                return;
+            }
+            pago.setEstado(EstadoPago.APROBADO);
+            pagoRepository.save(pago);
+            consumoService.marcarConsumosComoPagados(pago.getId());
+        } else if (externo.rechazadoOCancelado()) {
+            pago.setEstado(EstadoPago.RECHAZADO);
+            pagoRepository.save(pago);
+            // Los consumos vuelven a quedar libres para cobrarse de otra forma.
+            consumoService.liberarConsumosDelPago(pago.getId());
+        }
+    }
+
+    private boolean montoYMonedaCoinciden(PagoExterno externo, BigDecimal esperado) {
+        return externo.monto() != null && esperado != null
+                && externo.monto().compareTo(esperado) >= 0
+                && MONEDA.equalsIgnoreCase(externo.moneda());
+    }
+
+    private void avisarPagoEnRevision(Pago pago, PagoExterno externo) {
+        log.error("Pago MP {} aprobado por {} {} pero se esperaban {} {}: queda en revisión",
+                externo.id(), externo.monto(), externo.moneda(), pago.getMonto(), MONEDA);
+        String mensaje = String.format("MercadoPago informó el pago %s por %s %s, distinto de lo esperado (%s). Revisalo antes de confirmar el turno.",
+                externo.id(), externo.monto(), externo.moneda(), MonedaUtil.formatear(pago.getMonto()));
+        usuarioRepository.findByRol(RolUsuario.ADMIN).stream()
+                .filter(Usuario::isActivo)
+                .forEach(admin -> notificacionInAppService.crear(admin, TipoNotificacion.PAGO_EN_REVISION,
+                        "Pago a revisar", mensaje, pago.getReserva() != null ? pago.getReserva().getId() : null));
+    }
+
+    // El comprobante lee usuario, reserva y cancha (LAZY): se inicializan dentro de la transacción.
+    private void prepararParaEmail(Pago pago) {
+        Hibernate.initialize(pago.getUsuario());
+        if (pago.getReserva() != null) {
+            Hibernate.initialize(pago.getReserva());
+            Hibernate.initialize(pago.getReserva().getCancha());
         }
     }
 
@@ -260,16 +273,7 @@ public class PagoServiceImpl implements PagoService {
     public PagoResponse obtenerPorId(Long id, String usuarioEmail) {
         Pago pago = pagoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Pago no encontrado con ID: " + id));
-
-        Usuario usuario = usuarioRepository.findByEmail(usuarioEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + usuarioEmail));
-
-        // Validar permisos
-        boolean isAdminOrRecepcion = usuario.getRol() == RolUsuario.ADMIN || usuario.getRol() == RolUsuario.RECEPCIONISTA;
-        if (!isAdminOrRecepcion && !pago.getUsuario().getId().equals(usuario.getId())) {
-            throw new ResourceNotFoundException("Pago no encontrado para el usuario especificado");
-        }
-
+        controlAcceso.exigirDuenoOStaff(buscarUsuario(usuarioEmail), pago.getUsuario(), "Pago");
         return pagoMapper.toResponse(pago);
     }
 
@@ -280,12 +284,11 @@ public class PagoServiceImpl implements PagoService {
      */
     @Override
     public PagoResponse registrarCobroMostrador(Long reservaId, MetodoPago metodo, String staffEmail) {
-        log.info("Cobro en mostrador de la reserva ID {} con {} (atendido por {})", reservaId, metodo, staffEmail);
         if (metodo == null || !metodo.esCobroEnMostrador()) {
             throw new DatosInvalidosException("En el mostrador el turno se cobra en efectivo o con tarjeta");
         }
-
-        Reserva reserva = reservaRepository.findById(reservaId)
+        // Bloqueo de la reserva: un doble click registraba dos cobros del mismo turno.
+        Reserva reserva = reservaRepository.findByIdForUpdate(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva no encontrada con ID: " + reservaId));
 
         EstadoReserva estado = reserva.getEstadoReserva();
@@ -297,9 +300,7 @@ public class PagoServiceImpl implements PagoService {
             throw new EstadoInvalidoException("El turno ya tiene un cobro registrado");
         }
 
-        Usuario staff = usuarioRepository.findByEmail(staffEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + staffEmail));
-
+        Usuario staff = buscarUsuario(staffEmail);
         Pago saved = pagoRepository.save(Pago.builder()
                 .reserva(reserva)
                 .usuario(reserva.getUsuario())
@@ -314,8 +315,12 @@ public class PagoServiceImpl implements PagoService {
             // Confirma, libera el lock del horario y avisa al jugador.
             reservaService.confirmarReserva(reservaId);
         }
-
         log.info("Cobro en mostrador registrado: pago ID {} por {} en {}", saved.getId(), saved.getMonto(), metodo);
         return pagoMapper.toResponse(saved);
+    }
+
+    private Usuario buscarUsuario(String email) {
+        return usuarioRepository.findByEmail(EmailUtil.normalizar(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
 }

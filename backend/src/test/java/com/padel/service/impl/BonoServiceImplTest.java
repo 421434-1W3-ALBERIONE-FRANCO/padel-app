@@ -13,6 +13,7 @@ import com.padel.dto.response.PagoResponse;
 import com.padel.exception.BonoNoDisponibleException;
 import com.padel.exception.DatosInvalidosException;
 import com.padel.exception.ReservaNoModificableException;
+import com.padel.exception.ResourceNotFoundException;
 import com.padel.mapper.BonoMapper;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.*;
@@ -22,12 +23,12 @@ import com.padel.service.ReservaService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import com.padel.util.FechaHoraUtil;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -67,7 +68,9 @@ class BonoServiceImplTest {
     @Mock
     private com.padel.service.ComisionService comisionService;
     @Spy
-    private FechaHoraUtil fechaHoraUtil = new FechaHoraUtil();
+    private com.padel.security.ControlAcceso controlAcceso = new com.padel.security.ControlAcceso();
+    @Mock
+    private com.padel.repository.TipoBonoRepository tipoBonoRepository;
 
     @InjectMocks
     private BonoServiceImpl bonoService;
@@ -131,22 +134,31 @@ class BonoServiceImplTest {
                 .build();
     }
 
+    private com.padel.domain.entity.TipoBono pack10() {
+        return com.padel.domain.entity.TipoBono.builder().id(1L).nombre("10HS").horas(10)
+                .precio(new BigDecimal("8000.00")).diasVigencia(30).activo(true).build();
+    }
+
+    private CrearBonoRequest venta(MetodoPago metodo) {
+        return new CrearBonoRequest("juan@example.com", 1L, metodo, false, null);
+    }
+
     @Test
-    void asignarBono_HappyPath() {
+    void asignarBono_HappyPath_TomaHorasPrecioYVencimientoDelCatalogo() {
         Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
-        CrearBonoRequest request = new CrearBonoRequest("juan@example.com", "10HS", 10, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), MetodoPago.EFECTIVO);
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
         when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
-        when(bonoRepository.save(any(Bono.class))).thenReturn(bonoMock1);
-        BonoResponse responseDto = new BonoResponse(101L, 1L, "juan@example.com", "10HS", 10, 0, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), EstadoBono.ACTIVO, LocalDateTime.now(), LocalDateTime.now());
-        when(bonoMapper.toResponse(bonoMock1)).thenReturn(responseDto);
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(pack10()));
+        when(bonoRepository.save(any(Bono.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        BonoResponse result = bonoService.asignarBono(request, "admin@example.com");
+        bonoService.asignarBono(venta(MetodoPago.EFECTIVO), "admin@example.com");
 
-        assertNotNull(result);
-        assertEquals("10HS", result.tipo());
-        verify(bonoRepository).save(any(Bono.class));
-        verify(notificacionInAppService, never()).crear(any(), any(), any(), any(), any());
+        ArgumentCaptor<Bono> bono = ArgumentCaptor.forClass(Bono.class);
+        verify(bonoRepository).save(bono.capture());
+        assertEquals(10, bono.getValue().getHorasTotales());
+        assertEquals(new BigDecimal("8000.00"), bono.getValue().getPrecioPagado());
+        assertEquals(LocalDate.now().plusDays(30), bono.getValue().getFechaVencimiento());
+        assertEquals("10HS", bono.getValue().getTipo());
 
         // La venta entra a la caja: pago aprobado del bono, sin reserva, a nombre del comprador.
         ArgumentCaptor<Pago> captor = ArgumentCaptor.forClass(Pago.class);
@@ -156,7 +168,6 @@ class BonoServiceImplTest {
         assertEquals(MetodoPago.EFECTIVO, pago.getMetodo());
         assertEquals(EstadoPago.APROBADO, pago.getEstado());
         assertEquals(new BigDecimal("8000.00"), pago.getMonto());
-        assertSame(bonoMock1, pago.getBono());
         assertNull(pago.getReserva());
         assertSame(usuarioMock, pago.getUsuario());
         assertSame(adminMock, pago.getAtendidoPor());
@@ -164,62 +175,97 @@ class BonoServiceImplTest {
 
     @Test
     void asignarBono_SinMedioDePago_SeRechazaSinGuardarNada() {
-        CrearBonoRequest sinMetodo = new CrearBonoRequest("juan@example.com", "10HS", 10, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), null);
-        CrearBonoRequest online = new CrearBonoRequest("juan@example.com", "10HS", 10, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), MetodoPago.MERCADOPAGO);
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(pack10()));
 
-        assertThrows(DatosInvalidosException.class, () -> bonoService.asignarBono(sinMetodo, "admin@example.com"));
-        assertThrows(DatosInvalidosException.class, () -> bonoService.asignarBono(online, "admin@example.com"));
+        assertThrows(DatosInvalidosException.class, () -> bonoService.asignarBono(venta(null), "admin@example.com"));
+        assertThrows(DatosInvalidosException.class, () -> bonoService.asignarBono(venta(MetodoPago.MERCADOPAGO), "admin@example.com"));
 
         verify(bonoRepository, never()).save(any());
         verify(pagoRepository, never()).save(any());
     }
 
     @Test
-    void asignarBono_SinCargo_NoRegistraPago() {
+    void asignarBono_SinCargoPorUnAdminConMotivo_NoRegistraPago() {
         Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
-        CrearBonoRequest cortesia = new CrearBonoRequest("juan@example.com", "10HS", 10, BigDecimal.ZERO, LocalDate.now().plusDays(30), null);
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
         when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
-        when(bonoRepository.save(any(Bono.class))).thenReturn(bonoMock1);
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(pack10()));
+        when(bonoRepository.save(any(Bono.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        bonoService.asignarBono(cortesia, "admin@example.com");
+        bonoService.asignarBono(new CrearBonoRequest("juan@example.com", 1L, null, true, "Compensación por lluvia"), "admin@example.com");
 
-        verify(bonoRepository).save(any(Bono.class));
+        ArgumentCaptor<Bono> bono = ArgumentCaptor.forClass(Bono.class);
+        verify(bonoRepository).save(bono.capture());
+        assertEquals(BigDecimal.ZERO, bono.getValue().getPrecioPagado());
+        assertEquals("Compensación por lluvia", bono.getValue().getMotivoSinCargo());
         verify(pagoRepository, never()).save(any());
+        verifyNoInteractions(comisionService);
+    }
+
+    @Test
+    void asignarBono_UnRecepcionistaNoPuedeRegalarBonos() {
+        Usuario recepcionistaMock = Usuario.builder().id(9L).email("recepcion@example.com").rol(RolUsuario.RECEPCIONISTA).build();
+        when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcionistaMock));
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(pack10()));
+
+        assertThrows(com.padel.exception.OperacionNoPermitidaException.class, () -> bonoService.asignarBono(
+                new CrearBonoRequest("juan@example.com", 1L, null, true, "Es mi amigo"), "recepcion@example.com"));
+        verify(bonoRepository, never()).save(any());
+    }
+
+    @Test
+    void asignarBono_SinCargoExigeMotivo() {
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(pack10()));
+
+        assertThrows(DatosInvalidosException.class, () -> bonoService.asignarBono(
+                new CrearBonoRequest("juan@example.com", 1L, null, true, "  "), "admin@example.com"));
+    }
+
+    @Test
+    void asignarBono_UnTipoDadoDeBajaNoSeVende() {
+        Usuario adminMock = Usuario.builder().id(9L).email("admin@example.com").rol(RolUsuario.ADMIN).build();
+        com.padel.domain.entity.TipoBono inactivo = pack10();
+        inactivo.setActivo(false);
+        when(usuarioRepository.findByEmail("admin@example.com")).thenReturn(Optional.of(adminMock));
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(inactivo));
+
+        assertThrows(com.padel.exception.ResourceNotFoundException.class,
+                () -> bonoService.asignarBono(venta(MetodoPago.EFECTIVO), "admin@example.com"));
     }
 
     @Test
     void asignarBono_ShouldRegisterCommission_WhenSoldByRecepcionistaWithCommissionsEnabled() {
         Usuario recepcionistaMock = Usuario.builder().id(9L).email("recepcion@example.com").rol(RolUsuario.RECEPCIONISTA).build();
-        CrearBonoRequest request = new CrearBonoRequest("juan@example.com", "10HS", 10, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), MetodoPago.TARJETA);
         com.padel.domain.entity.ConfiguracionSistema configuracionMock = com.padel.domain.entity.ConfiguracionSistema.builder()
                 .id(1L)
                 .comisionesHabilitadas(true)
                 .porcentajeComisionRecepcion(new BigDecimal("10.00"))
                 .build();
-
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
         when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcionistaMock));
+        when(tipoBonoRepository.findById(1L)).thenReturn(Optional.of(pack10()));
         when(bonoRepository.save(any(Bono.class))).thenReturn(bonoMock1);
         when(configuracionSistemaService.obtenerEntidad()).thenReturn(configuracionMock);
-        BonoResponse responseDto = new BonoResponse(101L, 1L, "juan@example.com", "10HS", 10, 0, new BigDecimal("8000.00"), LocalDate.now().plusDays(30), EstadoBono.ACTIVO, LocalDateTime.now(), LocalDateTime.now());
-        when(bonoMapper.toResponse(bonoMock1)).thenReturn(responseDto);
 
-        bonoService.asignarBono(request, "recepcion@example.com");
+        bonoService.asignarBono(venta(MetodoPago.TARJETA), "recepcion@example.com");
 
         verify(comisionService).registrarComisionBono(recepcionistaMock, bonoMock1);
     }
 
     @Test
     void usarBono_HappyPath_DeductsFromCorrectBonoWithRounding() {
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservaMock));
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
 
         // List ordered by expiry date: bonoMock2 (expires in 2 days) first, then bonoMock1 (expires in 5 days)
         List<Bono> bonos = new ArrayList<>();
         bonos.add(bonoMock2); // 1 hour left
         bonos.add(bonoMock1); // 10 hours left
-        when(bonoRepository.findByUsuarioIdAndEstadoOrderByFechaVencimientoAsc(1L, EstadoBono.ACTIVO)).thenReturn(bonos);
+        when(bonoRepository.findActivosParaUsar(1L)).thenReturn(bonos);
 
         when(bonoRepository.save(any(Bono.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(usoBonoRepository.save(any(UsoBono.class))).thenAnswer(invocation -> invocation.getArgument(0));
@@ -250,11 +296,11 @@ class BonoServiceImplTest {
 
     @Test
     void usarBono_ShouldThrowBonoNoDisponibleException_WhenNoBonoHasEnoughBalance() {
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservaMock));
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
 
         List<Bono> bonos = List.of(bonoMock2); // only has 1 hour left, needs 2
-        when(bonoRepository.findByUsuarioIdAndEstadoOrderByFechaVencimientoAsc(1L, EstadoBono.ACTIVO)).thenReturn(bonos);
+        when(bonoRepository.findActivosParaUsar(1L)).thenReturn(bonos);
 
         assertThrows(BonoNoDisponibleException.class, () ->
                 bonoService.usarBono(1L, "juan@example.com"));
@@ -266,12 +312,46 @@ class BonoServiceImplTest {
 
     @Test
     void usarBono_ShouldThrowReservaNoModificableException_WhenNotPending() {
-        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        ReflectionTestUtils.setField(reservaMock, "estadoReserva", EstadoReserva.CONFIRMADA);
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservaMock));
         when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
 
         assertThrows(ReservaNoModificableException.class, () ->
                 bonoService.usarBono(1L, "juan@example.com"));
+    }
+
+    @Test
+    void usarBono_UnaReservaConRangoInvalidoNoPuedeSumarHorasAlBono() {
+        // Datos heredados: una reserva que "cruzaba" la medianoche tenía fin < inicio y descontaba horas negativas.
+        reservaMock.setHoraInicio(LocalTime.of(21, 30));
+        reservaMock.setHoraFin(LocalTime.of(0, 30));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+
+        assertThrows(com.padel.exception.RangoHorarioInvalidoException.class, () -> bonoService.usarBono(1L, "juan@example.com"));
+
+        assertEquals(0, bonoMock1.getHorasUsadas());
+        verify(bonoRepository, never()).save(any());
+    }
+
+    @Test
+    void usarBono_TurnoYaCobrado_NoSeDescuentaDeNuevo() {
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(true);
+
+        assertThrows(com.padel.exception.EstadoInvalidoException.class, () -> bonoService.usarBono(1L, "juan@example.com"));
+        verify(bonoRepository, never()).findActivosParaUsar(anyLong());
+    }
+
+    @Test
+    void usarBono_OtroJugadorNoPuedePagarUnaReservaAjena() {
+        Usuario otro = Usuario.builder().id(99L).email("otro@example.com").rol(RolUsuario.JUGADOR).build();
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reservaMock));
+        when(usuarioRepository.findByEmail("otro@example.com")).thenReturn(Optional.of(otro));
+
+        assertThrows(ResourceNotFoundException.class, () -> bonoService.usarBono(1L, "otro@example.com"));
+        verify(bonoRepository, never()).findActivosParaUsar(anyLong());
     }
 
     @Test

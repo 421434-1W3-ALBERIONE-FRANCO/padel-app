@@ -3,6 +3,7 @@ package com.padel.scheduler;
 import com.padel.service.ReservaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ public class RecordatorioReservaScheduler {
 
     // Ejecutar todos los días a las 8:00 AM
     @Scheduled(cron = "0 0 8 * * ?")
+    @SchedulerLock(name = "recordatorioReservas", lockAtMostFor = "PT10M", lockAtLeastFor = "PT1M")
     public void enviarRecordatorios() {
         log.info("Iniciando tarea programada de recordatorio de reservas de hoy");
         try {

@@ -14,31 +14,33 @@ import { DiaSemana } from '../../../shared/models/control-horario.model';
  */
 @Component({
   selector: 'app-disponibilidad-grid',
-  standalone: true,
   imports: [CommonModule],
   template: `
     <div class="gap-1" [ngClass]="compacto() ? 'inline-grid' : 'grid w-full max-w-md'" [style.grid-template-columns]="columnas()" role="grid" [attr.aria-label]="editable() ? 'Elegí tus horarios disponibles' : 'Disponibilidad semanal'">
       <span></span>
-      <span *ngFor="let d of dias" class="text-center font-bold text-slate-500" [ngClass]="tamanoTexto()">{{ d.corto }}</span>
-
-      <ng-container *ngFor="let b of bloques">
+      @for (d of dias; track d) {
+        <span class="text-center font-bold text-slate-500" [ngClass]="tamanoTexto()">{{ d.corto }}</span>
+      }
+    
+      @for (b of bloques; track b) {
         <span class="flex items-center pr-1 font-semibold text-slate-500 whitespace-nowrap" [ngClass]="tamanoTexto()">
           {{ compacto() ? b.etiqueta.charAt(0) : b.etiqueta }}
         </span>
-        <button
-          *ngFor="let d of dias"
-          type="button"
-          role="gridcell"
-          [disabled]="!editable()"
-          (click)="alternar(d.valor, b.valor)"
-          [attr.aria-pressed]="editable() ? estaSeleccionado(d.valor, b.valor) : null"
-          [attr.aria-label]="d.largo + ' ' + b.etiqueta + (estaSeleccionado(d.valor, b.valor) ? ', disponible' : ', no disponible')"
-          [ngClass]="claseCelda(d.valor, b.valor)"
-          class="rounded-md border transition duration-150 disabled:cursor-default"
-          [class.h-4]="compacto()" [class.w-5]="compacto()"
-          [class.h-9]="!compacto()" [class.w-full]="!compacto()">
-        </button>
-      </ng-container>
+        @for (d of dias; track d) {
+          <button
+            type="button"
+            role="gridcell"
+            [disabled]="!editable()"
+            (click)="alternar(d.valor, b.valor)"
+            [attr.aria-pressed]="editable() ? estaSeleccionado(d.valor, b.valor) : null"
+            [attr.aria-label]="d.largo + ' ' + b.etiqueta + (estaSeleccionado(d.valor, b.valor) ? ', disponible' : ', no disponible')"
+            [ngClass]="claseCelda(d.valor, b.valor)"
+            class="rounded-md border transition duration-150 disabled:cursor-default"
+            [class.h-4]="compacto()" [class.w-5]="compacto()"
+            [class.h-9]="!compacto()" [class.w-full]="!compacto()">
+          </button>
+        }
+      }
     </div>
   `
 })

@@ -1,7 +1,15 @@
 package com.padel.exception;
 
-public class StockInsuficienteException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class StockInsuficienteException extends NegocioException {
+
     public StockInsuficienteException(String message) {
         super(message);
+    }
+
+    @Override
+    public HttpStatus getStatus() {
+        return HttpStatus.CONFLICT;
     }
 }

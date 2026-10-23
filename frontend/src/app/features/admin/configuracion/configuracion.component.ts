@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ConfiguracionService } from '../../../core/services/configuracion.service';
@@ -8,8 +7,7 @@ import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.comp
 
 @Component({
   selector: 'app-configuracion',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, UiCardComponent],
+  imports: [ReactiveFormsModule, RouterLink, UiCardComponent],
   templateUrl: './configuracion.component.html'
 })
 export class ConfiguracionComponent implements OnInit {

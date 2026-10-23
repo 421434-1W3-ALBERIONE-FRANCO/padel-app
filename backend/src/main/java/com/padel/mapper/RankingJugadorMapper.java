@@ -12,7 +12,6 @@ public class RankingJugadorMapper {
                 entity.getId(),
                 entity.getJugador().getId(),
                 entity.getJugador().getNombre() + " " + entity.getJugador().getApellido(),
-                entity.getJugador().getEmail(),
                 entity.getCategoria(),
                 entity.getPuntos(),
                 entity.getPartidosJugados(),

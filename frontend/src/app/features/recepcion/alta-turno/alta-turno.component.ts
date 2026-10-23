@@ -20,7 +20,6 @@ function toIso(d: Date): string {
 
 @Component({
   selector: 'app-alta-turno',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, CobroMostradorComponent],
   templateUrl: './alta-turno.component.html'
 })

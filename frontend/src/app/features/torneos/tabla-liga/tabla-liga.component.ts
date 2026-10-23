@@ -6,7 +6,6 @@ import { abreviarPareja } from '../utils/torneo-visual.util';
 
 @Component({
   selector: 'app-tabla-liga',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './tabla-liga.component.html'
 })

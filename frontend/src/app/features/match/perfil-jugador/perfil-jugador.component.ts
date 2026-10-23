@@ -18,7 +18,6 @@ import { DisponibilidadGridComponent } from '../disponibilidad-grid/disponibilid
 
 @Component({
   selector: 'app-perfil-jugador',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, DisponibilidadGridComponent],
   templateUrl: './perfil-jugador.component.html'
 })

@@ -10,59 +10,77 @@
       </h1>
       <p class="text-slate-400 text-sm mt-1">
         Estado de las canchas por franja. Se actualiza solo cada 15s.
-        <span *ngIf="ultimaActualizacion()" class="text-slate-500">Última: {{ ultimaActualizacion() }}</span>
+        @if (ultimaActualizacion()) {
+          <span class="text-slate-500">Última: {{ ultimaActualizacion() }}</span>
+        }
       </p>
     </div>
     <div class="flex items-center gap-3">
       <input type="date" [ngModel]="fecha()" (ngModelChange)="cambiarFecha($event)"
-             class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-      <button (click)="refrescarReservas(false)" class="btn-secondary py-2.5 px-4 text-sm">Refrescar</button>
-    </div>
-  </div>
-
-  <!-- Resumen -->
-  <div *ngIf="!cargando()" class="grid grid-cols-3 gap-4 mb-6">
-    <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4">
-      <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ocupación global</span>
-      <span class="block text-3xl font-extrabold text-primary-400 font-display mt-1">{{ porcentajeGlobal() }}%</span>
-    </div>
-    <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4">
-      <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turnos ocupados</span>
-      <span class="block text-3xl font-extrabold text-white font-display mt-1">{{ totalOcupados() }}</span>
-    </div>
-    <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4">
-      <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turnos totales</span>
-      <span class="block text-3xl font-extrabold text-slate-300 font-display mt-1">{{ totalSlots() }}</span>
-    </div>
-  </div>
-
-  <div *ngIf="cargando()" class="text-slate-400 text-sm">Cargando ocupación...</div>
-
-  <div *ngIf="!cargando() && grid().length === 0" class="text-slate-500 text-sm">No hay canchas activas con franjas configuradas.</div>
-
-  <!-- Grilla por cancha -->
-  <div *ngIf="!cargando()" class="space-y-5">
-    <div *ngFor="let fila of grid()" class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-sm font-bold text-white font-display">{{ fila.nombre }}</h2>
-        <span class="text-xs text-slate-400">{{ fila.ocupadas }}/{{ fila.total }} ocupados</span>
+        class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+        <button (click)="refrescarReservas(false)" class="btn-secondary py-2.5 px-4 text-sm">Refrescar</button>
       </div>
-      <div class="flex flex-wrap gap-2">
-        <div *ngFor="let c of fila.celdas"
-             class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition"
+    </div>
+
+    <!-- Resumen -->
+    @if (!cargando()) {
+      <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ocupación global</span>
+          <span class="block text-3xl font-extrabold text-primary-400 font-display mt-1">{{ porcentajeGlobal() }}%</span>
+        </div>
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turnos ocupados</span>
+          <span class="block text-3xl font-extrabold text-white font-display mt-1">{{ totalOcupados() }}</span>
+        </div>
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Turnos totales</span>
+          <span class="block text-3xl font-extrabold text-slate-300 font-display mt-1">{{ totalSlots() }}</span>
+        </div>
+      </div>
+    }
+
+    @if (cargando()) {
+      <div class="text-slate-400 text-sm">Cargando ocupación...</div>
+    }
+
+    @if (!cargando() && grid().length === 0) {
+      <div class="text-slate-500 text-sm">No hay canchas activas con franjas configuradas.</div>
+    }
+
+    <!-- Grilla por cancha -->
+    @if (!cargando()) {
+      <div class="space-y-5">
+        @for (fila of grid(); track fila) {
+          <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h2 class="text-sm font-bold text-white font-display">{{ fila.nombre }}</h2>
+              <span class="text-xs text-slate-400">{{ fila.ocupadas }}/{{ fila.total }} ocupados</span>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              @for (c of fila.celdas; track c) {
+                <div
+                  class="px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition"
              [ngClass]="c.ocupada
                ? 'bg-red-500/15 text-red-300 border-red-500/25'
                : 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20'"
-             [title]="c.ocupada ? 'Ocupado' : 'Libre'">
-          {{ c.horaInicio.substring(0,5) }}
-        </div>
-        <span *ngIf="fila.celdas.length === 0" class="text-slate-500 text-xs">Sin franjas configuradas.</span>
+                  [title]="c.ocupada ? 'Ocupado' : 'Libre'">
+                  {{ c.horaInicio.substring(0,5) }}
+                </div>
+              }
+              @if (fila.celdas.length === 0) {
+                <span class="text-slate-500 text-xs">Sin franjas configuradas.</span>
+              }
+            </div>
+          </div>
+        }
       </div>
-    </div>
-  </div>
+    }
 
-  <div *ngIf="!cargando()" class="flex items-center gap-4 mt-5 text-xs text-slate-400">
-    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500/30 border border-emerald-500/30"></span> Libre</span>
-    <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500/30 border border-red-500/30"></span> Ocupado</span>
+    @if (!cargando()) {
+      <div class="flex items-center gap-4 mt-5 text-xs text-slate-400">
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-emerald-500/30 border border-emerald-500/30"></span> Libre</span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500/30 border border-red-500/30"></span> Ocupado</span>
+      </div>
+    }
   </div>
-</div>

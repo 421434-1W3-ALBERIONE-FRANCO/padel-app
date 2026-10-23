@@ -1,17 +1,18 @@
 <div class="relative isolate bg-[#06060a] text-white">
 
   <!-- Loader tipo Lusion: contador + barra, se retira con wipe hacia arriba -->
-  <div
-    *ngIf="showLoader"
-    #loaderEl
-    class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#06060a]"
-  >
-    <span #counterEl class="text-6xl sm:text-8xl font-black tabular-nums">0%</span>
-    <div class="mt-6 h-px w-40 overflow-hidden bg-white/10">
-      <div #barEl class="h-full w-0 bg-primary-400"></div>
+  @if (showLoader) {
+    <div
+      #loaderEl
+      class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#06060a]"
+      >
+      <span #counterEl class="text-6xl sm:text-8xl font-black tabular-nums">0%</span>
+      <div class="mt-6 h-px w-40 overflow-hidden bg-white/10">
+        <div #barEl class="h-full w-0 bg-primary-400"></div>
+      </div>
+      <p class="mt-4 text-xs font-semibold tracking-[0.4em] uppercase text-white/40">Cargando experiencia</p>
     </div>
-    <p class="mt-4 text-xs font-semibold tracking-[0.4em] uppercase text-white/40">Cargando experiencia</p>
-  </div>
+  }
 
   <!-- Overlay de transición de salida: fade corto antes de navegar a otra ruta -->
   <div #transitionEl class="fixed inset-0 z-50 bg-[#06060a] opacity-0 pointer-events-none"></div>
@@ -28,7 +29,7 @@
       href="/auth/login"
       (click)="navigateAway('/auth/login', $event)"
       class="inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-slate-950 font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-full transition-colors"
-    >
+      >
       Ingresar
     </a>
   </header>
@@ -69,8 +70,8 @@
     </section>
 
     <!-- Sección 4: Catálogo — vitrina de ofertas del ecosistema, un producto a la
-         vez (como un e-commerce), ocupando solo la columna que la paleta 3D deja
-         libre en vez de superponerse a ella. -->
+    vez (como un e-commerce), ocupando solo la columna que la paleta 3D deja
+    libre en vez de superponerse a ella. -->
     <section class="min-h-screen flex flex-col justify-center px-6 sm:px-10 lg:px-24">
       <p class="text-xs sm:text-sm font-semibold tracking-[0.4em] uppercase text-primary-400 mb-4">Todo en un solo lugar</p>
       <h2 class="skew-text text-4xl sm:text-6xl font-black leading-tight max-w-lg mb-10">
@@ -90,7 +91,7 @@
         href="/auth/login"
         (click)="navigateAway('/auth/login', $event)"
         class="mt-10 inline-flex items-center gap-2 bg-primary-500 hover:bg-primary-400 text-slate-950 font-bold text-sm uppercase tracking-widest px-8 py-4 rounded-full transition-colors"
-      >
+        >
         Ir a reservar
       </a>
     </section>

@@ -11,7 +11,8 @@ public record SolicitudPartidoResponse(
     Long id,
     Long creadorId,
     String creadorNombre,
-    String creadorEmail,
+    // Solo para los postulantes aceptados (y el propio creador); null para el resto.
+    ContactoResponse creadorContacto,
     TipoSolicitud tipoSolicitud,
     CategoriaJugador categoria,
     Integer cantidadJugadoresFaltantes,
@@ -21,5 +22,7 @@ public record SolicitudPartidoResponse(
     String descripcion,
     EstadoSolicitud estado,
     LocalDateTime createdAt,
-    List<PostulacionSolicitudResponse> postulaciones
+    // El creador ve todas las postulaciones; cualquier otro jugador, solo la suya.
+    List<PostulacionSolicitudResponse> postulaciones,
+    long cantidadPostulaciones
 ) {}

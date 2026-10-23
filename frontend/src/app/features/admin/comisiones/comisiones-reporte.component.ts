@@ -14,7 +14,6 @@ import { firstDayOfMonthIsoDate, todayIsoDate } from '../../../shared/utils/date
 
 @Component({
   selector: 'app-comisiones-reporte',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, UiCardComponent],
   templateUrl: './comisiones-reporte.component.html'
 })

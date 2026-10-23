@@ -9,6 +9,7 @@ public record BonoResponse(
     Long id,
     Long usuarioId,
     String usuarioEmail,
+    Long tipoBonoId,
     String tipo,
     Integer horasTotales,
     Integer horasUsadas,

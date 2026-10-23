@@ -1,7 +1,7 @@
 # PadelApp — Sistema de Gestión de Canchas de Pádel
 
 > **Documento maestro v1.0** | Prompt de contexto para agente de desarrollo IA  
-> Stack: Java 21 · Spring Boot 3 · Angular 18 · Tailwind CSS v4 · PostgreSQL · Redis · MercadoPago · WhatsApp Business API
+> Stack: Java 21 · Spring Boot 3.5 · Angular 21 · Tailwind CSS v4 · PostgreSQL · Redis · MercadoPago · WhatsApp Business API
 
 ---
 
@@ -46,7 +46,7 @@ a qué capa pertenece y aplicá el estándar correspondiente sin excepciones.
 
 ### Frontend — `utn_frontend_angular_master` v2.0.0
 
-**Stack:** Angular 18 (Signals + Standalone Components) · Tailwind CSS v4 · TypeScript estricto · RxJS
+**Stack:** Angular 21 (Signals + Standalone Components, rutas lazy) · Tailwind CSS v4 · TypeScript estricto · RxJS
 
 **Reglas de arquitectura:**
 
@@ -72,7 +72,7 @@ a qué capa pertenece y aplicá el estándar correspondiente sin excepciones.
 ```
 ┌─────────────────────────────────────────────────────┐
 │                   CLIENTE                           │
-│         Angular 18 PWA · Tailwind CSS v4            │
+│         Angular 21 PWA · Tailwind CSS v4            │
 └───────────────────┬─────────────────────────────────┘
                     │ HTTPS / REST + WebSocket
 ┌───────────────────▼─────────────────────────────────┐
@@ -389,43 +389,74 @@ src/app/
 
 ---
 
-## Variables de entorno requeridas
+## Cómo correrlo
 
-```env
-# Base de datos
-DB_URL=jdbc:postgresql://localhost:5432/padel_db
-DB_USERNAME=padel_user
-DB_PASSWORD=padel123
+### Desarrollo local
 
-# Redis
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-# JWT
-JWT_SECRET=tu_clave_secreta_muy_larga
-JWT_EXPIRATION=86400000
-
-# MercadoPago
-MP_ACCESS_TOKEN=tu_access_token
-MP_WEBHOOK_SECRET=tu_webhook_secret
-
-# Twilio WhatsApp
-TWILIO_ACCOUNT_SID=tu_sid
-TWILIO_AUTH_TOKEN=tu_token
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-
-# Email (Resend)
-RESEND_API_KEY=tu_api_key
-RESEND_FROM=noreply@tudominio.com
-
-# Frontend público (Netlify): MercadoPago redirige acá al terminar el checkout y
-# los mails de recuperación de contraseña arman su link con esta URL.
-FRONTEND_URL=https://tu-sitio.netlify.app
-
-# Opcional: zona horaria del club (default America/Argentina/Buenos_Aires). Render corre
-# en UTC; sin esto "hoy", los horarios pasados y los cron quedaban corridos 3 horas.
-APP_TIMEZONE=America/Argentina/Buenos_Aires
+```bash
+docker compose -f docker-compose.dev.yml up -d          # Postgres (5433) y Redis (6379), solo en 127.0.0.1
+cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev
+cd frontend && npm ci && npm start                      # http://localhost:4200
 ```
+
+- **Sin Docker**: `mvn -f backend/pom.xml test-compile exec:java -Dexec.classpathScope=test -Dexec.mainClass=com.padel.DesarrolloSinDocker`
+  levanta un Postgres embebido en el 5433 (datos en `backend/.pg-dev`) y arranca el backend con el perfil `dev`.
+  Redis es opcional: sin él, los límites por IP y la revocación de sesiones usan memoria. Si el proceso se corta
+  a la fuerza, el Postgres embebido queda corriendo y el próximo arranque lo reutiliza.
+- Usuarios de prueba del seed de desarrollo (`admin@padelapp.com`, `recepcion@padelapp.com`,
+  `cliente@padelapp.com`, ...): contraseña `password`. Solo existen con el perfil `dev`.
+- El backend **no tiene perfil por defecto**: sin `dev` (o `prod`) no arranca, para que nunca corra en un
+  servidor con los valores de desarrollo.
+- El perfil `dev` trae defaults solo para local (JWT de desarrollo, webhooks sin firma, Swagger en
+  `/swagger-ui.html`) y carga el seed de prueba de `db/dev`. Sin SMTP, los emails (con el enlace de
+  verificación) se escriben en el log.
+- Tests: `cd backend && mvn verify` (H2 para la mayoría; las migraciones se validan contra un Postgres
+  embebido, no hace falta Docker).
+
+### Servidor (perfil `prod`)
+
+```bash
+cp .env.example .env        # completar: los secretos obligatorios no tienen default
+docker compose up -d --build
+```
+
+- Solo se publica nginx (`HTTP_PORT`, 8081 por defecto), que sirve la SPA y hace de proxy a `/api` y `/ws`.
+  Postgres, Redis y el backend quedan dentro de la red de Docker. Delante debe ir un proxy con TLS
+  (Caddy, Traefik); en ese caso ver el bloque `set_real_ip_from` de `frontend/nginx.conf`.
+- Health y métricas Prometheus en el puerto interno 8081 del backend (`/actuator/health`, `/actuator/prometheus`).
+- **Backups**: el servicio `backup` deja un `pg_dump` diario en `./backups` (retención `BACKUP_RETENTION_DAYS`).
+  Para restaurar:
+
+  ```bash
+  docker compose exec -T postgres pg_restore -U padel -d padeldb --clean --if-exists < backups/<archivo>.dump
+  ```
+
+- Primer admin: registrarse normalmente y promoverlo por SQL
+  (`UPDATE usuarios SET rol = 'ADMIN' WHERE email = '...'`); el rol viaja en el token, hay que volver a entrar.
+
+### Variables de entorno
+
+Todas están en [`.env.example`](.env.example) con su explicación. Las obligatorias en `prod`:
+
+| Variable | Para qué |
+|---|---|
+| `POSTGRES_PASSWORD`, `REDIS_PASSWORD` | Credenciales de la base y de Redis |
+| `JWT_SECRET` | Firma de los tokens (mínimo 32 caracteres aleatorios: `openssl rand -base64 48`) |
+| `FRONTEND_URL` | URL pública: back_urls de MercadoPago, enlaces de los emails y origen CORS |
+| `MP_ACCESS_TOKEN` | MercadoPago |
+
+Recomendadas: `MP_WEBHOOK_SECRET` (sin él los avisos de pago se rechazan), `MAIL_*` (sin SMTP los jugadores
+nuevos no pueden verificar su email), `CONTROL_HORARIO_REDES` (redes desde las que el staff puede fichar),
+`TWILIO_*` (WhatsApp) y `APP_TIMEZONE` (default `America/Argentina/Buenos_Aires`).
+
+> El repositorio es público: `.env` está en `.gitignore` y nunca se commitea. El secreto JWT que quedó en el
+> historial (commit `f6aabb6`) está quemado y no debe usarse.
+
+### CI
+
+`.github/workflows/ci.yml` corre en cada PR: `mvn verify`, build y tests del frontend, `npm audit` de las
+dependencias de producción y el build de las dos imágenes Docker. Dependabot propone las actualizaciones de
+Maven, npm, Actions e imágenes base. Conviene activar además el *code scanning* de GitHub (CodeQL, "default setup").
 
 ---
 
@@ -448,16 +479,20 @@ APP_TIMEZONE=America/Argentina/Buenos_Aires
 | Fase | Estado | Notas |
 |---|---|---|
 | Modelo de datos | ✅ Diseñado | ERD completo, 11 entidades |
-| Setup proyecto | ✅ Completo | Spring Boot 3 + Angular 18 inicializados |
+| Setup proyecto | ✅ Completo | Spring Boot 3.5 + Angular 21 (actualizados en la auditoría de 10/2026) |
 | Fase 1 — Auth | ✅ Completo | JWT, H2, login/registro frontend y backend |
 | Fase 2 — Canchas y Disponibilidad | ✅ Completo | CRUDs, Bloqueos, Disponibilidad, WS y Frontend |
 | Fase 3 — Reservas y WhatsApp | ✅ Completo | Locks Redis, Twilio WhatsApp, Scheduler, Modal, Historial y Cancelación |
 | Fase 4 — Pagos y Bonos | ✅ Completo | Integración de seña con MercadoPago y sistema de bonos prepagos |
 | Fase 5 — Tienda y Consumos | ✅ Completo | Consumos a turnos y reportes POS |
-| Fase 6 — Deploy y Dashboard | 🚧 En progreso | ✅ Postgres físico + Docker (compose full-stack). ⏳ Falta CI/CD, despliegue y dashboard con gráficos |
+| Fase 6 — Deploy y Dashboard | 🚧 En progreso | ✅ Docker prod (compose con secretos obligatorios, nginx con CSP, backups), CI y Dependabot, métricas del panel en el backend. ⏳ Falta el despliegue en el servidor propio |
+
+**Auditoría de seguridad (10/2026):** integridad de reservas (sin solapes, versionado, reintegros), JWT revocable con
+rate limiting y lockout, verificación de email, política de contraseñas, privacidad de datos entre jugadores, catálogo
+de bonos, fichaje explícito del staff y auditoría de cambios (quién y cuándo).
 
 **Adicional (fuera de fases originales):** gestión de staff (turnos, banco de horas, comisiones, liquidaciones), notificaciones in-app + email, recuperación/cambio de password y configuración parametrizable del sistema.
 
 ---
 
-*Última actualización: 24/07/2026*
+*Última actualización: 23/10/2026*

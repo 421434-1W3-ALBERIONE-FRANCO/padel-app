@@ -8,3 +8,6 @@ Dockerfile
 npm-debug.log
 .vscode/
 .idea/
+.env
+.env.*
+coverage/

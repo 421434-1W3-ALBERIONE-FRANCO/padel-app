@@ -8,7 +8,6 @@ import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-productos-admin',
-  standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './productos-admin.component.html',
   styleUrls: ['./productos-admin.component.css']
@@ -16,17 +15,17 @@ import { ToastService } from '../../../core/services/toast.service';
 export class ProductosAdminComponent implements OnInit {
   private productoService = inject(ProductoService);
   private toast = inject(ToastService);
-  private fb = inject(FormBuilder);
+  private fb = inject(FormBuilder);
   productos = signal<ProductoResponse[]>([]);
-  cargando = signal<boolean>(false);
+  cargando = signal<boolean>(false);
   productoForm!: FormGroup;
   showForm = signal<boolean>(false);
-  editProductoId = signal<number | null>(null);
-  categorias = ['BEBIDA', 'SNACK', 'ACCESORIO', 'ALQUILER', 'OTROS'];
+  editProductoId = signal<number | null>(null);
+  categorias = ['BEBIDA', 'SNACK', 'ACCESORIO', 'ALQUILER', 'OTROS'];
   ngOnInit() {
     this.initForm();
     this.cargarProductos();
-  }
+  }
   initForm() {
     this.productoForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.maxLength(100)]],
@@ -35,7 +34,7 @@ export class ProductosAdminComponent implements OnInit {
       stock: [0, [Validators.required, Validators.min(0)]],
       activo: [true]
     });
-  }
+  }
   cargarProductos() {
     this.cargando.set(true);
     this.productoService.listarActivos().subscribe({
@@ -48,7 +47,7 @@ export class ProductosAdminComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
+  }
   abrirNuevo() {
     this.editProductoId.set(null);
     this.productoForm.reset({
@@ -59,7 +58,7 @@ export class ProductosAdminComponent implements OnInit {
       activo: true
     });
     this.showForm.set(true);
-  }
+  }
   editar(producto: ProductoResponse) {
     this.editProductoId.set(producto.id);
     this.productoForm.patchValue({
@@ -70,21 +69,21 @@ export class ProductosAdminComponent implements OnInit {
       activo: producto.activo
     });
     this.showForm.set(true);
-  }
+  }
   cerrarForm() {
     this.showForm.set(false);
     this.editProductoId.set(null);
-  }
+  }
   guardar() {
     if (this.productoForm.invalid) {
       this.productoForm.markAllAsTouched();
       return;
-    }
+    }
     const payload = this.productoForm.value;
     const request$ = this.editProductoId()
       ? this.productoService.actualizar(this.editProductoId()!, payload)
-      : this.productoService.crear(payload);
-    this.cargando.set(true);
+      : this.productoService.crear(payload);
+    this.cargando.set(true);
     request$.subscribe({
       next: () => {
         this.toast.success(this.editProductoId() ? 'Producto actualizado con éxito' : 'Producto creado con éxito');
@@ -96,10 +95,10 @@ export class ProductosAdminComponent implements OnInit {
         this.cargando.set(false);
       }
     });
-  }
+  }
   eliminar(id: number) {
-    if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
-    this.cargando.set(true);
+    if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
+    this.cargando.set(true);
     this.productoService.eliminar(id).subscribe({
       next: () => {
         this.toast.success('Producto eliminado con éxito');

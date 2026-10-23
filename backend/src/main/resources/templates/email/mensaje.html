@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${titulo}">PadelApp</title>
+</head>
+<!--
+  Plantilla única de los emails. Todo el contenido variable va con th:text / th:href: Thymeleaf lo escapa,
+  así que un nombre como "<a href=...>" llega como texto y no como HTML (antes se concatenaba crudo).
+-->
+<body style="margin: 0; padding: 0; background: #f1f5f9;">
+<div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; color: #1e293b; background: #ffffff;">
+    <h2 style="color: #0f172a;" th:text="${titulo}">Título</h2>
+    <p style="font-size: 14px; line-height: 1.6;" th:text="${saludo}">Hola</p>
+    <p th:each="parrafo : ${parrafos}" style="font-size: 14px; line-height: 1.6;" th:text="${parrafo}">Texto</p>
+    <p th:if="${botonUrl != null}" style="margin: 24px 0;">
+        <a th:href="${botonUrl}" th:text="${botonTexto}"
+           style="background: #0ea5e9; color: #ffffff; padding: 12px 20px; border-radius: 8px; text-decoration: none; font-weight: bold;">Botón</a>
+    </p>
+    <p th:if="${botonUrl != null}" style="font-size: 12px; color: #64748b;">
+        Si el botón no funciona, copiá este enlace en el navegador: <span th:text="${botonUrl}">url</span>
+    </p>
+    <p th:if="${nota != null}" style="font-size: 12px; color: #64748b;" th:text="${nota}">Nota</p>
+    <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 24px 0;">
+    <p style="font-size: 11px; color: #94a3b8;">PadelApp - Sistema de gestión de canchas</p>
+</div>
+</body>
+</html>

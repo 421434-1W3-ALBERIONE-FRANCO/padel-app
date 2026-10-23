@@ -7,9 +7,7 @@ public record InscripcionTorneoResponse(
     Long torneoId,
     Long jugador1Id,
     String jugador1Nombre,
-    String jugador1Email,
     Long jugador2Id,
     String jugador2Nombre,
-    String jugador2Email,
     EstadoInscripcion estado
 ) {}

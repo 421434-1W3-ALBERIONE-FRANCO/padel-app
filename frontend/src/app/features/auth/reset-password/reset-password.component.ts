@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -8,8 +7,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 
 @Component({
   selector: 'app-reset-password',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [ReactiveFormsModule, RouterLink],
   templateUrl: './reset-password.component.html'
 })
 export class ResetPasswordComponent {
@@ -22,11 +20,18 @@ export class ResetPasswordComponent {
   private token = this.route.snapshot.queryParamMap.get('token') ?? '';
 
   form: FormGroup = this.fb.group({
-    passwordNueva: ['', [Validators.required, Validators.minLength(6)]]
+    passwordNueva: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(72)]]
   });
 
   tokenPresente = signal<boolean>(!!this.token);
   isLoading = signal<boolean>(false);
+
+  constructor() {
+    // El token ya se leyó: que no quede en la barra de direcciones ni en el historial.
+    if (this.token) {
+      this.router.navigate([], { queryParams: {}, replaceUrl: true });
+    }
+  }
 
   onSubmit(): void {
     if (this.form.invalid || !this.token) {

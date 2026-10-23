@@ -8,3 +8,6 @@ frontend
 .idea
 .vscode
 *.log
+.env
+.env.*
+backups

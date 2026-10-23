@@ -1,7 +1,7 @@
 export type MetodoPago = 'MERCADOPAGO' | 'BONO' | 'EFECTIVO' | 'MERCADOPAGO_POINT' | 'TARJETA';
 export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
-/** Qué se cobró: el turno, los consumos de la cuenta o la venta de un bono. */
-export type ConceptoPago = 'TURNO' | 'CONSUMOS' | 'BONO';
+/** Qué se cobró: el turno, los consumos de la cuenta o la venta de un bono. REINTEGRO es una devolución (monto negativo). */
+export type ConceptoPago = 'TURNO' | 'CONSUMOS' | 'BONO' | 'REINTEGRO';
 /** Lo que se cobra en el mostrador y queda aprobado en el acto. */
 export type MetodoMostrador = 'EFECTIVO' | 'TARJETA';
 

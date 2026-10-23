@@ -10,33 +10,39 @@
       <section class="mb-8 p-5 rounded-2xl bg-surface-1/40 border border-white/5">
         <h2 class="text-sm font-bold text-white font-display uppercase tracking-wider mb-4">Configuración</h2>
 
-        <div *ngIf="configCargando()" class="text-slate-400 text-sm">Cargando configuración...</div>
+        @if (configCargando()) {
+          <div class="text-slate-400 text-sm">Cargando configuración...</div>
+        }
 
-        <div *ngIf="!configCargando()" class="space-y-4">
-          <label class="flex items-center justify-between gap-4 cursor-pointer">
-            <span>
-              <span class="block text-sm font-semibold text-white">Comisiones para recepción</span>
-              <span class="block text-xs text-slate-400 mt-0.5">Habilita el cálculo de comisiones por ventas de consumos y bonos.</span>
-            </span>
-            <input type="checkbox" [(ngModel)]="comisionesHabilitadas" name="comisionesHabilitadas" class="w-5 h-5 accent-primary-500 shrink-0" />
-          </label>
-
-          <div>
-            <label for="pctComision" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Porcentaje de comisión (%)</label>
-            <input
-              id="pctComision"
-              type="number" step="0.01" min="0" max="100"
-              [(ngModel)]="porcentajeComisionRecepcion" name="porcentajeComisionRecepcion"
-              [disabled]="!comisionesHabilitadas"
-              class="w-full sm:w-48 bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition outline-none disabled:opacity-50"
-            />
+        @if (!configCargando()) {
+          <div class="space-y-4">
+            <label class="flex items-center justify-between gap-4 cursor-pointer">
+              <span>
+                <span class="block text-sm font-semibold text-white">Comisiones para recepción</span>
+                <span class="block text-xs text-slate-400 mt-0.5">Habilita el cálculo de comisiones por ventas de consumos y bonos.</span>
+              </span>
+              <input type="checkbox" [(ngModel)]="comisionesHabilitadas" name="comisionesHabilitadas" class="w-5 h-5 accent-primary-500 shrink-0" />
+            </label>
+            <div>
+              <label for="pctComision" class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Porcentaje de comisión (%)</label>
+              <input
+                id="pctComision"
+                type="number" step="0.01" min="0" max="100"
+                [(ngModel)]="porcentajeComisionRecepcion" name="porcentajeComisionRecepcion"
+                [disabled]="!comisionesHabilitadas"
+                class="w-full sm:w-48 bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition outline-none disabled:opacity-50"
+                />
+            </div>
+            <button type="button" (click)="guardarConfigComisiones()" [disabled]="configGuardando()" class="btn-primary py-2.5 px-5 text-sm">
+              @if (!configGuardando()) {
+                <span>Guardar configuración</span>
+              }
+              @if (configGuardando()) {
+                <span>Guardando...</span>
+              }
+            </button>
           </div>
-
-          <button type="button" (click)="guardarConfigComisiones()" [disabled]="configGuardando()" class="btn-primary py-2.5 px-5 text-sm">
-            <span *ngIf="!configGuardando()">Guardar configuración</span>
-            <span *ngIf="configGuardando()">Guardando...</span>
-          </button>
-        </div>
+        }
       </section>
 
       <h2 class="text-sm font-bold text-white font-display uppercase tracking-wider mb-4">Reporte por período</h2>
@@ -49,7 +55,9 @@
             name="recepcionistaId"
             class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-primary-500 transition text-xs cursor-pointer">
             <option [ngValue]="null" disabled>Seleccionar...</option>
-            <option *ngFor="let r of recepcionistas()" [ngValue]="r.id">{{ r.nombre }} {{ r.apellido }} ({{ r.email }})</option>
+            @for (r of recepcionistas(); track r) {
+              <option [ngValue]="r.id">{{ r.nombre }} {{ r.apellido }} ({{ r.email }})</option>
+            }
           </select>
         </div>
         <div>
@@ -65,51 +73,61 @@
       </div>
 
       <button (click)="generarReporte()" [disabled]="cargando()" class="btn-primary py-3 px-6 mb-8">
-        <span *ngIf="!cargando()">Generar Reporte</span>
-        <span *ngIf="cargando()">Generando...</span>
+        @if (!cargando()) {
+          <span>Generar Reporte</span>
+        }
+        @if (cargando()) {
+          <span>Generando...</span>
+        }
       </button>
 
-      <div *ngIf="reporte() as rep">
-        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 mb-6 flex items-center justify-between">
-          <div>
-            <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total del período</span>
-            <span class="text-2xl font-black text-emerald-400 font-display">${{ rep.totalComisiones | number:'1.2-2' }}</span>
+      @if (reporte(); as rep) {
+        <div>
+          <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 mb-6 flex items-center justify-between">
+            <div>
+              <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total del período</span>
+              <span class="text-2xl font-black text-emerald-400 font-display">${{ rep.totalComisiones | number:'1.2-2' }}</span>
+            </div>
+            <span class="text-xs text-slate-400">{{ rep.detalle.length }} comisiones</span>
           </div>
-          <span class="text-xs text-slate-400">{{ rep.detalle.length }} comisiones</span>
+          @if (rep.detalle.length === 0) {
+            <div class="text-slate-400 text-sm text-center py-6">
+              No hay comisiones registradas en este período.
+            </div>
+          }
+          @if (rep.detalle.length > 0) {
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5">
+                  <th class="pb-2">Fecha</th>
+                  <th class="pb-2">Origen</th>
+                  <th class="pb-2 text-right">Base</th>
+                  <th class="pb-2 text-right">%</th>
+                  <th class="pb-2 text-right">Comisión</th>
+                  <th class="pb-2 text-right">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of rep.detalle; track c) {
+                  <tr class="border-b border-white/5">
+                    <td class="py-2 text-slate-300">{{ c.createdAt | date:'short' }}</td>
+                    <td class="py-2 text-slate-300">{{ c.origen }}</td>
+                    <td class="py-2 text-right text-slate-300">${{ c.montoBase | number:'1.2-2' }}</td>
+                    <td class="py-2 text-right text-slate-400">{{ c.porcentajeAplicado }}%</td>
+                    <td class="py-2 text-right font-semibold text-emerald-400">${{ c.montoComision | number:'1.2-2' }}</td>
+                    <td class="py-2 text-right">
+                      <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
+                        [ngClass]="c.estado === 'PENDIENTE' ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'">
+                        {{ c.estado }}
+                      </span>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
         </div>
-
-        <div *ngIf="rep.detalle.length === 0" class="text-slate-400 text-sm text-center py-6">
-          No hay comisiones registradas en este período.
-        </div>
-
-        <table *ngIf="rep.detalle.length > 0" class="w-full text-sm">
-          <thead>
-            <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5">
-              <th class="pb-2">Fecha</th>
-              <th class="pb-2">Origen</th>
-              <th class="pb-2 text-right">Base</th>
-              <th class="pb-2 text-right">%</th>
-              <th class="pb-2 text-right">Comisión</th>
-              <th class="pb-2 text-right">Estado</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let c of rep.detalle" class="border-b border-white/5">
-              <td class="py-2 text-slate-300">{{ c.createdAt | date:'short' }}</td>
-              <td class="py-2 text-slate-300">{{ c.origen }}</td>
-              <td class="py-2 text-right text-slate-300">${{ c.montoBase | number:'1.2-2' }}</td>
-              <td class="py-2 text-right text-slate-400">{{ c.porcentajeAplicado }}%</td>
-              <td class="py-2 text-right font-semibold text-emerald-400">${{ c.montoComision | number:'1.2-2' }}</td>
-              <td class="py-2 text-right">
-                <span class="text-[10px] px-2 py-0.5 rounded-full font-bold"
-                  [ngClass]="c.estado === 'PENDIENTE' ? 'bg-amber-500/10 text-amber-400' : 'bg-emerald-500/10 text-emerald-400'">
-                  {{ c.estado }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      }
 
       <div class="mt-8">
         <a routerLink="/admin" class="btn-secondary py-2.5 px-5 text-xs">Volver al Panel</a>

@@ -1,7 +1,15 @@
 package com.padel.exception;
 
-public class EmailDuplicadoException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class EmailDuplicadoException extends NegocioException {
+
     public EmailDuplicadoException(String message) {
         super(message);
+    }
+
+    @Override
+    public HttpStatus getStatus() {
+        return HttpStatus.BAD_REQUEST;
     }
 }

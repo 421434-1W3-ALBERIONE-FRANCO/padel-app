@@ -19,7 +19,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import com.padel.repository.ReservaRepository;
+import com.padel.service.ReservaService;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -30,6 +32,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -45,7 +48,13 @@ class BloqueoCanchaServiceImplTest {
     private BloqueoCanchaMapper bloqueoCanchaMapper;
 
     @Mock
-    private SimpMessagingTemplate messagingTemplate;
+    private ApplicationEventPublisher eventos;
+
+    @Mock
+    private ReservaRepository reservaRepository;
+
+    @Mock
+    private ReservaService reservaService;
 
     @Spy
     private FechaHoraUtil fechaHoraUtil = new FechaHoraUtil();
@@ -84,7 +93,8 @@ class BloqueoCanchaServiceImplTest {
                 LocalDate.now().plusDays(1),
                 LocalTime.of(9, 0),
                 LocalTime.of(12, 0),
-                "Mantenimiento"
+                "Mantenimiento",
+                null
         );
 
         bloqueoResponse = new BloqueoCanchaResponse(
@@ -130,7 +140,8 @@ class BloqueoCanchaServiceImplTest {
                 LocalDate.now().plusDays(1),
                 LocalTime.of(9, 0),
                 LocalTime.of(12, 0),
-                "Mantenimiento"
+                "Mantenimiento",
+                null
         );
 
         when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
@@ -146,7 +157,8 @@ class BloqueoCanchaServiceImplTest {
                 LocalDate.now().plusDays(1),
                 LocalTime.of(12, 0),
                 LocalTime.of(9, 0),
-                "Mantenimiento"
+                "Mantenimiento",
+                null
         );
 
         when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
@@ -195,7 +207,8 @@ class BloqueoCanchaServiceImplTest {
                 LocalDate.now().plusDays(2),
                 LocalTime.of(14, 0),
                 LocalTime.of(16, 0),
-                "Torneo"
+                "Torneo",
+                null
         );
         BloqueoCanchaResponse updateResponse = new BloqueoCanchaResponse(
                 1L,
@@ -228,5 +241,44 @@ class BloqueoCanchaServiceImplTest {
         bloqueoCanchaService.eliminar(1L);
 
         verify(bloqueoCanchaRepository, times(1)).delete(bloqueoMock);
+    }
+
+    private com.padel.domain.entity.Reserva reservaEn(LocalTime inicio, LocalTime fin) {
+        return com.padel.domain.entity.Reserva.builder().id(30L).cancha(canchaMock)
+                .fecha(LocalDate.now().plusDays(1)).horaInicio(inicio).horaFin(fin).build();
+    }
+
+    @Test
+    void crear_ConReservasVigentesEnElHorario_PideConfirmacion() {
+        when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
+        when(bloqueoCanchaRepository.findOverlappingBlocks(any(), any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+        when(reservaRepository.findVigentesEntreFechas(eq(1L), any(), any()))
+                .thenReturn(List.of(reservaEn(LocalTime.of(10, 0), LocalTime.of(11, 30))));
+
+        com.padel.exception.ReservasAfectadasException ex = assertThrows(com.padel.exception.ReservasAfectadasException.class,
+                () -> bloqueoCanchaService.crear(1L, bloqueoRequest));
+
+        assertEquals("RESERVAS_AFECTADAS", ex.getCodigo());
+        verify(bloqueoCanchaRepository, never()).save(any());
+        verifyNoInteractions(reservaService);
+    }
+
+    @Test
+    void crear_ConfirmandoElBloqueo_CancelaLasReservasComoCancelacionDelClub() {
+        BloqueoCanchaRequest confirmado = new BloqueoCanchaRequest(LocalDate.now().plusDays(1), LocalDate.now().plusDays(1),
+                LocalTime.of(9, 0), LocalTime.of(12, 0), "Lluvia", true);
+        when(canchaRepository.findById(1L)).thenReturn(Optional.of(canchaMock));
+        when(bloqueoCanchaRepository.findOverlappingBlocks(any(), any(), any(), any(), any(), any())).thenReturn(Collections.emptyList());
+        when(reservaRepository.findVigentesEntreFechas(eq(1L), any(), any())).thenReturn(List.of(
+                reservaEn(LocalTime.of(10, 0), LocalTime.of(11, 30)),
+                reservaEn(LocalTime.of(12, 0), LocalTime.of(13, 30)))); // empieza justo al terminar el bloqueo: no se toca
+        when(bloqueoCanchaMapper.toEntity(confirmado)).thenReturn(bloqueoMock);
+        when(bloqueoCanchaRepository.save(any(BloqueoCancha.class))).thenReturn(bloqueoMock);
+        when(bloqueoCanchaMapper.toResponse(bloqueoMock)).thenReturn(bloqueoResponse);
+
+        bloqueoCanchaService.crear(1L, confirmado);
+
+        verify(reservaService, times(1)).cancelarPorClub(30L, "Cancha no disponible: Lluvia");
+        verify(eventos).publishEvent(new com.padel.domain.evento.DisponibilidadCambiadaEvent(1L));
     }
 }

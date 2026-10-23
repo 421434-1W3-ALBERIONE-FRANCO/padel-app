@@ -26,7 +26,6 @@ const DURACION_SALIDA_MS = 280;
 
 @Component({
   selector: 'app-match',
-  standalone: true,
   imports: [CommonModule, RouterLink, TarjetaJugadorComponent],
   templateUrl: './match.component.html'
 })

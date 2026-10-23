@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { RankingService } from '../../../core/services/ranking.service';
@@ -10,8 +9,7 @@ import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-ranking-jugadores',
-  standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [RouterLink, FormsModule],
   templateUrl: './ranking-jugadores.component.html'
 })
 export class RankingJugadoresComponent implements OnInit {
@@ -51,6 +49,6 @@ export class RankingJugadoresComponent implements OnInit {
   }
 
   esMiFila(fila: RankingJugadorResponse): boolean {
-    return fila.jugadorEmail === this.currentUser()?.email;
+    return fila.jugadorId === this.currentUser()?.id;
   }
 }

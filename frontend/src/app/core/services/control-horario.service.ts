@@ -3,6 +3,7 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import {
   BancoHorasResponse,
+  FichajeResponse,
   LiquidacionRequest,
   LiquidacionResponse,
   TurnoRequest,
@@ -27,6 +28,19 @@ export class ControlHorarioService {
 
   eliminarTurno(id: number): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/turnos/${id}`);
+  }
+
+  // Fichaje del usuario logueado (staff). El backend toma la IP del pedido para validar la red del club.
+  fichajeActual(): Observable<FichajeResponse> {
+    return this.http.get<FichajeResponse>(`${this.API_URL}/fichajes/actual`);
+  }
+
+  ficharEntrada(): Observable<FichajeResponse> {
+    return this.http.post<FichajeResponse>(`${this.API_URL}/fichajes`, {});
+  }
+
+  ficharSalida(): Observable<FichajeResponse> {
+    return this.http.put<FichajeResponse>(`${this.API_URL}/fichajes/actual`, {});
   }
 
   // Liquidaciones

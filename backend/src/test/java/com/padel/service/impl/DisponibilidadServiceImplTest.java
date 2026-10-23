@@ -14,6 +14,8 @@ import com.padel.repository.ReservaRepository;
 import com.padel.service.RedisLockService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import com.padel.config.ReservasProperties;
+import org.mockito.Spy;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -46,6 +48,9 @@ class DisponibilidadServiceImplTest {
 
     @Mock
     private RedisLockService redisLockService;
+
+    @Spy
+    private CalculadoraPrecioReserva calculadoraPrecio = new CalculadoraPrecioReserva(new ReservasProperties());
 
     @InjectMocks
     private DisponibilidadServiceImpl disponibilidadService;

@@ -30,7 +30,6 @@ interface FilaCancha {
 
 @Component({
   selector: 'app-ocupacion-admin',
-  standalone: true,
   imports: [CommonModule, FormsModule],
   templateUrl: './ocupacion-admin.component.html'
 })
@@ -136,10 +135,10 @@ export class OcupacionAdminComponent implements OnInit, OnDestroy {
   }
 
   refrescarReservas(silencioso: boolean): void {
-    // Se pide solo el día elegido: sin fecha el backend devuelve todo el historial (input vacío -> no se consulta).
+    // Agenda del día elegido (input vacío -> no se consulta).
     const fecha = this.fecha();
     if (!fecha) return;
-    this.reservaService.getAllReservas(fecha).subscribe({
+    this.reservaService.getAgenda(fecha).subscribe({
       next: (data) => {
         // Si mientras tanto se eligió otra fecha, esta respuesta quedó vieja (la reemplaza la de la fecha nueva).
         if (fecha !== this.fecha()) return;

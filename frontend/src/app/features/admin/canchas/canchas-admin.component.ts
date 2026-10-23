@@ -5,13 +5,13 @@ import { RouterLink } from '@angular/router';
 import { CanchaAdminService } from '../../../core/services/cancha-admin.service';
 import { CanchaResponse, TipoSuelo } from '../../../shared/models/cancha.model';
 import { FranjaHorariaResponse } from '../../../shared/models/franja.model';
-import { BloqueoCanchaResponse } from '../../../shared/models/bloqueo.model';
+import { BloqueoCanchaRequest, BloqueoCanchaResponse } from '../../../shared/models/bloqueo.model';
+import { ApiError } from '../../../shared/models/api-error.model';
 import { maxIsoDate, rangoDeFechaValidator, todayIsoDate } from '../../../shared/utils/date.util';
 import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-canchas-admin',
-  standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './canchas-admin.component.html',
   styleUrls: ['./canchas-admin.component.css']
@@ -265,7 +265,11 @@ export class CanchasAdminComponent implements OnInit {
     this.clearDiasSeleccionados();
   }
   // CRUD Bloqueos
-  guardarBloqueo() {
+  /**
+   * @param cancelarReservasAfectadas true cuando el staff ya confirmó que el bloqueo cancele las reservas que pisa
+   *        (el backend reintegra lo pagado y avisa a cada jugador). Sin confirmar, responde RESERVAS_AFECTADAS.
+   */
+  guardarBloqueo(cancelarReservasAfectadas = false) {
     if (!this.canchaSeleccionada()) {
       return;
     }
@@ -274,7 +278,7 @@ export class CanchasAdminComponent implements OnInit {
       this.mostrarError('Completá los campos obligatorios marcados en rojo antes de guardar.');
       return;
     }
-    const payload = this.bloqueoForm.value;
+    const payload: BloqueoCanchaRequest = { ...this.bloqueoForm.value, cancelarReservasAfectadas };
     const canchaId = this.canchaSeleccionada()!.id;
     const request$ = this.editBloqueoId()
       ? this.canchaAdminService.actualizarBloqueo(this.editBloqueoId()!, payload)
@@ -287,8 +291,15 @@ export class CanchasAdminComponent implements OnInit {
         this.cargarDetallesCancha(canchaId);
       },
       error: (err) => {
-        this.mostrarError(err.error?.message || 'Error al guardar el bloqueo');
         this.cargandoDetalles.set(false);
+        const apiError = err.error as ApiError | null;
+        if (apiError?.codigo === 'RESERVAS_AFECTADAS' && !cancelarReservasAfectadas) {
+          if (confirm(`${apiError.message}\n\n¿Bloquear igual? Esas reservas se cancelan, se reintegra lo pagado y se avisa a cada jugador.`)) {
+            this.guardarBloqueo(true);
+          }
+          return;
+        }
+        this.mostrarError(apiError?.message || 'Error al guardar el bloqueo');
       }
     });
   }

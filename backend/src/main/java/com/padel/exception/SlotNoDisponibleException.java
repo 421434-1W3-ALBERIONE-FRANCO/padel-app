@@ -1,7 +1,15 @@
 package com.padel.exception;
 
-public class SlotNoDisponibleException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class SlotNoDisponibleException extends NegocioException {
+
     public SlotNoDisponibleException(String message) {
         super(message);
+    }
+
+    @Override
+    public HttpStatus getStatus() {
+        return HttpStatus.CONFLICT;
     }
 }

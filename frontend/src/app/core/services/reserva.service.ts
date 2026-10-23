@@ -1,9 +1,19 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { ReservaRequest, ReservaResponse } from '../../shared/models/reserva.model';
+import { EstadoReserva, ReservaRequest, ReservaResponse } from '../../shared/models/reserva.model';
+import { PaginaResponse } from '../../shared/models/pagina.model';
 import { MetodoMostrador, PagoResponse } from '../../shared/models/pago.model';
 import { environment } from '../../../environments/environment';
+
+export interface FiltrosReservas {
+  desde?: string;
+  hasta?: string;
+  estado?: EstadoReserva;
+  q?: string;
+  page?: number;
+  size?: number;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -32,13 +42,21 @@ export class ReservaService {
     return this.http.get<ReservaResponse>(`${this.API_URL}/${id}`);
   }
 
-  /** Staff: todo el historial o, con `fecha` (YYYY-MM-DD), solo las reservas de ese día ordenadas por hora y cancha. */
-  getAllReservas(fecha?: string): Observable<ReservaResponse[]> {
-    let params = new HttpParams();
-    if (fecha) {
-      params = params.set('fecha', fecha);
-    }
-    return this.http.get<ReservaResponse[]>(this.API_URL, { params });
+  /** Staff: búsqueda paginada en el backend (más recientes primero). `q` busca por cliente o cancha. */
+  buscarReservas(filtros: FiltrosReservas = {}): Observable<PaginaResponse<ReservaResponse>> {
+    let params = new HttpParams()
+      .set('page', filtros.page ?? 0)
+      .set('size', filtros.size ?? 20);
+    if (filtros.desde) params = params.set('desde', filtros.desde);
+    if (filtros.hasta) params = params.set('hasta', filtros.hasta);
+    if (filtros.estado) params = params.set('estado', filtros.estado);
+    if (filtros.q?.trim()) params = params.set('q', filtros.q.trim());
+    return this.http.get<PaginaResponse<ReservaResponse>>(this.API_URL, { params });
+  }
+
+  /** Staff: las reservas de un día (YYYY-MM-DD) en todos sus estados, ordenadas por hora y cancha. */
+  getAgenda(fecha: string): Observable<ReservaResponse[]> {
+    return this.http.get<ReservaResponse[]>(`${this.API_URL}/agenda`, { params: { fecha } });
   }
 
   /**

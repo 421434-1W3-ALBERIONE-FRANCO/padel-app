@@ -44,11 +44,11 @@ class MatchFlujoIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CrearUsuarioRequest(
-                                nombre, "Match", email, "3510000000", "password123", RolUsuario.JUGADOR))))
+                                nombre, "Match", email, "3510000000", "ClaveSegura-2026"))))
                 .andExpect(status().isCreated());
         String json = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "ClaveSegura-2026"))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return "Bearer " + objectMapper.readValue(json, LoginResponse.class).token();

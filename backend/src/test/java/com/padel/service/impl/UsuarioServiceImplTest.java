@@ -1,345 +1,371 @@
 package com.padel.service.impl;
 
+import com.padel.config.AuthProperties;
+import com.padel.config.LimitesProperties;
+import com.padel.domain.entity.TokenUsuario;
 import com.padel.domain.entity.Usuario;
 import com.padel.domain.enums.RolUsuario;
+import com.padel.domain.enums.TipoTokenUsuario;
+import com.padel.dto.request.CambiarPasswordRequest;
+import com.padel.dto.request.CrearStaffRequest;
 import com.padel.dto.request.CrearUsuarioRequest;
 import com.padel.dto.request.LoginRequest;
+import com.padel.dto.request.ResetearPasswordRequest;
 import com.padel.dto.response.LoginResponse;
 import com.padel.dto.response.UsuarioResponse;
+import com.padel.exception.DatosInvalidosException;
+import com.padel.exception.DemasiadosIntentosException;
 import com.padel.exception.EmailDuplicadoException;
-import com.padel.exception.ResourceNotFoundException;
+import com.padel.exception.EmailNoVerificadoException;
+import com.padel.exception.PasswordIncorrectoException;
+import com.padel.exception.TokenInvalidoException;
 import com.padel.mapper.UsuarioMapper;
-import com.padel.repository.TokenRecuperacionPasswordRepository;
+import com.padel.repository.TokenUsuarioRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.security.JwtUtil;
+import com.padel.security.LimitadorEnMemoria;
+import com.padel.security.RevocacionTokens;
 import com.padel.service.EmailService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class UsuarioServiceImplTest {
 
     @Mock
     private UsuarioRepository usuarioRepository;
-
+    @Mock
+    private TokenUsuarioRepository tokenUsuarioRepository;
     @Mock
     private PasswordEncoder passwordEncoder;
-
     @Mock
     private JwtUtil jwtUtil;
-
     @Mock
     private UsuarioMapper usuarioMapper;
-
     @Mock
     private AuthenticationManager authenticationManager;
-
     @Mock
     private EmailService emailService;
-
     @Mock
-    private TokenRecuperacionPasswordRepository tokenRecuperacionPasswordRepository;
-
-    @Mock
-    private com.padel.service.SesionTrabajoService sesionTrabajoService;
+    private RevocacionTokens revocacionTokens;
+    @Spy
+    private LimitadorEnMemoria limitador = new LimitadorEnMemoria();
+    @Spy
+    private LimitesProperties limites = new LimitesProperties();
+    @Spy
+    private AuthProperties authProperties = new AuthProperties();
 
     @InjectMocks
     private UsuarioServiceImpl usuarioService;
 
-    private Usuario usuarioMock;
-    private CrearUsuarioRequest crearUsuarioRequest;
-    private UsuarioResponse usuarioResponse;
+    private Usuario jugador;
+    private UsuarioResponse respuesta;
 
     @BeforeEach
     void setUp() {
-        usuarioMock = Usuario.builder()
-                .id(1L)
-                .nombre("Juan")
-                .apellido("Perez")
-                .email("juan.perez@example.com")
-                .telefono("123456789")
-                .passwordHash("encodedPassword")
-                .rol(RolUsuario.JUGADOR)
-                .activo(true)
-                .build();
+        jugador = Usuario.builder().id(1L).nombre("Juan").apellido("Perez").email("juan@example.com")
+                .passwordHash("hash").rol(RolUsuario.JUGADOR).activo(true).emailVerificado(true).build();
+        respuesta = new UsuarioResponse(1L, "Juan", "Perez", "juan@example.com", null, RolUsuario.JUGADOR, true, true);
+    }
 
-        crearUsuarioRequest = new CrearUsuarioRequest(
-                "Juan",
-                "Perez",
-                "juan.perez@example.com",
-                "123456789",
-                "password123",
-                RolUsuario.JUGADOR
-        );
+    // ---------- registro ----------
 
-        usuarioResponse = new UsuarioResponse(
-                1L,
-                "Juan",
-                "Perez",
-                "juan.perez@example.com",
-                "123456789",
-                RolUsuario.JUGADOR,
-                true
-        );
+    @Test
+    void registrar_NormalizaElEmailFuerzaJugadorYPideConfirmarElEmail() {
+        CrearUsuarioRequest request = new CrearUsuarioRequest("Juan", "Perez", "  Juan@Example.COM ", null, "Cancha-Segura-2026");
+        Usuario mapeado = Usuario.builder().nombre("Juan").apellido("Perez").email(request.email()).build();
+        when(usuarioRepository.existsByEmail("juan@example.com")).thenReturn(false);
+        when(usuarioMapper.toEntity(request)).thenReturn(mapeado);
+        when(passwordEncoder.encode("Cancha-Segura-2026")).thenReturn("hash");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> {
+            Usuario u = inv.getArgument(0);
+            u.setId(1L);
+            return u;
+        });
+        when(usuarioMapper.toResponse(any(Usuario.class))).thenReturn(respuesta);
+
+        usuarioService.registrar(request);
+
+        assertEquals("juan@example.com", mapeado.getEmail());
+        assertEquals(RolUsuario.JUGADOR, mapeado.getRol());
+        assertFalse(mapeado.isEmailVerificado());
+        verify(tokenUsuarioRepository).save(any(TokenUsuario.class));
+        verify(emailService).enviarVerificacionEmail(eq(mapeado), anyString());
+        verify(emailService, never()).enviarBienvenida(any());
     }
 
     @Test
-    void registrar_ShouldSaveAndReturnResponse_WhenEmailDoesNotExist() {
-        // Arrange
-        when(usuarioRepository.existsByEmail(crearUsuarioRequest.email())).thenReturn(false);
-        when(usuarioMapper.toEntity(crearUsuarioRequest)).thenReturn(usuarioMock);
-        when(passwordEncoder.encode(crearUsuarioRequest.password())).thenReturn("encodedPassword");
-        when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioMock);
-        when(usuarioMapper.toResponse(usuarioMock)).thenReturn(usuarioResponse);
+    void registrar_ElTelefonoVacioSeGuardaComoNull() {
+        CrearUsuarioRequest request = new CrearUsuarioRequest("Juan", "Perez", "juan@example.com", "  ", "Cancha-Segura-2026");
+        Usuario mapeado = Usuario.builder().nombre("Juan").apellido("Perez").email(request.email()).telefono("  ").build();
+        when(usuarioRepository.existsByEmail("juan@example.com")).thenReturn(false);
+        when(usuarioMapper.toEntity(request)).thenReturn(mapeado);
+        when(passwordEncoder.encode("Cancha-Segura-2026")).thenReturn("hash");
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
+        when(usuarioMapper.toResponse(any(Usuario.class))).thenReturn(respuesta);
 
-        // Act
-        UsuarioResponse result = usuarioService.registrar(crearUsuarioRequest);
+        usuarioService.registrar(request);
 
-        // Assert
-        assertNotNull(result);
-        assertEquals(crearUsuarioRequest.email(), result.email());
-        assertEquals(RolUsuario.JUGADOR, result.rol());
-        verify(usuarioRepository, times(1)).save(any(Usuario.class));
+        assertNull(mapeado.getTelefono());
     }
 
     @Test
-    void registrar_ShouldThrowEmailDuplicadoException_WhenEmailExists() {
-        // Arrange
-        when(usuarioRepository.existsByEmail(crearUsuarioRequest.email())).thenReturn(true);
+    void registrar_SinVerificacionObligatoriaQuedaActivaYRecibeLaBienvenida() {
+        authProperties.setVerificacionEmailObligatoria(false);
+        CrearUsuarioRequest request = new CrearUsuarioRequest("Juan", "Perez", "juan@example.com", null, "Cancha-Segura-2026");
+        Usuario mapeado = Usuario.builder().nombre("Juan").email("juan@example.com").build();
+        when(usuarioMapper.toEntity(request)).thenReturn(mapeado);
+        when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        // Act & Assert
-        assertThrows(EmailDuplicadoException.class, () -> usuarioService.registrar(crearUsuarioRequest));
-        verify(usuarioRepository, never()).save(any(Usuario.class));
+        usuarioService.registrar(request);
+
+        assertTrue(mapeado.isEmailVerificado());
+        verify(emailService).enviarBienvenida(mapeado);
     }
 
     @Test
-    void login_ShouldReturnTokenAndProfile_WhenCredentialsAreValid() {
-        // Arrange
-        LoginRequest loginRequest = new LoginRequest("juan.perez@example.com", "password123");
-        Authentication authentication = mock(Authentication.class);
-        
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(usuarioRepository.findByEmail(loginRequest.email())).thenReturn(Optional.of(usuarioMock));
-        when(jwtUtil.generateToken(usuarioMock.getEmail(), usuarioMock.getRol().name())).thenReturn("mockToken123");
-        when(usuarioMapper.toResponse(usuarioMock)).thenReturn(usuarioResponse);
+    void registrar_EmailYaRegistradoAunqueCambienLasMayusculas() {
+        when(usuarioRepository.existsByEmail("juan@example.com")).thenReturn(true);
 
-        // Act
-        LoginResponse result = usuarioService.login(loginRequest);
+        assertThrows(EmailDuplicadoException.class, () -> usuarioService.registrar(
+                new CrearUsuarioRequest("Juan", "Perez", "JUAN@example.com", null, "Cancha-Segura-2026")));
+        verify(usuarioRepository, never()).save(any());
+    }
 
-        // Assert
-        assertNotNull(result);
-        assertEquals("mockToken123", result.token());
-        assertEquals(usuarioResponse.email(), result.usuario().email());
-        verify(authenticationManager, times(1)).authenticate(any(UsernamePasswordAuthenticationToken.class));
+    // ---------- login ----------
+
+    @Test
+    void login_ExitosoDevuelveElTokenYReiniciaLosIntentos() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+        when(jwtUtil.generarToken(jugador)).thenReturn("token");
+        when(usuarioMapper.toResponse(jugador)).thenReturn(respuesta);
+
+        LoginResponse login = usuarioService.login(new LoginRequest("Juan@Example.com", "clave"));
+
+        assertEquals("token", login.token());
+        verify(limitador).reiniciar("login-fallido:juan@example.com");
     }
 
     @Test
-    void login_ShouldThrowResourceNotFoundException_WhenUserDoesNotExistPostAuth() {
-        // Arrange
-        LoginRequest loginRequest = new LoginRequest("juan.perez@example.com", "password123");
-        Authentication authentication = mock(Authentication.class);
-        
-        when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
-                .thenReturn(authentication);
-        when(usuarioRepository.findByEmail(loginRequest.email())).thenReturn(Optional.empty());
+    void login_TrasCincoIntentosFallidosLaCuentaQuedaBloqueadaTemporalmente() {
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("mal"));
 
-        // Act & Assert
-        assertThrows(ResourceNotFoundException.class, () -> usuarioService.login(loginRequest));
+        for (int i = 0; i < 5; i++) {
+            assertThrows(BadCredentialsException.class, () -> usuarioService.login(new LoginRequest("juan@example.com", "mala")));
+        }
+        DemasiadosIntentosException bloqueo = assertThrows(DemasiadosIntentosException.class,
+                () -> usuarioService.login(new LoginRequest("juan@example.com", "correcta")));
+
+        assertTrue(bloqueo.getSegundosParaReintentar() > 0);
+        verify(authenticationManager, times(5)).authenticate(any());
     }
 
     @Test
-    void obtenerPerfilPorEmail_ShouldReturnProfile_WhenUserExists() {
-        // Arrange
-        String email = "juan.perez@example.com";
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuarioMock));
-        when(usuarioMapper.toResponse(usuarioMock)).thenReturn(usuarioResponse);
+    void login_ConLimitesDeshabilitadosNoBloquea() {
+        limites.setHabilitado(false);
+        when(authenticationManager.authenticate(any())).thenThrow(new BadCredentialsException("mal"));
 
-        // Act
-        UsuarioResponse result = usuarioService.obtenerPerfilPorEmail(email);
-
-        // Assert
-        assertNotNull(result);
-        assertEquals(email, result.email());
+        for (int i = 0; i < 7; i++) {
+            assertThrows(BadCredentialsException.class, () -> usuarioService.login(new LoginRequest("juan@example.com", "mala")));
+        }
     }
 
     @Test
-    void obtenerPerfilPorEmail_ShouldThrowResourceNotFoundException_WhenUserDoesNotExist() {
-        // Arrange
-        String email = "missing@example.com";
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.empty());
+    void login_CuentaSinEmailConfirmadoNoRecibeToken() {
+        jugador.setEmailVerificado(false);
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
 
-        // Act & Assert
-        assertThrows(ResourceNotFoundException.class, () -> usuarioService.obtenerPerfilPorEmail(email));
+        EmailNoVerificadoException ex = assertThrows(EmailNoVerificadoException.class,
+                () -> usuarioService.login(new LoginRequest("juan@example.com", "clave")));
+
+        assertEquals("EMAIL_NO_VERIFICADO", ex.getCodigo());
+        verify(jwtUtil, never()).generarToken(any());
+    }
+
+    // ---------- contraseñas ----------
+
+    @Test
+    void cambiarPassword_InvalidaLasSesionesAbiertas() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+        when(passwordEncoder.matches("actual", "hash")).thenReturn(true);
+        when(passwordEncoder.matches("Nueva-Clave-2026", "hash")).thenReturn(false);
+        when(passwordEncoder.encode("Nueva-Clave-2026")).thenReturn("hash-nuevo");
+
+        usuarioService.cambiarPassword("juan@example.com", new CambiarPasswordRequest("actual", "Nueva-Clave-2026"));
+
+        assertEquals("hash-nuevo", jugador.getPasswordHash());
+        assertEquals(1, jugador.getTokenVersion());
+        verify(tokenUsuarioRepository).invalidarPendientes(1L, TipoTokenUsuario.RECUPERACION_PASSWORD);
+        verify(emailService).enviarConfirmacionCambioPassword(jugador);
     }
 
     @Test
-    void cambiarPassword_ShouldUpdateHashAndSendEmail_WhenCurrentPasswordMatches() {
-        String email = "juan.perez@example.com";
-        com.padel.dto.request.CambiarPasswordRequest request =
-                new com.padel.dto.request.CambiarPasswordRequest("actual123", "nueva123456");
+    void cambiarPassword_ConLaActualIncorrectaSeRechaza() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+        when(passwordEncoder.matches("mala", "hash")).thenReturn(false);
 
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuarioMock));
-        when(passwordEncoder.matches("actual123", usuarioMock.getPasswordHash())).thenReturn(true);
-        when(passwordEncoder.encode("nueva123456")).thenReturn("encodedNueva");
-
-        usuarioService.cambiarPassword(email, request);
-
-        assertEquals("encodedNueva", usuarioMock.getPasswordHash());
-        verify(usuarioRepository).save(usuarioMock);
-        verify(emailService).enviarConfirmacionCambioPassword(usuarioMock);
+        assertThrows(PasswordIncorrectoException.class,
+                () -> usuarioService.cambiarPassword("juan@example.com", new CambiarPasswordRequest("mala", "Nueva-Clave-2026")));
+        assertEquals(0, jugador.getTokenVersion());
     }
 
     @Test
-    void cambiarPassword_ShouldThrowPasswordIncorrectoException_WhenCurrentPasswordDoesNotMatch() {
-        String email = "juan.perez@example.com";
-        com.padel.dto.request.CambiarPasswordRequest request =
-                new com.padel.dto.request.CambiarPasswordRequest("incorrecta", "nueva123456");
+    void cambiarPassword_LaNuevaNoPuedeSerIgualALaActual() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+        when(passwordEncoder.matches(anyString(), eq("hash"))).thenReturn(true);
 
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuarioMock));
-        when(passwordEncoder.matches("incorrecta", usuarioMock.getPasswordHash())).thenReturn(false);
-
-        assertThrows(com.padel.exception.PasswordIncorrectoException.class,
-                () -> usuarioService.cambiarPassword(email, request));
-
-        verify(usuarioRepository, never()).save(any(Usuario.class));
-        verify(emailService, never()).enviarConfirmacionCambioPassword(any());
+        assertThrows(DatosInvalidosException.class,
+                () -> usuarioService.cambiarPassword("juan@example.com", new CambiarPasswordRequest("Misma-Clave-2026", "Misma-Clave-2026")));
     }
 
     @Test
-    void solicitarRecuperacionPassword_ShouldCreateTokenAndSendEmail_WhenEmailExists() {
-        String email = "juan.perez@example.com";
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.of(usuarioMock));
+    void solicitarRecuperacion_EmiteUnTokenNuevoEInvalidaLosAnteriores() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
 
-        usuarioService.solicitarRecuperacionPassword(email);
+        usuarioService.solicitarRecuperacionPassword("JUAN@example.com");
 
-        verify(tokenRecuperacionPasswordRepository).save(any(com.padel.domain.entity.TokenRecuperacionPassword.class));
-        verify(emailService).enviarRecuperacionPassword(eq(usuarioMock), anyString());
+        verify(tokenUsuarioRepository).invalidarPendientes(1L, TipoTokenUsuario.RECUPERACION_PASSWORD);
+        ArgumentCaptor<TokenUsuario> token = ArgumentCaptor.forClass(TokenUsuario.class);
+        verify(tokenUsuarioRepository).save(token.capture());
+        assertEquals(TipoTokenUsuario.RECUPERACION_PASSWORD, token.getValue().getTipo());
+        verify(emailService).enviarRecuperacionPassword(eq(jugador), anyString());
     }
 
     @Test
-    void solicitarRecuperacionPassword_ShouldDoNothing_WhenEmailDoesNotExist() {
-        String email = "missing@example.com";
-        when(usuarioRepository.findByEmail(email)).thenReturn(Optional.empty());
+    void solicitarRecuperacion_EmailInexistenteNoHaceNadaNiLoRevela() {
+        when(usuarioRepository.findByEmail("nadie@example.com")).thenReturn(Optional.empty());
 
-        usuarioService.solicitarRecuperacionPassword(email);
+        usuarioService.solicitarRecuperacionPassword("nadie@example.com");
 
-        verify(tokenRecuperacionPasswordRepository, never()).save(any());
         verify(emailService, never()).enviarRecuperacionPassword(any(), anyString());
     }
 
     @Test
-    void resetearPassword_ShouldThrowTokenInvalidoException_WhenTokenDoesNotExist() {
-        com.padel.dto.request.ResetearPasswordRequest request =
-                new com.padel.dto.request.ResetearPasswordRequest("token-invalido", "nueva123456");
+    void solicitarRecuperacion_TopeDeEmailsPorCuenta() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
 
-        when(tokenRecuperacionPasswordRepository.findByTokenHashAndUsadoFalse(anyString()))
+        for (int i = 0; i < 5; i++) {
+            usuarioService.solicitarRecuperacionPassword("juan@example.com");
+        }
+
+        verify(emailService, times(3)).enviarRecuperacionPassword(eq(jugador), anyString());
+    }
+
+    @Test
+    void resetearPassword_ConTokenVigenteCambiaLaClaveCierraSesionesYVerificaElEmail() {
+        jugador.setEmailVerificado(false);
+        TokenUsuario token = TokenUsuario.builder().usuario(jugador).tipo(TipoTokenUsuario.RECUPERACION_PASSWORD)
+                .expiraEn(LocalDateTime.now().plusMinutes(30)).build();
+        when(tokenUsuarioRepository.findByTokenHashAndTipoAndUsadoFalse(anyString(), eq(TipoTokenUsuario.RECUPERACION_PASSWORD)))
+                .thenReturn(Optional.of(token));
+        when(passwordEncoder.encode("Nueva-Clave-2026")).thenReturn("hash-nuevo");
+
+        usuarioService.resetearPassword(new ResetearPasswordRequest("token-plano", "Nueva-Clave-2026"));
+
+        assertEquals("hash-nuevo", jugador.getPasswordHash());
+        assertEquals(1, jugador.getTokenVersion());
+        assertTrue(jugador.isEmailVerificado());
+        assertTrue(token.isUsado());
+    }
+
+    @Test
+    void resetearPassword_ConTokenVencidoSeRechaza() {
+        TokenUsuario vencido = TokenUsuario.builder().usuario(jugador).tipo(TipoTokenUsuario.RECUPERACION_PASSWORD)
+                .expiraEn(LocalDateTime.now().minusMinutes(1)).build();
+        when(tokenUsuarioRepository.findByTokenHashAndTipoAndUsadoFalse(anyString(), eq(TipoTokenUsuario.RECUPERACION_PASSWORD)))
+                .thenReturn(Optional.of(vencido));
+
+        assertThrows(TokenInvalidoException.class,
+                () -> usuarioService.resetearPassword(new ResetearPasswordRequest("token-plano", "Nueva-Clave-2026")));
+    }
+
+    // ---------- verificación de email ----------
+
+    @Test
+    void verificarEmail_ActivaLaCuentaYMandaLaBienvenida() {
+        jugador.setEmailVerificado(false);
+        TokenUsuario token = TokenUsuario.builder().usuario(jugador).tipo(TipoTokenUsuario.VERIFICACION_EMAIL)
+                .expiraEn(LocalDateTime.now().plusHours(1)).build();
+        when(tokenUsuarioRepository.findByTokenHashAndTipoAndUsadoFalse(anyString(), eq(TipoTokenUsuario.VERIFICACION_EMAIL)))
+                .thenReturn(Optional.of(token));
+
+        usuarioService.verificarEmail("token-plano");
+
+        assertTrue(jugador.isEmailVerificado());
+        assertTrue(token.isUsado());
+        verify(emailService).enviarBienvenida(jugador);
+    }
+
+    @Test
+    void verificarEmail_UnTokenDeRecuperacionNoSirveParaVerificar() {
+        when(tokenUsuarioRepository.findByTokenHashAndTipoAndUsadoFalse(anyString(), eq(TipoTokenUsuario.VERIFICACION_EMAIL)))
                 .thenReturn(Optional.empty());
 
-        assertThrows(com.padel.exception.TokenInvalidoException.class,
-                () -> usuarioService.resetearPassword(request));
-
-        verify(usuarioRepository, never()).save(any(Usuario.class));
+        assertThrows(TokenInvalidoException.class, () -> usuarioService.verificarEmail("token-de-recuperacion"));
     }
 
     @Test
-    void resetearPassword_ShouldThrowTokenInvalidoException_WhenTokenExpired() {
-        com.padel.dto.request.ResetearPasswordRequest request =
-                new com.padel.dto.request.ResetearPasswordRequest("token-expirado", "nueva123456");
+    void reenviarVerificacion_SoloParaCuentasSinConfirmar() {
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador)); // ya verificada
 
-        com.padel.domain.entity.TokenRecuperacionPassword tokenExpirado =
-                com.padel.domain.entity.TokenRecuperacionPassword.builder()
-                        .id(1L)
-                        .usuario(usuarioMock)
-                        .tokenHash("hash-irrelevante-para-el-test")
-                        .expiraEn(java.time.LocalDateTime.now().minusMinutes(1))
-                        .usado(false)
-                        .build();
+        usuarioService.reenviarVerificacion("juan@example.com");
 
-        when(tokenRecuperacionPasswordRepository.findByTokenHashAndUsadoFalse(anyString()))
-                .thenReturn(Optional.of(tokenExpirado));
+        verify(emailService, never()).enviarVerificacionEmail(any(), anyString());
+    }
 
-        assertThrows(com.padel.exception.TokenInvalidoException.class,
-                () -> usuarioService.resetearPassword(request));
+    // ---------- staff y sesión ----------
 
-        verify(usuarioRepository, never()).save(any(Usuario.class));
+    @Test
+    void crearStaff_RechazaRolJugador() {
+        assertThrows(DatosInvalidosException.class, () -> usuarioService.crearStaff(new CrearStaffRequest(
+                "Ana", "Lopez", "ana@example.com", null, "Cancha-Segura-2026", RolUsuario.JUGADOR)));
     }
 
     @Test
-    void crearStaff_ShouldCreateWithRequestedRoleAndSendWelcome() {
-        com.padel.dto.request.CrearStaffRequest request = new com.padel.dto.request.CrearStaffRequest(
-                "Ana", "Recep", "ana@test.com", "123", "clave123", RolUsuario.RECEPCIONISTA);
-        when(usuarioRepository.existsByEmail("ana@test.com")).thenReturn(false);
-        when(passwordEncoder.encode("clave123")).thenReturn("hash");
+    void crearStaff_QuedaConElEmailVerificado() {
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(inv -> inv.getArgument(0));
-        when(usuarioMapper.toResponse(any(Usuario.class))).thenReturn(usuarioResponse);
 
-        usuarioService.crearStaff(request);
+        usuarioService.crearStaff(new CrearStaffRequest("Ana", "Lopez", "Ana@Example.com", null, "Cancha-Segura-2026", RolUsuario.RECEPCIONISTA));
 
-        org.mockito.ArgumentCaptor<Usuario> captor = org.mockito.ArgumentCaptor.forClass(Usuario.class);
+        ArgumentCaptor<Usuario> captor = ArgumentCaptor.forClass(Usuario.class);
         verify(usuarioRepository).save(captor.capture());
-        assertEquals(RolUsuario.RECEPCIONISTA, captor.getValue().getRol());
-        verify(emailService).enviarBienvenida(any(Usuario.class));
+        assertTrue(captor.getValue().isEmailVerificado());
+        assertEquals("ana@example.com", captor.getValue().getEmail());
     }
 
     @Test
-    void crearStaff_ShouldThrowDatosInvalidos_WhenRolIsJugador() {
-        com.padel.dto.request.CrearStaffRequest request = new com.padel.dto.request.CrearStaffRequest(
-                "Ana", "Jug", "ana@test.com", "123", "clave123", RolUsuario.JUGADOR);
+    void logout_RevocaElTokenUsado() {
+        Instant expira = Instant.now().plusSeconds(3600);
+        when(jwtUtil.leer("token")).thenReturn(Optional.of(new JwtUtil.TokenInfo(1L, 0, "jti-1", expira)));
 
-        assertThrows(com.padel.exception.DatosInvalidosException.class, () -> usuarioService.crearStaff(request));
-        verify(usuarioRepository, never()).save(any(Usuario.class));
-    }
+        usuarioService.logout("token");
 
-    @Test
-    void crearStaff_ShouldThrowEmailDuplicado_WhenEmailExists() {
-        com.padel.dto.request.CrearStaffRequest request = new com.padel.dto.request.CrearStaffRequest(
-                "Ana", "Recep", "ana@test.com", "123", "clave123", RolUsuario.RECEPCIONISTA);
-        when(usuarioRepository.existsByEmail("ana@test.com")).thenReturn(true);
-
-        assertThrows(EmailDuplicadoException.class, () -> usuarioService.crearStaff(request));
-        verify(usuarioRepository, never()).save(any(Usuario.class));
-    }
-
-    @Test
-    void resetearPassword_ShouldUpdatePasswordAndMarkTokenUsed_WhenTokenValid() {
-        com.padel.dto.request.ResetearPasswordRequest request =
-                new com.padel.dto.request.ResetearPasswordRequest("token-valido", "nueva123456");
-
-        com.padel.domain.entity.TokenRecuperacionPassword tokenValido =
-                com.padel.domain.entity.TokenRecuperacionPassword.builder()
-                        .id(1L)
-                        .usuario(usuarioMock)
-                        .tokenHash("hash-irrelevante-para-el-test")
-                        .expiraEn(java.time.LocalDateTime.now().plusMinutes(30))
-                        .usado(false)
-                        .build();
-
-        when(tokenRecuperacionPasswordRepository.findByTokenHashAndUsadoFalse(anyString()))
-                .thenReturn(Optional.of(tokenValido));
-        when(passwordEncoder.encode("nueva123456")).thenReturn("encodedNueva");
-
-        usuarioService.resetearPassword(request);
-
-        assertEquals("encodedNueva", usuarioMock.getPasswordHash());
-        assertTrue(tokenValido.isUsado());
-        verify(usuarioRepository).save(usuarioMock);
-        verify(tokenRecuperacionPasswordRepository).save(tokenValido);
-        verify(emailService).enviarConfirmacionCambioPassword(usuarioMock);
+        verify(revocacionTokens).revocar("jti-1", expira);
     }
 }

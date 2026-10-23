@@ -7,6 +7,7 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "pagos")
@@ -20,6 +21,9 @@ public class Pago extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Version
+    private Long version;
 
     // Null solo en la venta de un bono: ese pago apunta al bono vendido.
     @ManyToOne(fetch = FetchType.LAZY)
@@ -61,4 +65,27 @@ public class Pago extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "atendido_por_id")
     private Usuario atendidoPor;
+
+    // Solo en un REINTEGRO: el cobro que se devuelve.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pago_original_id")
+    private Pago pagoOriginal;
+
+    // Reintegros automáticos por MercadoPago: cuántas veces se intentó (después de varios fallos queda manual).
+    @Builder.Default
+    @Column(name = "intentos_reintegro", nullable = false)
+    private Integer intentosReintegro = 0;
+
+    // Momento en que la plata efectivamente entró o salió de la caja. La caja diaria agrupa por esta fecha:
+    // un reintegro que se entrega días después de la cancelación cae en la caja del día de la entrega.
+    @Column(name = "aprobado_en")
+    private LocalDateTime aprobadoEn;
+
+    @PrePersist
+    @PreUpdate
+    void registrarAprobacion() {
+        if (estado == EstadoPago.APROBADO && aprobadoEn == null) {
+            aprobadoEn = LocalDateTime.now();
+        }
+    }
 }

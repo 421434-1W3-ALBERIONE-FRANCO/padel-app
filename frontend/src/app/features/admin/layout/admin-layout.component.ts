@@ -1,8 +1,8 @@
 import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { NotificationBellComponent } from '../../../shared/components/notification-bell/notification-bell.component';
+import { FichajeComponent } from '../../../shared/components/fichaje/fichaje.component';
 
 /** Un item del menú lateral. `external` navega fuera de la consola (pantalla completa). */
 interface AdminMenuItem {
@@ -22,8 +22,7 @@ interface AdminMenuGroup {
 
 @Component({
   selector: 'app-admin-layout',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive, NotificationBellComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NotificationBellComponent, FichajeComponent],
   templateUrl: './admin-layout.component.html'
 })
 export class AdminLayoutComponent {
@@ -68,6 +67,7 @@ export class AdminLayoutComponent {
         { label: 'Productos y Stock', route: '/admin/productos', icon: 'M20.25 7.5 12 12m0 0L3.75 7.5M12 12v9' },
         { label: 'Cargar Consumos', route: '/recepcion/carga-consumos', icon: 'M15.75 10.5V6a3.75 3.75 0 1 0-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 0 1-1.12-1.243l1.264-12A1.125 1.125 0 0 1 5.513 7.5h12.974c.576 0 1.059.435 1.119 1.007Z', external: true },
         { label: 'Vender Bono', route: '/bonos/comprar', icon: 'M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 0 0 2.25-2.25V6.75A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25v10.5A2.25 2.25 0 0 0 4.5 19.5Z', external: true },
+        { label: 'Catálogo de bonos', route: '/admin/tipos-bono', icon: 'M16.5 6v.75m0 3v.75m0 3v.75m0 3V18m-9-5.25h5.25M7.5 15h3M3.375 5.25c-.621 0-1.125.504-1.125 1.125v3.026a2.999 2.999 0 0 1 0 5.198v3.026c0 .621.504 1.125 1.125 1.125h17.25c.621 0 1.125-.504 1.125-1.125v-3.026a2.999 2.999 0 0 1 0-5.198V6.375c0-.621-.504-1.125-1.125-1.125H3.375Z' },
       ]
     },
     {

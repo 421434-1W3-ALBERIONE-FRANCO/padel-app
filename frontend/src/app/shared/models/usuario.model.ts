@@ -5,9 +5,11 @@ export interface UsuarioResponse {
   nombre: string;
   apellido: string;
   email: string;
-  telefono: string;
+  telefono: string | null;
   rol: RolUsuario;
   activo: boolean;
+  /** false mientras el jugador no confirma el enlace que recibió por email al registrarse. */
+  emailVerificado: boolean;
 }
 
 export interface LoginResponse {
@@ -15,13 +17,13 @@ export interface LoginResponse {
   usuario: UsuarioResponse;
 }
 
+/** Registro público: siempre crea un JUGADOR (el rol no forma parte del pedido). */
 export interface CrearUsuarioRequest {
   nombre: string;
   apellido: string;
   email: string;
   telefono?: string;
   password: string;
-  rol: RolUsuario;
 }
 
 export interface CrearStaffRequest {
@@ -50,4 +52,12 @@ export interface SolicitarRecuperacionRequest {
 export interface ResetearPasswordRequest {
   token: string;
   passwordNueva: string;
+}
+
+export interface VerificarEmailRequest {
+  token: string;
+}
+
+export interface ReenviarVerificacionRequest {
+  email: string;
 }

@@ -4,6 +4,8 @@ export interface BloqueoCanchaRequest {
   horaDesde: string;  // HH:mm
   horaHasta: string;  // HH:mm
   motivo: string;
+  /** Si el bloqueo pisa reservas vigentes hay que confirmar que se cancelen (con reintegro y aviso). */
+  cancelarReservasAfectadas?: boolean;
 }
 
 export interface BloqueoCanchaResponse {

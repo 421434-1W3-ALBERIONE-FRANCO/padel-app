@@ -64,7 +64,7 @@ class ReservaControllerIntegrationTest {
 
     private String tokenDeStaff(String email, RolUsuario rol) throws Exception {
         CrearUsuarioRequest registro = new CrearUsuarioRequest(
-                "Test", "Staff", email, null, "password123", RolUsuario.JUGADOR);
+                "Test", "Staff", email, null, "ClaveSegura-2026");
         mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registro)))
@@ -76,14 +76,14 @@ class ReservaControllerIntegrationTest {
 
         String json = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "ClaveSegura-2026"))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readValue(json, LoginResponse.class).token();
     }
 
     @Test
-    void conFechaDevuelveSoloEseDiaOrdenadoYSinFechaTodoElHistorial() throws Exception {
+    void laAgendaDevuelveSoloEseDiaOrdenadaYElHistorialEsPaginado() throws Exception {
         String token = tokenDeStaff("recepcion.reservas.dia@test.com", RolUsuario.RECEPCIONISTA);
         Usuario cliente = usuarioRepository.save(Usuario.builder()
                 .nombre("Ana").apellido("Gomez").email("cliente.reservas.dia@test.com")
@@ -99,7 +99,7 @@ class ReservaControllerIntegrationTest {
         Reserva temprano = guardar(cliente, cancha, franja, dia, LocalTime.of(18, 0));
         Reserva otroDia = guardar(cliente, cancha, franja, dia.plusDays(1), LocalTime.of(18, 0));
 
-        mockMvc.perform(get("/api/v1/reservas").param("fecha", "2031-05-20")
+        mockMvc.perform(get("/api/v1/reservas/agenda").param("fecha", "2031-05-20")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(2))
@@ -109,17 +109,41 @@ class ReservaControllerIntegrationTest {
                 .andExpect(jsonPath("$[0].usuarioEmail").value("cliente.reservas.dia@test.com"))
                 .andExpect(jsonPath("$[0].canchaNombre").value("Cancha Reservas Dia"));
 
-        mockMvc.perform(get("/api/v1/reservas").header("Authorization", "Bearer " + token))
+        // Historial paginado, más recientes primero, filtrable por texto (cliente o cancha) y rango de fechas.
+        mockMvc.perform(get("/api/v1/reservas").param("q", "reservas dia").param("desde", "2031-05-20")
+                        .param("hasta", "2031-05-21").param("size", "2")
+                        .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", hasItems(
-                        temprano.getId().intValue(), tarde.getId().intValue(), otroDia.getId().intValue())));
+                .andExpect(jsonPath("$.totalElements").value(3))
+                .andExpect(jsonPath("$.totalPages").value(2))
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].id").value(otroDia.getId()))
+                .andExpect(jsonPath("$.content[1].id").value(tarde.getId()));
+    }
+
+    @Test
+    void elHistorialNoAceptaPaginasGigantes() throws Exception {
+        String token = tokenDeStaff("admin.reservas.pagina@test.com", RolUsuario.ADMIN);
+
+        mockMvc.perform(get("/api/v1/reservas").param("size", "5000").header("Authorization", "Bearer " + token))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void elJugadorNoVeElHistorialNiLaAgendaDelClub() throws Exception {
+        String token = tokenDeStaff("jugador.reservas.dia@test.com", RolUsuario.JUGADOR);
+
+        mockMvc.perform(get("/api/v1/reservas").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/reservas/agenda").param("fecha", "2031-05-20").header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void fechaConFormatoInvalidoResponde400() throws Exception {
         String token = tokenDeStaff("admin.reservas.dia@test.com", RolUsuario.ADMIN);
 
-        mockMvc.perform(get("/api/v1/reservas").param("fecha", "20/05/2031")
+        mockMvc.perform(get("/api/v1/reservas/agenda").param("fecha", "20/05/2031")
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isBadRequest());
     }

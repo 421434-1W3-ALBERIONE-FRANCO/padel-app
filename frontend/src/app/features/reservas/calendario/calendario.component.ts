@@ -34,7 +34,6 @@ function calcularRangoFechas(): { min: string; max: string } {
 }
 @Component({
   selector: 'app-calendario',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, UiCardComponent],
   templateUrl: './calendario.component.html',
   styleUrls: ['./calendario.component.css']
@@ -84,9 +83,8 @@ export class CalendarioComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.cargarCanchas();
     this.suscribirActualizacionesWS();
-    this.bonoService.cargarMisBonos().subscribe({
-      error: () => console.warn('Could not load user coupon packs balance in Calendar.')
-    });
+    // Sin saldo cargado no se ofrece pagar con bono: no hace falta mostrar un error.
+    this.bonoService.cargarMisBonos().subscribe({ error: () => {} });
   }
   ngOnDestroy() {
     this.wsSubscription?.unsubscribe();

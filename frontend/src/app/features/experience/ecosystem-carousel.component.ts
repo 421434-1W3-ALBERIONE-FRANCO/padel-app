@@ -1,5 +1,5 @@
 import { Component, EventEmitter, OnDestroy, OnInit, Output, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
+
 
 export interface OfertaEcosistema {
   titulo: string;
@@ -18,8 +18,7 @@ export interface OfertaEcosistema {
  */
 @Component({
   selector: 'app-ecosystem-carousel',
-  standalone: true,
-  imports: [CommonModule],
+  imports: [],
   templateUrl: './ecosystem-carousel.component.html',
   styleUrls: ['./ecosystem-carousel.component.css']
 })

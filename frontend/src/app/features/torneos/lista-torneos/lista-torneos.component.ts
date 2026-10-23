@@ -32,7 +32,6 @@ const PRIORIDAD_ESTADO: Record<EstadoTorneo, number> = {
 
 @Component({
   selector: 'app-lista-torneos',
-  standalone: true,
   imports: [CommonModule, RouterLink, ReactiveFormsModule],
   templateUrl: './lista-torneos.component.html'
 })

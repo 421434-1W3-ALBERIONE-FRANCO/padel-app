@@ -19,6 +19,12 @@ public interface UsuarioService {
     void solicitarRecuperacionPassword(String email);
     void resetearPassword(ResetearPasswordRequest request);
     List<UsuarioResponse> listarPorRol(RolUsuario rol);
-    void logout(String email);
+    /** Revoca el token con el que se hizo el pedido. */
+    void logout(String token);
+
+    void verificarEmail(String token);
+
+    /** Responde siempre igual (exista o no la cuenta) para no revelar qué emails están registrados. */
+    void reenviarVerificacion(String email);
     UsuarioResponse crearStaff(CrearStaffRequest request);
 }

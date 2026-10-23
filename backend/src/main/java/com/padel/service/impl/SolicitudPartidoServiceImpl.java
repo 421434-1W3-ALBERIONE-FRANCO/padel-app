@@ -1,7 +1,6 @@
 package com.padel.service.impl;
 
 import com.padel.domain.entity.Cancha;
-import com.padel.domain.entity.FranjaHoraria;
 import com.padel.domain.entity.PostulacionSolicitud;
 import com.padel.domain.entity.SolicitudPartido;
 import com.padel.domain.entity.Usuario;
@@ -11,6 +10,7 @@ import com.padel.domain.enums.EstadoSolicitud;
 import com.padel.domain.enums.TipoSolicitud;
 import com.padel.dto.request.PostulacionSolicitudRequest;
 import com.padel.dto.request.SolicitudPartidoRequest;
+import com.padel.dto.response.ContactoResponse;
 import com.padel.dto.response.PostulacionSolicitudResponse;
 import com.padel.dto.response.SolicitudPartidoResponse;
 import com.padel.exception.DatosInvalidosException;
@@ -24,6 +24,7 @@ import com.padel.repository.PostulacionSolicitudRepository;
 import com.padel.repository.SolicitudPartidoRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.service.SolicitudPartidoService;
+import com.padel.util.EmailUtil;
 import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -34,9 +35,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,10 +56,9 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
 
     @Override
     public SolicitudPartidoResponse crear(SolicitudPartidoRequest request, String creadorEmail) {
-        log.info("Creando solicitud de partido para {} en categoría {}", creadorEmail, request.categoria());
         fechaHoraUtil.validarAnioRazonable(request.fechaHoraPropuesta().toLocalDate(), "la fecha propuesta");
-        Usuario creador = usuarioRepository.findByEmail(creadorEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + creadorEmail));
+        Usuario creador = buscarUsuario(creadorEmail);
+        log.info("Creando solicitud de partido del usuario ID {} en categoría {}", creador.getId(), request.categoria());
 
         Cancha cancha = null;
         if (request.canchaId() != null) {
@@ -80,31 +79,27 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
                 .estado(EstadoSolicitud.ABIERTA)
                 .build();
 
-        SolicitudPartido saved = solicitudPartidoRepository.save(solicitud);
-        return armarResponse(saved);
+        return armarRespuestas(List.of(solicitudPartidoRepository.save(solicitud)), creador).get(0);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<SolicitudPartidoResponse> buscar(TipoSolicitud tipoSolicitud, CategoriaJugador categoria, EstadoSolicitud estado) {
+    public List<SolicitudPartidoResponse> buscar(TipoSolicitud tipoSolicitud, CategoriaJugador categoria, EstadoSolicitud estado,
+                                                 String usuarioEmail) {
         EstadoSolicitud estadoFiltro = estado != null ? estado : EstadoSolicitud.ABIERTA;
-        return solicitudPartidoRepository.buscar(estadoFiltro, categoria, tipoSolicitud).stream()
-                .map(this::armarResponse)
-                .toList();
+        return armarRespuestas(solicitudPartidoRepository.buscar(estadoFiltro, categoria, tipoSolicitud), buscarUsuario(usuarioEmail));
     }
 
     @Override
     @Transactional(readOnly = true)
-    public SolicitudPartidoResponse obtenerPorId(Long id) {
-        SolicitudPartido solicitud = obtenerSolicitudOrThrow(id);
-        return armarResponse(solicitud);
+    public SolicitudPartidoResponse obtenerPorId(Long id, String usuarioEmail) {
+        return armarRespuestas(List.of(obtenerSolicitudOrThrow(id)), buscarUsuario(usuarioEmail)).get(0);
     }
 
     @Override
     public void cancelar(Long id, String usuarioEmail) {
-        log.info("Cancelando solicitud ID {} por usuario {}", id, usuarioEmail);
         SolicitudPartido solicitud = obtenerSolicitudOrThrow(id);
-        validarEsCreador(solicitud, usuarioEmail);
+        validarEsCreador(solicitud, buscarUsuario(usuarioEmail));
 
         if (solicitud.getEstado() == EstadoSolicitud.CANCELADA) {
             throw new EstadoInvalidoException("La solicitud ya está cancelada");
@@ -115,44 +110,36 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
 
     @Override
     public SolicitudPartidoResponse postularse(Long solicitudId, PostulacionSolicitudRequest request, String jugadorEmail) {
-        log.info("Usuario {} postulándose a solicitud ID {}", jugadorEmail, solicitudId);
         SolicitudPartido solicitud = obtenerSolicitudOrThrow(solicitudId);
-
         if (solicitud.getEstado() != EstadoSolicitud.ABIERTA) {
             throw new EstadoInvalidoException("La solicitud ya no admite postulaciones");
         }
 
-        Usuario jugador = usuarioRepository.findByEmail(jugadorEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + jugadorEmail));
-
+        Usuario jugador = buscarUsuario(jugadorEmail);
         if (solicitud.getCreador().getId().equals(jugador.getId())) {
             throw new DatosInvalidosException("No podés postularte a tu propia solicitud");
         }
-
         if (postulacionSolicitudRepository.existsBySolicitudIdAndJugadorId(solicitudId, jugador.getId())) {
             throw new DatosInvalidosException("Ya te postulaste a esta solicitud");
         }
 
-        PostulacionSolicitud postulacion = PostulacionSolicitud.builder()
+        postulacionSolicitudRepository.save(PostulacionSolicitud.builder()
                 .solicitud(solicitud)
                 .jugador(jugador)
                 .mensaje(request.mensaje())
                 .estado(EstadoPostulacion.PENDIENTE)
-                .build();
-        postulacionSolicitudRepository.save(postulacion);
-
-        return armarResponse(solicitud);
+                .build());
+        return armarRespuestas(List.of(solicitud), jugador).get(0);
     }
 
     @Override
     public SolicitudPartidoResponse aceptarPostulacion(Long solicitudId, Long postulacionId, String creadorEmail) {
-        log.info("Aceptando postulación ID {} de solicitud ID {}", postulacionId, solicitudId);
         SolicitudPartido solicitud = obtenerSolicitudOrThrow(solicitudId);
-        validarEsCreador(solicitud, creadorEmail);
+        Usuario creador = buscarUsuario(creadorEmail);
+        validarEsCreador(solicitud, creador);
 
         PostulacionSolicitud postulacion = postulacionSolicitudRepository.findByIdAndSolicitudId(postulacionId, solicitudId)
                 .orElseThrow(() -> new ResourceNotFoundException("Postulación no encontrada con ID: " + postulacionId));
-
         if (postulacion.getEstado() != EstadoPostulacion.PENDIENTE) {
             throw new EstadoInvalidoException("Esta postulación ya fue resuelta");
         }
@@ -172,44 +159,40 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
             pendientes.forEach(p -> p.setEstado(EstadoPostulacion.RECHAZADA));
             postulacionSolicitudRepository.saveAll(pendientes);
         }
-
-        return armarResponse(solicitud);
+        return armarRespuestas(List.of(solicitud), creador).get(0);
     }
 
     @Override
     public SolicitudPartidoResponse rechazarPostulacion(Long solicitudId, Long postulacionId, String creadorEmail) {
-        log.info("Rechazando postulación ID {} de solicitud ID {}", postulacionId, solicitudId);
         SolicitudPartido solicitud = obtenerSolicitudOrThrow(solicitudId);
-        validarEsCreador(solicitud, creadorEmail);
+        Usuario creador = buscarUsuario(creadorEmail);
+        validarEsCreador(solicitud, creador);
 
         PostulacionSolicitud postulacion = postulacionSolicitudRepository.findByIdAndSolicitudId(postulacionId, solicitudId)
                 .orElseThrow(() -> new ResourceNotFoundException("Postulación no encontrada con ID: " + postulacionId));
-
         if (postulacion.getEstado() != EstadoPostulacion.PENDIENTE) {
             throw new EstadoInvalidoException("Esta postulación ya fue resuelta");
         }
-
         postulacion.setEstado(EstadoPostulacion.RECHAZADA);
         postulacionSolicitudRepository.save(postulacion);
-
-        return armarResponse(solicitud);
+        return armarRespuestas(List.of(solicitud), creador).get(0);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<SolicitudPartidoResponse> misSolicitudes(String usuarioEmail) {
-        return solicitudPartidoRepository.findByCreadorEmailOrderByCreatedAtDesc(usuarioEmail).stream()
-                .map(this::armarResponse)
-                .toList();
+        Usuario usuario = buscarUsuario(usuarioEmail);
+        return armarRespuestas(solicitudPartidoRepository.findByCreadorIdOrderByCreatedAtDesc(usuario.getId()), usuario);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<SolicitudPartidoResponse> misPostulaciones(String usuarioEmail) {
-        return postulacionSolicitudRepository.findByJugadorEmailOrderByCreatedAtDesc(usuarioEmail).stream()
+        Usuario usuario = buscarUsuario(usuarioEmail);
+        List<SolicitudPartido> solicitudes = postulacionSolicitudRepository.findByJugadorIdOrderByCreatedAtDesc(usuario.getId()).stream()
                 .map(PostulacionSolicitud::getSolicitud)
-                .map(this::armarResponse)
                 .toList();
+        return armarRespuestas(solicitudes, usuario);
     }
 
     private void validarHorarioHabilitado(Cancha cancha, LocalDateTime fechaHoraPropuesta) {
@@ -217,36 +200,56 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
         LocalTime hora = fechaHoraPropuesta.toLocalTime();
 
         boolean existeFranja = franjaHorariaRepository.findByCanchaIdAndCanchaActivaTrue(cancha.getId()).stream()
-                .anyMatch(f -> diasAplicables(f).contains(dia)
-                        && !hora.isBefore(f.getHoraInicio())
-                        && hora.isBefore(f.getHoraFin()));
-
+                .anyMatch(f -> f.aplicaEn(dia) && !hora.isBefore(f.getHoraInicio()) && hora.isBefore(f.getHoraFin()));
         if (!existeFranja) {
             throw new DatosInvalidosException("La cancha seleccionada no tiene un horario habilitado para el día y la hora propuestos");
         }
     }
 
-    private Set<DayOfWeek> diasAplicables(FranjaHoraria franja) {
-        if (franja.getDiasAplicables() == null || franja.getDiasAplicables().isBlank()) {
-            return Set.of();
-        }
-        return Arrays.stream(franja.getDiasAplicables().split(","))
-                .map(String::trim)
-                .map(DayOfWeek::valueOf)
-                .collect(Collectors.toSet());
-    }
-
-    private void validarEsCreador(SolicitudPartido solicitud, String usuarioEmail) {
-        if (!solicitud.getCreador().getEmail().equalsIgnoreCase(usuarioEmail)) {
+    // Se compara por id: comparar emails sin distinguir mayúsculas dejaba operar a una cuenta "JUAN@x.com"
+    // sobre las solicitudes de "juan@x.com".
+    private void validarEsCreador(SolicitudPartido solicitud, Usuario usuario) {
+        if (!solicitud.getCreador().getId().equals(usuario.getId())) {
             throw new AccessDeniedException("No tiene permisos para operar sobre esta solicitud");
         }
     }
 
-    private SolicitudPartidoResponse armarResponse(SolicitudPartido solicitud) {
-        List<PostulacionSolicitudResponse> postulaciones = postulacionSolicitudRepository.findBySolicitudId(solicitud.getId()).stream()
-                .map(postulacionSolicitudMapper::toResponse)
-                .toList();
-        return solicitudPartidoMapper.toResponse(solicitud, postulaciones);
+    /**
+     * Arma las respuestas según quién mira: el creador ve todas las postulaciones (y el contacto de los
+     * aceptados); un postulante ve solo la suya (y el contacto del creador si lo aceptaron); el resto, ninguna.
+     * Las postulaciones de todas las solicitudes se traen en una sola consulta.
+     */
+    private List<SolicitudPartidoResponse> armarRespuestas(List<SolicitudPartido> solicitudes, Usuario viewer) {
+        if (solicitudes.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, List<PostulacionSolicitud>> porSolicitud = postulacionSolicitudRepository
+                .findConJugadorBySolicitudIdIn(solicitudes.stream().map(SolicitudPartido::getId).toList()).stream()
+                .collect(Collectors.groupingBy(p -> p.getSolicitud().getId()));
+
+        return solicitudes.stream().map(solicitud -> {
+            List<PostulacionSolicitud> todas = porSolicitud.getOrDefault(solicitud.getId(), List.of());
+            boolean esCreador = solicitud.getCreador().getId().equals(viewer.getId());
+            boolean aceptado = todas.stream().anyMatch(p -> p.getJugador().getId().equals(viewer.getId())
+                    && p.getEstado() == EstadoPostulacion.ACEPTADA);
+
+            List<PostulacionSolicitudResponse> visibles = todas.stream()
+                    .filter(p -> esCreador || p.getJugador().getId().equals(viewer.getId()))
+                    .map(p -> postulacionSolicitudMapper.toResponse(p,
+                            esCreador && p.getEstado() == EstadoPostulacion.ACEPTADA ? contacto(p.getJugador()) : null))
+                    .toList();
+            ContactoResponse contactoCreador = esCreador || aceptado ? contacto(solicitud.getCreador()) : null;
+            return solicitudPartidoMapper.toResponse(solicitud, contactoCreador, visibles, todas.size());
+        }).toList();
+    }
+
+    private static ContactoResponse contacto(Usuario usuario) {
+        return new ContactoResponse(usuario.getEmail(), usuario.getTelefono());
+    }
+
+    private Usuario buscarUsuario(String email) {
+        return usuarioRepository.findByEmail(EmailUtil.normalizar(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
 
     private SolicitudPartido obtenerSolicitudOrThrow(Long id) {

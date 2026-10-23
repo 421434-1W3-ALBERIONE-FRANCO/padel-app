@@ -11,8 +11,8 @@ import java.util.List;
 
 public interface SolicitudPartidoService {
     SolicitudPartidoResponse crear(SolicitudPartidoRequest request, String creadorEmail);
-    List<SolicitudPartidoResponse> buscar(TipoSolicitud tipoSolicitud, CategoriaJugador categoria, EstadoSolicitud estado);
-    SolicitudPartidoResponse obtenerPorId(Long id);
+    List<SolicitudPartidoResponse> buscar(TipoSolicitud tipoSolicitud, CategoriaJugador categoria, EstadoSolicitud estado, String usuarioEmail);
+    SolicitudPartidoResponse obtenerPorId(Long id, String usuarioEmail);
     void cancelar(Long id, String usuarioEmail);
 
     SolicitudPartidoResponse postularse(Long solicitudId, PostulacionSolicitudRequest request, String jugadorEmail);

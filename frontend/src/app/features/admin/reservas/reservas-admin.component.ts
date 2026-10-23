@@ -1,16 +1,16 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ReservaService } from '../../../core/services/reserva.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { EstadoReserva, ReservaResponse } from '../../../shared/models/reserva.model';
+import { PaginaResponse } from '../../../shared/models/pagina.model';
 import { MetodoMostrador } from '../../../shared/models/pago.model';
 import { CobroMostradorComponent } from '../../../shared/components/cobro-mostrador/cobro-mostrador.component';
 import { formatearPesos } from '../../../shared/utils/moneda.util';
 
 @Component({
   selector: 'app-reservas-admin',
-  standalone: true,
   imports: [CommonModule, FormsModule, CobroMostradorComponent],
   templateUrl: './reservas-admin.component.html'
 })
@@ -18,11 +18,14 @@ export class ReservasAdminComponent implements OnInit {
   private reservaService = inject(ReservaService);
   private toast = inject(ToastService);
 
-  reservas = signal<ReservaResponse[]>([]);
+  // La búsqueda y la paginación las hace el backend: antes se descargaba el historial completo para filtrar acá.
+  pagina = signal<PaginaResponse<ReservaResponse> | null>(null);
   cargando = signal<boolean>(true);
 
   filtroEstado = signal<EstadoReserva | 'TODOS'>('TODOS');
   busqueda = signal<string>('');
+  desde = signal<string>('');
+  hasta = signal<string>('');
 
   // Modal de cancelación
   reservaParaCancelar = signal<ReservaResponse | null>(null);
@@ -31,26 +34,38 @@ export class ReservasAdminComponent implements OnInit {
 
   readonly estados: (EstadoReserva | 'TODOS')[] = ['TODOS', 'PENDIENTE_PAGO', 'CONFIRMADA', 'COMPLETADA', 'CANCELADA', 'NO_SHOW'];
 
-  filtradas = computed(() => {
-    const est = this.filtroEstado();
-    const q = this.busqueda().trim().toLowerCase();
-    return this.reservas()
-      .filter(r => est === 'TODOS' || r.estadoReserva === est)
-      .filter(r => !q ||
-        r.usuarioEmail?.toLowerCase().includes(q) ||
-        r.canchaNombre?.toLowerCase().includes(q) ||
-        r.fecha?.includes(q))
-      .sort((a, b) => (b.fecha + b.horaInicio).localeCompare(a.fecha + a.horaInicio));
-  });
-
   ngOnInit(): void {
     this.cargar();
   }
 
-  cargar(): void {
+  /** Vuelve a la primera página con los filtros actuales. */
+  buscar(): void {
+    this.cargar(0);
+  }
+
+  cambiarEstado(estado: EstadoReserva | 'TODOS'): void {
+    this.filtroEstado.set(estado);
+    this.buscar();
+  }
+
+  irAPagina(numero: number): void {
+    const actual = this.pagina();
+    if (!actual || numero < 0 || numero >= actual.totalPages) return;
+    this.cargar(numero);
+  }
+
+  cargar(numeroPagina = this.pagina()?.page ?? 0): void {
     this.cargando.set(true);
-    this.reservaService.getAllReservas().subscribe({
-      next: (data) => { this.reservas.set(data); this.cargando.set(false); },
+    const estado = this.filtroEstado();
+    this.reservaService.buscarReservas({
+      estado: estado === 'TODOS' ? undefined : estado,
+      q: this.busqueda(),
+      desde: this.desde() || undefined,
+      hasta: this.hasta() || undefined,
+      page: numeroPagina,
+      size: 25
+    }).subscribe({
+      next: (data) => { this.pagina.set(data); this.cargando.set(false); },
       error: (err) => { this.toast.error(err.error?.message || 'Error al cargar las reservas.'); this.cargando.set(false); }
     });
   }

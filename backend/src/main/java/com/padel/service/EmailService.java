@@ -8,4 +8,6 @@ public interface EmailService {
     void enviarComprobantePago(Pago pago);
     void enviarConfirmacionCambioPassword(Usuario usuario);
     void enviarRecuperacionPassword(Usuario usuario, String tokenPlano);
+
+    void enviarVerificacionEmail(Usuario usuario, String tokenPlano);
 }

@@ -38,7 +38,6 @@ interface ConectorVista {
 
 @Component({
   selector: 'app-cuadro-eliminacion',
-  standalone: true,
   imports: [CommonModule],
   templateUrl: './cuadro-eliminacion.component.html'
 })

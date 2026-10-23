@@ -3,6 +3,7 @@ package com.padel.scheduler;
 import com.padel.service.ReservaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -15,6 +16,7 @@ public class ReservaCancelacionScheduler {
 
     // Ejecutar cada 5 minutos (300.000 ms)
     @Scheduled(fixedRate = 300000)
+    @SchedulerLock(name = "vencimientoReservasSinPago", lockAtMostFor = "PT4M", lockAtLeastFor = "PT30S")
     public void limpiarReservasExpiradas() {
         log.info("Iniciando tarea programada de limpieza de reservas pendientes expiadas");
         try {

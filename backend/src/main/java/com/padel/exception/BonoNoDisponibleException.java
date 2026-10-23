@@ -1,7 +1,15 @@
 package com.padel.exception;
 
-public class BonoNoDisponibleException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class BonoNoDisponibleException extends NegocioException {
+
     public BonoNoDisponibleException(String message) {
         super(message);
+    }
+
+    @Override
+    public HttpStatus getStatus() {
+        return HttpStatus.CONFLICT;
     }
 }

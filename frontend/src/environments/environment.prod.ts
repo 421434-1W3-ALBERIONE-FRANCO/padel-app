@@ -1,9 +1,7 @@
-// Produccion con frontend en Netlify (Netlify Drop) y backend en Render, en dominios
-// distintos: por eso la API y el WebSocket apuntan a la URL ABSOLUTA de Render.
-// (Si algun dia se sirve todo desde el mismo dominio detras de nginx, volver a rutas relativas.)
+// Producción: nginx sirve la SPA y hace de proxy a /api y /ws en el mismo origen (ver nginx.conf), así que las
+// URLs son relativas y no hace falta CORS. El WebSocket usa wss cuando el sitio se sirve con TLS.
 export const environment = {
   production: true,
-  apiUrl: 'https://padel-app-web-service-back-end.onrender.com/api/v1',
-  wsUrl: 'wss://padel-app-web-service-back-end.onrender.com/ws',
-  mockApiEnabled: false
+  apiUrl: '/api/v1',
+  wsUrl: `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`
 };

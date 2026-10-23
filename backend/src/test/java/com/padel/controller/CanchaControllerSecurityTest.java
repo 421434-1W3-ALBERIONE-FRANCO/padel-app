@@ -41,7 +41,7 @@ class CanchaControllerSecurityTest {
 
     private String obtenerTokenParaRol(String email, RolUsuario rol) throws Exception {
         CrearUsuarioRequest registro = new CrearUsuarioRequest(
-                "Test", "User", email, null, "password123", RolUsuario.JUGADOR);
+                "Test", "User", email, null, "ClaveSegura-2026");
 
         mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -53,7 +53,7 @@ class CanchaControllerSecurityTest {
             usuarioRepository.save(usuario);
         }
 
-        LoginRequest login = new LoginRequest(email, "password123");
+        LoginRequest login = new LoginRequest(email, "ClaveSegura-2026");
         String responseJson = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(login)))
@@ -90,7 +90,7 @@ class CanchaControllerSecurityTest {
     void registroPublicoIgnoraRolEnviadoPorElCliente() throws Exception {
         String email = "intento.admin@test.com";
         CrearUsuarioRequest registro = new CrearUsuarioRequest(
-                "Hacker", "Test", email, null, "password123", RolUsuario.ADMIN);
+                "Hacker", "Test", email, null, "ClaveSegura-2026");
 
         mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)

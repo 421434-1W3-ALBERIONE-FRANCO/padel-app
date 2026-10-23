@@ -14,103 +14,129 @@
     <section class="mb-6 p-5 rounded-2xl bg-surface-1/40 border border-white/5">
       <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">1 · Cliente</h2>
 
-      <div *ngIf="clienteSeleccionado() as c" class="flex items-center justify-between gap-3 bg-primary-500/10 border border-primary-500/20 rounded-xl px-4 py-3 mb-2">
-        <div class="min-w-0">
-          <span class="block text-sm font-semibold text-white truncate">{{ c.nombre }} {{ c.apellido }}</span>
-          <span class="block text-xs text-slate-400 truncate">{{ c.email }}</span>
+      @if (clienteSeleccionado(); as c) {
+        <div class="flex items-center justify-between gap-3 bg-primary-500/10 border border-primary-500/20 rounded-xl px-4 py-3 mb-2">
+          <div class="min-w-0">
+            <span class="block text-sm font-semibold text-white truncate">{{ c.nombre }} {{ c.apellido }}</span>
+            <span class="block text-xs text-slate-400 truncate">{{ c.email }}</span>
+          </div>
+          <button (click)="clienteSeleccionado.set(null)" class="text-slate-400 hover:text-white text-xs font-bold shrink-0">Cambiar</button>
         </div>
-        <button (click)="clienteSeleccionado.set(null)" class="text-slate-400 hover:text-white text-xs font-bold shrink-0">Cambiar</button>
-      </div>
+      }
 
-      <div *ngIf="!clienteSeleccionado()">
-        <input type="text" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)"
-               placeholder="Buscar cliente por nombre o email..."
-               class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-        <div class="mt-2 divide-y divide-white/5 rounded-xl border border-white/5 overflow-hidden">
-          <button *ngFor="let c of clientesFiltrados()" (click)="seleccionarCliente(c)"
+      @if (!clienteSeleccionado()) {
+        <div>
+          <input type="text" [ngModel]="busqueda()" (ngModelChange)="busqueda.set($event)"
+            placeholder="Buscar cliente por nombre o email..."
+            class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+            <div class="mt-2 divide-y divide-white/5 rounded-xl border border-white/5 overflow-hidden">
+              @for (c of clientesFiltrados(); track c) {
+                <button (click)="seleccionarCliente(c)"
                   class="w-full text-left px-4 py-2.5 hover:bg-white/5 transition flex items-center justify-between gap-3">
-            <span class="min-w-0">
-              <span class="block text-sm text-white truncate">{{ c.nombre }} {{ c.apellido }}</span>
-              <span class="block text-xs text-slate-500 truncate">{{ c.email }}</span>
-            </span>
-          </button>
-          <p *ngIf="clientesFiltrados().length === 0" class="px-4 py-3 text-sm text-slate-500">Sin resultados.</p>
-        </div>
-      </div>
-    </section>
+                  <span class="min-w-0">
+                    <span class="block text-sm text-white truncate">{{ c.nombre }} {{ c.apellido }}</span>
+                    <span class="block text-xs text-slate-500 truncate">{{ c.email }}</span>
+                  </span>
+                </button>
+              }
+              @if (clientesFiltrados().length === 0) {
+                <p class="px-4 py-3 text-sm text-slate-500">Sin resultados.</p>
+              }
+            </div>
+          </div>
+        }
+      </section>
 
-    <!-- Paso 2: Cancha y fecha -->
-    <section class="mb-6 p-5 rounded-2xl bg-surface-1/40 border border-white/5">
-      <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">2 · Cancha y fecha</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <select [ngModel]="canchaId()" (ngModelChange)="cambiarCancha($event)"
-                class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none">
-          <option *ngFor="let c of canchas()" [ngValue]="c.id">{{ c.nombre }}</option>
-        </select>
-        <input type="date" [ngModel]="fecha()" (ngModelChange)="cambiarFecha($event)" [min]="fechaMin"
-               class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-      </div>
-    </section>
+      <!-- Paso 2: Cancha y fecha -->
+      <section class="mb-6 p-5 rounded-2xl bg-surface-1/40 border border-white/5">
+        <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">2 · Cancha y fecha</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <select [ngModel]="canchaId()" (ngModelChange)="cambiarCancha($event)"
+            class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none">
+            @for (c of canchas(); track c) {
+              <option [ngValue]="c.id">{{ c.nombre }}</option>
+            }
+          </select>
+          <input type="date" [ngModel]="fecha()" (ngModelChange)="cambiarFecha($event)" [min]="fechaMin"
+            class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+          </div>
+        </section>
 
-    <!-- Paso 3: Horario -->
-    <section class="p-5 rounded-2xl bg-surface-1/40 border border-white/5">
-      <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">3 · Horario</h2>
+        <!-- Paso 3: Horario -->
+        <section class="p-5 rounded-2xl bg-surface-1/40 border border-white/5">
+          <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">3 · Horario</h2>
 
-      <div *ngIf="cargando()" class="text-slate-400 text-sm">Cargando disponibilidad...</div>
+          @if (cargando()) {
+            <div class="text-slate-400 text-sm">Cargando disponibilidad...</div>
+          }
 
-      <div *ngIf="!cargando()" class="grid grid-cols-3 sm:grid-cols-4 gap-2">
-        <button *ngFor="let s of slots()" (click)="seleccionarSlot(s)" [disabled]="!s.disponible"
-                class="px-2 py-2 rounded-lg text-xs font-bold border transition"
+          @if (!cargando()) {
+            <div class="grid grid-cols-3 sm:grid-cols-4 gap-2">
+              @for (s of slots(); track s) {
+                <button (click)="seleccionarSlot(s)" [disabled]="!s.disponible"
+                  class="px-2 py-2 rounded-lg text-xs font-bold border transition"
                 [ngClass]="!s.disponible
                   ? 'bg-slate-950/40 text-slate-600 border-white/5 cursor-not-allowed line-through'
                   : slotSel()?.franjaId === s.franjaId
                     ? 'bg-accent-500/20 text-accent-300 border-accent-500/40'
                     : 'bg-slate-950/60 text-slate-200 border-white/10 hover:border-accent-500/30'">
-          {{ s.horaInicio.substring(0,5) }}
-        </button>
-      </div>
-      <p *ngIf="!cargando() && slots().length === 0" class="text-slate-500 text-sm">No hay franjas para esta fecha.</p>
+                  {{ s.horaInicio.substring(0,5) }}
+                </button>
+              }
+            </div>
+          }
+          @if (!cargando() && slots().length === 0) {
+            <p class="text-slate-500 text-sm">No hay franjas para esta fecha.</p>
+          }
 
-      <!-- Duración + confirmación -->
-      <div *ngIf="slotSel() as slot" class="mt-5 pt-5 border-t border-white/5">
-        <div class="flex justify-between text-sm mb-3">
-          <span class="text-slate-500 font-medium">Inicio</span>
-          <span class="text-white font-semibold font-display">{{ slot.horaInicio.substring(0,5) }} - {{ (duracionSel()?.horaFin || slot.horaFin).substring(0,5) }}</span>
-        </div>
-
-        <div *ngIf="(slot.opcionesDuracion?.length || 0) > 0" class="mb-3">
-          <span class="text-slate-500 font-medium text-sm block mb-2">Duración</span>
-          <div class="flex flex-wrap gap-2">
-            <button *ngFor="let op of slot.opcionesDuracion" type="button" (click)="elegirDuracion(op)"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold border transition text-center"
+          <!-- Duración + confirmación -->
+          @if (slotSel(); as slot) {
+            <div class="mt-5 pt-5 border-t border-white/5">
+              <div class="flex justify-between text-sm mb-3">
+                <span class="text-slate-500 font-medium">Inicio</span>
+                <span class="text-white font-semibold font-display">{{ slot.horaInicio.substring(0,5) }} - {{ (duracionSel()?.horaFin || slot.horaFin).substring(0,5) }}</span>
+              </div>
+              @if ((slot.opcionesDuracion?.length || 0) > 0) {
+                <div class="mb-3">
+                  <span class="text-slate-500 font-medium text-sm block mb-2">Duración</span>
+                  <div class="flex flex-wrap gap-2">
+                    @for (op of slot.opcionesDuracion; track op) {
+                      <button type="button" (click)="elegirDuracion(op)"
+                        class="px-3 py-1.5 rounded-lg text-xs font-bold border transition text-center"
                     [ngClass]="duracionSel()?.duracionMin === op.duracionMin
                       ? 'bg-accent-500/20 text-accent-300 border-accent-500/40'
                       : 'bg-slate-950/60 text-slate-300 border-white/10 hover:border-accent-500/30'">
-              {{ op.duracionMin }} min
-              <span class="block text-[10px] font-medium opacity-80">${{ op.precio | number:'1.0-0' }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-center justify-between">
-          <div>
-            <span class="block text-[10px] text-slate-500 uppercase tracking-wider">Total</span>
-            <span class="text-xl font-extrabold text-accent-400 font-display">${{ precioSel() | number:'1.2-2' }}</span>
-          </div>
-          <button (click)="confirmar()" [disabled]="creando() || !clienteSeleccionado()"
+                        {{ op.duracionMin }} min
+                        <span class="block text-[10px] font-medium opacity-80">${{ op.precio | number:'1.0-0' }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+              <div class="flex items-center justify-between">
+                <div>
+                  <span class="block text-[10px] text-slate-500 uppercase tracking-wider">Total</span>
+                  <span class="text-xl font-extrabold text-accent-400 font-display">${{ precioSel() | number:'1.2-2' }}</span>
+                </div>
+                <button (click)="confirmar()" [disabled]="creando() || !clienteSeleccionado()"
                   class="btn-primary py-3 px-6 disabled:opacity-50">
-            {{ creando() ? 'Creando...' : 'Crear turno' }}
-          </button>
-        </div>
-        <p *ngIf="!clienteSeleccionado()" class="text-amber-400 text-xs mt-2">Elegí un cliente en el paso 1 para confirmar.</p>
+                  {{ creando() ? 'Creando...' : 'Crear turno' }}
+                </button>
+              </div>
+              @if (!clienteSeleccionado()) {
+                <p class="text-amber-400 text-xs mt-2">Elegí un cliente en el paso 1 para confirmar.</p>
+              }
+            </div>
+          }
+        </section>
       </div>
-    </section>
-  </div>
 
-  <app-cobro-mostrador *ngIf="mostrarCobro() && slotSel() as slot"
-                       titulo="Cobrar el turno nuevo"
-                       [cliente]="(clienteSeleccionado()?.nombre ?? '') + ' ' + (clienteSeleccionado()?.apellido ?? '')"
-                       [detalle]="(canchaSel()?.nombre ?? '') + ' · ' + fecha() + ' ' + slot.horaInicio.substring(0, 5)"
-                       [monto]="precioSel()" [procesando]="creando()" [permitirSinCobro]="true"
-                       (cobrar)="crearTurno($event)" (sinCobro)="crearTurno(null)" (cerrar)="mostrarCobro.set(false)"></app-cobro-mostrador>
-</div>
+      @if (mostrarCobro() && slotSel(); as slot) {
+        <app-cobro-mostrador
+          titulo="Cobrar el turno nuevo"
+          [cliente]="(clienteSeleccionado()?.nombre ?? '') + ' ' + (clienteSeleccionado()?.apellido ?? '')"
+          [detalle]="(canchaSel()?.nombre ?? '') + ' · ' + fecha() + ' ' + slot.horaInicio.substring(0, 5)"
+          [monto]="precioSel()" [procesando]="creando()" [permitirSinCobro]="true"
+        (cobrar)="crearTurno($event)" (sinCobro)="crearTurno(null)" (cerrar)="mostrarCobro.set(false)"></app-cobro-mostrador>
+      }
+    </div>

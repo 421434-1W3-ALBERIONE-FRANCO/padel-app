@@ -1,12 +1,23 @@
+# Configuración común. NO hay perfil activo por defecto: en local se arranca con el perfil "dev"
+# (ver README y .claude/launch.json) y los contenedores fijan SPRING_PROFILES_ACTIVE=prod. Antes "dev" era el
+# perfil por defecto: un deploy sin la variable usaba el JWT secret fijo de desarrollo y cargaba el seed con
+# un admin de contraseña conocida.
 spring:
   application:
     name: padelapp-backend
-  profiles:
-    active: dev # Perfil por defecto en desarrollo local
   jackson:
     serialization:
       write_dates_as_timestamps: false
     default-property-inclusion: non_null
+  jpa:
+    # Mismo comportamiento en todos los perfiles: el mapeo a DTO ocurre dentro de los servicios transaccionales.
+    open-in-view: false
+  data:
+    redis:
+      # Redis es opcional (locks blandos, límites, tokens revocados tienen respaldo): sin estos tiempos, un
+      # Redis caído colgaba cada request hasta 60 s.
+      timeout: 2s
+      connect-timeout: 2s
   mail:
     host: ${MAIL_HOST:}
     port: ${MAIL_PORT:587}
@@ -18,30 +29,93 @@ spring:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
+  thymeleaf:
+    # Thymeleaf se usa solo para los emails, no para vistas web.
+    check-template-location: false
+  servlet:
+    multipart:
+      # La API no recibe archivos.
+      enabled: false
+
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
 
 springdoc:
   api-docs:
     path: /v3/api-docs
+    # Apagado salvo en desarrollo (application-dev.yml).
+    enabled: false
   swagger-ui:
     path: /swagger-ui.html
     operationsSorter: method
     tagsSorter: alpha
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    # Redis y el correo son dependencias opcionales: que estén caídos no debe marcar la app como no saludable.
+    redis:
+      enabled: false
+    mail:
+      enabled: false
+
 jwt:
+  # Obligatorio y sin valor por defecto: al menos 32 bytes aleatorios (por ejemplo: openssl rand -base64 48).
   secret: ${JWT_SECRET}
-  # 4h por defecto (antes 24h): el token vive en localStorage en el frontend (vulnerable a robo
-  # vía XSS), así que se acota la ventana de uso de un token robado mientras no exista refresh token.
+  # 4 h: el token vive en localStorage en el frontend; se acota la ventana de uso de un token robado.
   expiration: ${JWT_EXPIRATION:14400000}
 
 mercadopago:
   access-token: ${MP_ACCESS_TOKEN}
   webhook-secret: ${MP_WEBHOOK_SECRET:}
+  webhook:
+    # Sin secreto configurado, los webhooks se rechazan (salvo en desarrollo).
+    exigir-firma: true
+    # Antigüedad máxima del ts firmado, en segundos (0 = sin ventana). Ver MercadoPagoWebhookValidator.
+    tolerancia-segundos: ${MP_WEBHOOK_TOLERANCIA_SEGUNDOS:0}
+  point:
+    # Terminal MercadoPago Point del club (vacío = cobro con Point deshabilitado).
+    device-id: ${MP_POINT_DEVICE_ID:}
+
+twilio:
+  account-sid: ${TWILIO_ACCOUNT_SID:}
+  auth-token: ${TWILIO_AUTH_TOKEN:}
+  whatsapp-from: ${TWILIO_WHATSAPP_FROM:whatsapp:+14155238886}
 
 app:
   mail:
     from: ${MAIL_FROM:no-reply@padelapp.com}
+    registrar-contenido-simulado: false
   frontend-url: ${FRONTEND_URL:http://localhost:4200}
   cors:
-    # Origenes permitidos para CORS (separados por coma). En prod se setea via env var
-    # con el dominio de Netlify, p.ej. CORS_ALLOWED_ORIGINS=https://tu-sitio.netlify.app
+    # Orígenes permitidos (CORS y WebSocket), separados por coma.
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200}
+  auth:
+    verificacion-email-obligatoria: ${AUTH_VERIFICACION_EMAIL:true}
+  reservas:
+    max-pendientes-por-jugador: 2
+    minutos-para-pagar: 15
+    inicio-tarifa-nocturna: "18:00"
+    horas-minimas-cancelacion-con-reintegro: 24
+    reintegro-automatico-mercado-pago: true
+  control-horario:
+    # Redes desde las que el staff puede fichar (CIDR separados por coma, ej. 192.168.1.0/24). Vacío = cualquiera.
+    redes-permitidas: ${CONTROL_HORARIO_REDES:}
+  limites:
+    habilitado: true
+    usar-redis: true
+  scheduling:
+    enabled: true

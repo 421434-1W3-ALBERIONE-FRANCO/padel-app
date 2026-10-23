@@ -1,5 +1,4 @@
 import { Component, effect, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { RouterOutlet } from '@angular/router';
 import { AuthService } from './core/services/auth.service';
 import { InactivityService } from './core/services/inactivity.service';
@@ -7,8 +6,7 @@ import { ToastContainerComponent } from './shared/components/toast/toast-contain
 
 @Component({
   selector: 'app-root',
-  standalone: true,
-  imports: [CommonModule, RouterOutlet, ToastContainerComponent],
+  imports: [RouterOutlet, ToastContainerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
@@ -25,7 +23,7 @@ export class AppComponent {
       } else {
         this.inactivity.stop();
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   seguirConectado(): void {

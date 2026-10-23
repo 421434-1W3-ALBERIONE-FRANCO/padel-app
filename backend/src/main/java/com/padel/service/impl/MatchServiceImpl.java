@@ -236,7 +236,7 @@ public class MatchServiceImpl implements MatchService {
                         reserva.horaInicio().toString(), reserva.horaFin().toString()),
                 reserva.id()
         );
-        log.info("Reserva ID {} creada desde el match ID {} por {}", reserva.id(), matchId, email);
+        log.info("Reserva ID {} creada desde el match ID {} por el usuario ID {}", reserva.id(), matchId, yo.getId());
         return reserva;
     }
 
@@ -296,7 +296,7 @@ public class MatchServiceImpl implements MatchService {
                             .build());
                     avisarMatch(jugador1, jugador2, nuevo);
                     avisarMatch(jugador2, jugador1, nuevo);
-                    log.info("Nuevo match ID {} entre {} y {}", nuevo.getId(), jugador1.getEmail(), jugador2.getEmail());
+                    log.info("Nuevo match ID {} entre los usuarios ID {} y {}", nuevo.getId(), jugador1.getId(), jugador2.getId());
                     return nuevo;
                 });
     }

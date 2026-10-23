@@ -2,6 +2,7 @@ package com.padel.service.impl;
 
 import com.padel.domain.entity.Cancha;
 import com.padel.domain.entity.FranjaHoraria;
+import com.padel.domain.evento.DisponibilidadCambiadaEvent;
 import com.padel.dto.request.FranjaHorariaRequest;
 import com.padel.dto.response.FranjaHorariaResponse;
 import com.padel.exception.RangoHorarioInvalidoException;
@@ -12,7 +13,7 @@ import com.padel.repository.CanchaRepository;
 import com.padel.repository.FranjaHorariaRepository;
 import com.padel.service.FranjaHorariaService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,7 +21,6 @@ import java.time.DayOfWeek;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -31,7 +31,7 @@ public class FranjaHorariaServiceImpl implements FranjaHorariaService {
     private final FranjaHorariaRepository franjaHorariaRepository;
     private final CanchaRepository canchaRepository;
     private final FranjaHorariaMapper franjaHorariaMapper;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventos;
 
     @Override
     @Transactional
@@ -99,14 +99,7 @@ public class FranjaHorariaServiceImpl implements FranjaHorariaService {
     }
 
     private void notificarCambio(Long canchaId) {
-        try {
-            messagingTemplate.convertAndSend("/topic/disponibilidad", Map.of(
-                    "type", "slot_update",
-                    "canchaId", canchaId
-            ));
-        } catch (Exception e) {
-            // Ignorar en tests
-        }
+        eventos.publishEvent(new DisponibilidadCambiadaEvent(canchaId));
     }
 
     private FranjaHoraria obtenerEntidadValida(Long id) {

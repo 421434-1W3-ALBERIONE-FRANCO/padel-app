@@ -24,5 +24,13 @@ public record BloqueoCanchaRequest(
 
     @NotBlank(message = "El motivo es obligatorio")
     @Size(max = 255, message = "El motivo no puede superar los 255 caracteres")
-    String motivo
-) {}
+    String motivo,
+
+    // Si el bloqueo pisa reservas vigentes, hay que confirmar que se cancelen (con reintegro y aviso al
+    // jugador). Sin esta confirmación el alta responde 409 con el código RESERVAS_AFECTADAS.
+    Boolean cancelarReservasAfectadas
+) {
+    public boolean confirmaCancelarReservas() {
+        return Boolean.TRUE.equals(cancelarReservasAfectadas);
+    }
+}
