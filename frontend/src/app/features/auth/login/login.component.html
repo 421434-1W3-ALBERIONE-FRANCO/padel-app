@@ -3,113 +3,115 @@
   <app-scene-3d class="absolute inset-0"></app-scene-3d>
 
   <!-- Pelotas de pádel (SVG + CSS keyframes) SOLO en los bordes/esquinas: rellenan
-       el espacio negro que la cancha 3D deja libre alrededor, sin taparla. -->
+  el espacio negro que la cancha 3D deja libre alrededor, sin taparla. -->
   <svg class="absolute inset-0 w-full h-full" viewBox="0 0 640 640" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <style>
       @keyframes ball-float {
-        0%, 100% { transform: translateY(0) rotate(0deg); }
-        50% { transform: translateY(-26px) rotate(8deg); }
-      }
-      .ball { animation: ball-float 10s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
-      .ball-1 { animation-duration: 9s; animation-delay: -1s; }
-      .ball-2 { animation-duration: 12s; animation-delay: -4s; }
-      .ball-3 { animation-duration: 8s; animation-delay: -2.5s; }
-      .ball-4 { animation-duration: 13s; animation-delay: -6s; }
-      .ball-5 { animation-duration: 10.5s; animation-delay: -3s; }
-      .ball-6 { animation-duration: 11s; animation-delay: -7s; }
-      .ball-7 { animation-duration: 9.5s; animation-delay: -5s; }
-      .ball-8 { animation-duration: 10s; animation-delay: -8s; }
-      .ball-blur { filter: blur(1.5px); }
-      .seam { stroke: rgba(255,255,255,0.45); fill: none; stroke-linecap: round; }
-    </style>
-    <defs>
-      <radialGradient id="ballGradient" cx="35%" cy="30%" r="75%">
-        <stop offset="0%" stop-color="#c3f278" />
-        <stop offset="55%" stop-color="#52c41a" />
-        <stop offset="100%" stop-color="#1f6b0d" />
-      </radialGradient>
-    </defs>
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-26px) rotate(8deg); }
+    }
+    .ball { animation: ball-float 10s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .ball-1 { animation-duration: 9s; animation-delay: -1s; }
+    .ball-2 { animation-duration: 12s; animation-delay: -4s; }
+    .ball-3 { animation-duration: 8s; animation-delay: -2.5s; }
+    .ball-4 { animation-duration: 13s; animation-delay: -6s; }
+    .ball-5 { animation-duration: 10.5s; animation-delay: -3s; }
+    .ball-6 { animation-duration: 11s; animation-delay: -7s; }
+    .ball-7 { animation-duration: 9.5s; animation-delay: -5s; }
+    .ball-8 { animation-duration: 10s; animation-delay: -8s; }
+    .ball-blur { filter: blur(1.5px); }
+    .seam { stroke: rgba(255,255,255,0.45); fill: none; stroke-linecap: round; }
+  </style>
+  <defs>
+    <radialGradient id="ballGradient" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#c3f278" />
+      <stop offset="55%" stop-color="#52c41a" />
+      <stop offset="100%" stop-color="#1f6b0d" />
+    </radialGradient>
+  </defs>
 
-    <!-- Solo cerca de bordes/esquinas (zona central libre para la cancha 3D y la tarjeta) -->
-    <g class="ball ball-1 ball-blur" style="opacity: 0.55">
-      <circle cx="65" cy="85" r="24" fill="url(#ballGradient)" />
-      <path class="seam" d="M 46 72 Q 65 87 49 104" stroke-width="2" />
-    </g>
-    <g class="ball ball-2" style="opacity: 0.75">
-      <circle cx="565" cy="70" r="36" fill="url(#ballGradient)" />
-      <path class="seam" d="M 540 50 Q 565 72 542 96" stroke-width="2.5" />
-    </g>
-    <g class="ball ball-3 ball-blur" style="opacity: 0.45">
-      <circle cx="28" cy="320" r="20" fill="url(#ballGradient)" />
-      <path class="seam" d="M 15 309 Q 28 321 17 334" stroke-width="1.6" />
-    </g>
-    <g class="ball ball-4" style="opacity: 0.6">
-      <circle cx="612" cy="330" r="30" fill="url(#ballGradient)" />
-      <path class="seam" d="M 590 313 Q 612 332 592 351" stroke-width="2.2" />
-    </g>
-    <g class="ball ball-5" style="opacity: 0.7">
-      <circle cx="78" cy="560" r="26" fill="url(#ballGradient)" />
-      <path class="seam" d="M 56 543 Q 78 562 58 582" stroke-width="2" />
-    </g>
-    <g class="ball ball-6 ball-blur" style="opacity: 0.5">
-      <circle cx="580" cy="590" r="34" fill="url(#ballGradient)" />
-      <path class="seam" d="M 554 570 Q 580 592 556 613" stroke-width="2.4" />
-    </g>
-    <g class="ball ball-7" style="opacity: 0.4">
-      <circle cx="320" cy="35" r="16" fill="url(#ballGradient)" />
-      <path class="seam" d="M 309 27 Q 320 36 311 47" stroke-width="1.4" />
-    </g>
-    <g class="ball ball-8" style="opacity: 0.5">
-      <circle cx="325" cy="615" r="18" fill="url(#ballGradient)" />
-      <path class="seam" d="M 313 606 Q 325 616 315 628" stroke-width="1.5" />
-    </g>
-  </svg>
+  <!-- Solo cerca de bordes/esquinas (zona central libre para la cancha 3D y la tarjeta) -->
+  <g class="ball ball-1 ball-blur" style="opacity: 0.55">
+    <circle cx="65" cy="85" r="24" fill="url(#ballGradient)" />
+    <path class="seam" d="M 46 72 Q 65 87 49 104" stroke-width="2" />
+  </g>
+  <g class="ball ball-2" style="opacity: 0.75">
+    <circle cx="565" cy="70" r="36" fill="url(#ballGradient)" />
+    <path class="seam" d="M 540 50 Q 565 72 542 96" stroke-width="2.5" />
+  </g>
+  <g class="ball ball-3 ball-blur" style="opacity: 0.45">
+    <circle cx="28" cy="320" r="20" fill="url(#ballGradient)" />
+    <path class="seam" d="M 15 309 Q 28 321 17 334" stroke-width="1.6" />
+  </g>
+  <g class="ball ball-4" style="opacity: 0.6">
+    <circle cx="612" cy="330" r="30" fill="url(#ballGradient)" />
+    <path class="seam" d="M 590 313 Q 612 332 592 351" stroke-width="2.2" />
+  </g>
+  <g class="ball ball-5" style="opacity: 0.7">
+    <circle cx="78" cy="560" r="26" fill="url(#ballGradient)" />
+    <path class="seam" d="M 56 543 Q 78 562 58 582" stroke-width="2" />
+  </g>
+  <g class="ball ball-6 ball-blur" style="opacity: 0.5">
+    <circle cx="580" cy="590" r="34" fill="url(#ballGradient)" />
+    <path class="seam" d="M 554 570 Q 580 592 556 613" stroke-width="2.4" />
+  </g>
+  <g class="ball ball-7" style="opacity: 0.4">
+    <circle cx="320" cy="35" r="16" fill="url(#ballGradient)" />
+    <path class="seam" d="M 309 27 Q 320 36 311 47" stroke-width="1.4" />
+  </g>
+  <g class="ball ball-8" style="opacity: 0.5">
+    <circle cx="325" cy="615" r="18" fill="url(#ballGradient)" />
+    <path class="seam" d="M 313 606 Q 325 616 315 628" stroke-width="1.5" />
+  </g>
+</svg>
 
-  <div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]"></div>
-  <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(10,10,14,0.08),rgba(10,10,14,0.78)_72%)]"></div>
+<div class="absolute inset-0 bg-slate-950/45 backdrop-blur-[1px]"></div>
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(10,10,14,0.08),rgba(10,10,14,0.78)_72%)]"></div>
 
-  <div class="relative z-10 w-full max-w-md">
-    <div class="mb-7 text-center">
-      <div class="mx-auto mb-5 inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-500 to-turquoise-500 shadow-lg shadow-primary-500/20">
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 text-slate-950">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
-          <path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.546 5.974 5.974 0 0 1-2.133-1A3.75 3.75 0 0 0 12 18Z" />
-        </svg>
-      </div>
-      <h1 class="text-3xl font-extrabold tracking-tight text-white font-display">
-        Padel<span class="bg-gradient-to-r from-primary-400 to-turquoise-400 bg-clip-text text-transparent">App</span>
-      </h1>
-      <p class="mt-2 text-sm text-slate-300">
-        Ingresá para gestionar canchas, reservas y consumos.
-      </p>
+<div class="relative z-10 w-full max-w-md">
+  <div class="mb-7 text-center">
+    <div class="mx-auto mb-5 inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-500 to-turquoise-500 shadow-lg shadow-primary-500/20">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-7 h-7 text-slate-950">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.546 5.974 5.974 0 0 1-2.133-1A3.75 3.75 0 0 0 12 18Z" />
+      </svg>
     </div>
+    <h1 class="text-3xl font-extrabold tracking-tight text-white font-display">
+      Padel<span class="bg-gradient-to-r from-primary-400 to-turquoise-400 bg-clip-text text-transparent">App</span>
+    </h1>
+    <p class="mt-2 text-sm text-slate-300">
+      Ingresá para gestionar canchas, reservas y consumos.
+    </p>
+  </div>
 
-    <ui-card class="block p-6 sm:p-8 bg-slate-950/72 border border-white/10 shadow-2xl backdrop-blur-xl">
-      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
-        <div>
-          <label for="email" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
-            Correo Electrónico
-          </label>
-          <div class="relative">
-            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
-              </svg>
-            </span>
-            <input
-              id="email"
-              type="email"
-              formControlName="email"
-              placeholder="nombre@ejemplo.com"
-              class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 pl-11 pr-4 text-sm transition duration-200 outline-none"
-              [class.border-red-500]="isFieldInvalid('email')"
-              [class.focus:ring-red-500]="isFieldInvalid('email')"
-              [class.focus:border-red-500]="isFieldInvalid('email')"
+  <ui-card class="block p-6 sm:p-8 bg-slate-950/72 border border-white/10 shadow-2xl backdrop-blur-xl">
+    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="space-y-6">
+      <div>
+        <label for="email" class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+          Correo Electrónico
+        </label>
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-500">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+            </svg>
+          </span>
+          <input
+            id="email"
+            type="email"
+            formControlName="email"
+            placeholder="nombre@ejemplo.com"
+            class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-3 pl-11 pr-4 text-sm transition duration-200 outline-none"
+            [class.border-red-500]="isFieldInvalid('email')"
+            [class.focus:ring-red-500]="isFieldInvalid('email')"
+            [class.focus:border-red-500]="isFieldInvalid('email')"
             />
           </div>
-          <p *ngIf="isFieldInvalid('email')" class="mt-1.5 text-xs text-red-400">
-            Debe ingresar un correo electrónico válido.
-          </p>
+          @if (isFieldInvalid('email')) {
+            <p class="mt-1.5 text-xs text-red-400">
+              Debe ingresar un correo electrónico válido.
+            </p>
+          }
         </div>
 
         <div>
@@ -131,38 +133,57 @@
               [class.border-red-500]="isFieldInvalid('password')"
               [class.focus:ring-red-500]="isFieldInvalid('password')"
               [class.focus:border-red-500]="isFieldInvalid('password')"
-            />
+              />
+            </div>
+            @if (isFieldInvalid('password')) {
+              <p class="mt-1.5 text-xs text-red-400">
+                Ingresá tu contraseña.
+              </p>
+            }
+            <div class="mt-2 text-right">
+              <a routerLink="/auth/recuperar-password" class="text-xs text-slate-400 hover:text-primary-300 hover:underline transition duration-150 cursor-pointer">
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
           </div>
-          <p *ngIf="isFieldInvalid('password')" class="mt-1.5 text-xs text-red-400">
-            La contraseña debe tener al menos 6 caracteres.
-          </p>
-          <div class="mt-2 text-right">
-            <a routerLink="/auth/recuperar-password" class="text-xs text-slate-400 hover:text-primary-300 hover:underline transition duration-150 cursor-pointer">
-              ¿Olvidaste tu contraseña?
+
+          <button type="submit" [disabled]="isLoading()" class="w-full btn-primary py-3.5">
+            @if (!isLoading()) {
+              <span>Ingresar</span>
+            }
+            @if (isLoading()) {
+              <span class="flex items-center gap-2">
+                <svg class="animate-spin h-5 w-5 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Verificando...</span>
+              </span>
+            }
+          </button>
+        </form>
+
+        @if (emailSinVerificar(); as email) {
+          <div class="mt-6 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-100" role="alert">
+            <p class="font-semibold">Confirmá tu email para entrar</p>
+            <p class="mt-1 text-xs text-amber-200/90">
+              Te enviamos un enlace a <span class="font-semibold">{{ email }}</span> al registrarte. Si no lo encontrás (revisá el spam) o ya venció, pedí uno nuevo.
+            </p>
+            <button type="button" (click)="reenviarVerificacion()" [disabled]="reenviando()"
+              class="mt-3 text-xs font-bold text-amber-300 hover:text-amber-200 hover:underline disabled:opacity-50 cursor-pointer">
+              {{ reenviando() ? 'Enviando...' : 'Reenviar email de confirmación' }}
+            </button>
+          </div>
+        }
+
+        <div class="mt-6 text-center">
+          <p class="text-xs text-slate-300">
+            ¿No tenés cuenta?
+            <a routerLink="/auth/registro" class="text-primary-300 hover:text-primary-200 hover:underline font-semibold transition duration-150 cursor-pointer">
+              Registrate ahora
             </a>
-          </div>
+          </p>
         </div>
-
-        <button type="submit" [disabled]="isLoading()" class="w-full btn-primary py-3.5">
-          <span *ngIf="!isLoading()">Ingresar</span>
-          <span *ngIf="isLoading()" class="flex items-center gap-2">
-            <svg class="animate-spin h-5 w-5 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Verificando...</span>
-          </span>
-        </button>
-      </form>
-
-      <div class="mt-6 text-center">
-        <p class="text-xs text-slate-300">
-          ¿No tenés cuenta?
-          <a routerLink="/auth/registro" class="text-primary-300 hover:text-primary-200 hover:underline font-semibold transition duration-150 cursor-pointer">
-            Registrate ahora
-          </a>
-        </p>
-      </div>
-    </ui-card>
+      </ui-card>
+    </div>
   </div>
-</div>

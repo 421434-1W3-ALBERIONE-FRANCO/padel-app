@@ -10,6 +10,7 @@ import com.padel.mapper.CanchaMapper;
 import com.padel.repository.CanchaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -30,6 +31,12 @@ class CanchaServiceImplTest {
 
     @Mock
     private CanchaMapper canchaMapper;
+
+    @Mock
+    private ApplicationEventPublisher eventos;
+
+    @Mock
+    private com.padel.repository.ReservaRepository reservaRepository;
 
     @InjectMocks
     private CanchaServiceImpl canchaService;
@@ -138,5 +145,14 @@ class CanchaServiceImplTest {
 
         assertFalse(canchaMock.isActiva());
         verify(canchaRepository, times(1)).save(canchaMock);
+    }
+
+    @Test
+    void desactivar_ConReservasVigentes_NoDejaLosTurnosEnUnaCanchaInexistente() {
+        when(canchaRepository.findByIdAndActivaTrue(1L)).thenReturn(Optional.of(Cancha.builder().id(1L).nombre("Cancha 1").activa(true).build()));
+        when(reservaRepository.existsByCanchaIdAndFechaGreaterThanEqualAndEstadoReservaIn(eq(1L), any(), any())).thenReturn(true);
+
+        assertThrows(com.padel.exception.EstadoInvalidoException.class, () -> canchaService.desactivar(1L));
+        verify(canchaRepository, never()).save(any());
     }
 }

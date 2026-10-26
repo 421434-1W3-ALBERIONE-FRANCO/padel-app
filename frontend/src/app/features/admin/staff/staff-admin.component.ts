@@ -1,5 +1,4 @@
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UsuarioService } from '../../../core/services/usuario.service';
 import { ToastService } from '../../../core/services/toast.service';
@@ -7,8 +6,7 @@ import { RolUsuario, UsuarioResponse } from '../../../shared/models/usuario.mode
 
 @Component({
   selector: 'app-staff-admin',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [ReactiveFormsModule],
   templateUrl: './staff-admin.component.html'
 })
 export class StaffAdminComponent implements OnInit {
@@ -27,7 +25,7 @@ export class StaffAdminComponent implements OnInit {
     apellido: ['', [Validators.required, Validators.maxLength(100)]],
     email: ['', [Validators.required, Validators.email]],
     telefono: [''],
-    password: ['', [Validators.required, Validators.minLength(6)]],
+    password: ['', [Validators.required, Validators.minLength(10), Validators.maxLength(72)]],
     rol: ['RECEPCIONISTA' as RolUsuario, [Validators.required]]
   });
 

@@ -1,3 +1,4 @@
+# Perfil de desarrollo local: Postgres de docker-compose (puerto 5433) o el embebido (ver README).
 spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/padeldb}
@@ -8,30 +9,39 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: validate
-    show-sql: true
-    properties:
-      hibernate:
-        format_sql: true
+    show-sql: false
   flyway:
     enabled: true
     baseline-on-migrate: false
     out-of-order: false
-    # Incluye el seed de datos de prueba (db/dev), que NO se aplica en produccion.
+    # Incluye el seed de datos de prueba (db/dev), que NO se aplica en producción.
     locations: classpath:db/migration,classpath:db/dev
   data:
     redis:
       host: ${REDIS_HOST:localhost}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+springdoc:
+  api-docs:
+    enabled: true
 
 logging:
   level:
     org.springframework.security: INFO
     org.springframework.web: INFO
-    org.hibernate.SQL: DEBUG
 
-# Defaults SOLO para desarrollo local. Sobreescribir siempre vía variable de entorno.
+# Defaults SOLO para desarrollo local (este perfil nunca se usa en un servidor).
 jwt:
   secret: ${JWT_SECRET:dev-only-local-secret-do-not-use-in-production-1234567890}
 
 mercadopago:
   access-token: ${MP_ACCESS_TOKEN:TEST-0000000000000000-000000-0000000000000000000000000000000-000000000}
+  webhook:
+    # Para probar webhooks en local sin secreto (con un túnel tipo ngrok).
+    exigir-firma: false
+
+app:
+  mail:
+    # Sin SMTP los emails se simulan: el cuerpo (con los enlaces de verificación) va al log.
+    registrar-contenido-simulado: true

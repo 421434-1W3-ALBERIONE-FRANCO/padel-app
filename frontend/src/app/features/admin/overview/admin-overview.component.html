@@ -21,68 +21,72 @@
   </div>
 
   <!-- Loading -->
-  <div *ngIf="cargando()" class="mt-8 text-slate-400 text-sm">Cargando métricas...</div>
+  @if (cargando()) {
+    <div class="mt-8 text-slate-400 text-sm">Cargando métricas...</div>
+  }
 
-  <div *ngIf="!cargando()">
-    <!-- Tarjetas de métricas -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
-      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
-        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reservas</span>
-        <span class="block text-3xl font-extrabold text-white font-display mt-1">{{ totalReservas() }}</span>
-        <span class="block text-xs text-slate-500 mt-1">en el período</span>
-      </div>
-      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
-        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos</span>
-        <span class="block text-3xl font-extrabold text-primary-400 font-display mt-1">${{ ingresos() | number:'1.0-0' }}</span>
-        <span class="block text-xs text-slate-500 mt-1">confirmadas + completadas</span>
-      </div>
-      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
-        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Confirmadas</span>
-        <span class="block text-3xl font-extrabold text-emerald-400 font-display mt-1">{{ confirmadas() }}</span>
-        <span class="block text-xs text-slate-500 mt-1">{{ tasaConfirmacion() }}% de confirmación</span>
-      </div>
-      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
-        <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Canceladas</span>
-        <span class="block text-3xl font-extrabold text-red-400 font-display mt-1">{{ canceladas() }}</span>
-        <span class="block text-xs text-slate-500 mt-1">en el período</span>
-      </div>
-    </div>
-
-    <!-- Gráfico de reservas por día -->
-    <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 sm:p-6 mt-4">
-      <div class="flex items-center justify-between mb-5">
-        <h2 class="text-sm font-bold text-white font-display uppercase tracking-wider">Reservas por día</h2>
-        <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Máx por barra</span>
-      </div>
-
-      <div class="flex items-end gap-1.5 h-40 sm:h-48">
-        <div *ngFor="let barra of grafico()" class="flex-1 flex flex-col items-center justify-end gap-1.5 min-w-0 group">
-          <span class="text-[10px] font-bold text-slate-300 opacity-0 group-hover:opacity-100 transition">{{ barra.cantidad }}</span>
-          <div
-            class="w-full rounded-t-md bg-gradient-to-t from-primary-600/60 to-accent-500/70 hover:from-primary-500 hover:to-accent-400 transition-all min-h-[2px]"
-            [style.height.%]="barra.altura"
-            [title]="barra.fecha + ': ' + barra.cantidad + ' reservas'">
-          </div>
-          <span class="text-[9px] text-slate-500 truncate w-full text-center">{{ barra.etiqueta }}</span>
+  @if (!cargando()) {
+    <div>
+      <!-- Tarjetas de métricas -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-8">
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Reservas</span>
+          <span class="block text-3xl font-extrabold text-white font-display mt-1">{{ totalReservas() }}</span>
+          <span class="block text-xs text-slate-500 mt-1">en el período</span>
+        </div>
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Ingresos</span>
+          <span class="block text-3xl font-extrabold text-primary-400 font-display mt-1">${{ ingresos() | number:'1.0-0' }}</span>
+          <span class="block text-xs text-slate-500 mt-1">confirmadas + completadas</span>
+        </div>
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Confirmadas</span>
+          <span class="block text-3xl font-extrabold text-emerald-400 font-display mt-1">{{ confirmadas() }}</span>
+          <span class="block text-xs text-slate-500 mt-1">{{ tasaConfirmacion() }}% de confirmación</span>
+        </div>
+        <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5">
+          <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">Canceladas</span>
+          <span class="block text-3xl font-extrabold text-red-400 font-display mt-1">{{ canceladas() }}</span>
+          <span class="block text-xs text-slate-500 mt-1">en el período</span>
         </div>
       </div>
-
-      <p class="text-[11px] text-slate-500 mt-4">
-        Nota: la ocupación real por franja se agregará en Fase 2 (requiere capacidad por cancha).
-      </p>
-    </div>
-
-    <!-- Accesos rápidos -->
-    <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mt-10 mb-4 font-display">Accesos rápidos</h2>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      <a *ngFor="let card of cards" [routerLink]="card.route"
-         class="group bg-surface-1/40 hover:bg-surface-1/70 border border-white/5 hover:border-primary-500/30 rounded-2xl p-5 transition flex flex-col">
-        <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-3 group-hover:scale-105 transition">
-          <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="card.icon"/></svg>
+      <!-- Gráfico de reservas por día -->
+      <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-5 sm:p-6 mt-4">
+        <div class="flex items-center justify-between mb-5">
+          <h2 class="text-sm font-bold text-white font-display uppercase tracking-wider">Reservas por día</h2>
+          <span class="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Máx por barra</span>
         </div>
-        <span class="font-bold text-white text-sm font-display">{{ card.label }}</span>
-        <span class="text-xs text-slate-400 mt-1 leading-relaxed">{{ card.desc }}</span>
-      </a>
+        <div class="flex items-end gap-1.5 h-40 sm:h-48">
+          @for (barra of grafico(); track barra) {
+            <div class="flex-1 flex flex-col items-center justify-end gap-1.5 min-w-0 group">
+              <span class="text-[10px] font-bold text-slate-300 opacity-0 group-hover:opacity-100 transition">{{ barra.cantidad }}</span>
+              <div
+                class="w-full rounded-t-md bg-gradient-to-t from-primary-600/60 to-accent-500/70 hover:from-primary-500 hover:to-accent-400 transition-all min-h-[2px]"
+                [style.height.%]="barra.altura"
+                [title]="barra.fecha + ': ' + barra.cantidad + ' reservas'">
+              </div>
+              <span class="text-[9px] text-slate-500 truncate w-full text-center">{{ barra.etiqueta }}</span>
+            </div>
+          }
+        </div>
+        <p class="text-[11px] text-slate-500 mt-4">
+          Nota: la ocupación real por franja se agregará en Fase 2 (requiere capacidad por cancha).
+        </p>
+      </div>
+      <!-- Accesos rápidos -->
+      <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mt-10 mb-4 font-display">Accesos rápidos</h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        @for (card of cards; track card) {
+          <a [routerLink]="card.route"
+            class="group bg-surface-1/40 hover:bg-surface-1/70 border border-white/5 hover:border-primary-500/30 rounded-2xl p-5 transition flex flex-col">
+            <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center mb-3 group-hover:scale-105 transition">
+              <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="card.icon"/></svg>
+            </div>
+            <span class="font-bold text-white text-sm font-display">{{ card.label }}</span>
+            <span class="text-xs text-slate-400 mt-1 leading-relaxed">{{ card.desc }}</span>
+          </a>
+        }
+      </div>
     </div>
-  </div>
+  }
 </div>

@@ -28,8 +28,18 @@ export class AuthService {
     this.restoreSession();
   }
 
+  /** Con la verificación de email activa, la cuenta queda pendiente (emailVerificado = false) hasta confirmar el enlace. */
   registrar(request: CrearUsuarioRequest): Observable<UsuarioResponse> {
     return this.http.post<UsuarioResponse>(`${this.API_URL}/auth/registro`, request);
+  }
+
+  verificarEmail(token: string): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/auth/verificacion-email`, { token });
+  }
+
+  /** El backend responde igual exista o no la cuenta, para no revelar qué emails están registrados. */
+  reenviarVerificacion(email: string): Observable<void> {
+    return this.http.post<void>(`${this.API_URL}/auth/verificacion-email/reenvio`, { email });
   }
 
   login(request: LoginRequest): Observable<LoginResponse> {
@@ -53,8 +63,8 @@ export class AuthService {
    *        identificar al usuario y el POST /auth/logout solo fallaría.
    */
   logout(notificarServidor = true): void {
-    // Cierra la sesión de trabajo del staff en el backend (fire-and-forget: un error de red
-    // no debe impedir el cierre local). Cubre tanto el botón manual como el timeout de inactividad.
+    // Revoca el token en el backend: deja de servir aunque todavía no haya vencido (fire-and-forget: un error
+    // de red no debe impedir el cierre local). Cubre tanto el botón manual como el timeout de inactividad.
     if (notificarServidor && this.getToken()) {
       this.http.post<void>(`${this.API_URL}/auth/logout`, {}).subscribe({ next: () => {}, error: () => {} });
     }
@@ -94,18 +104,17 @@ export class AuthService {
 
   /**
    * Decodifica el claim `exp` del JWT (sin validar firma, eso lo hace el backend) para
-   * evitar restaurar en el front una sesión cuyo token ya venció. El token mock de
-   * desarrollo no es un JWT real (no tiene 3 segmentos), así que se lo asume no vencido.
+   * evitar restaurar en el front una sesión cuyo token ya venció. Un token ilegible cuenta como vencido.
    */
   private isTokenExpired(token: string): boolean {
     const segmentos = token.split('.');
-    if (segmentos.length !== 3) return false;
+    if (segmentos.length !== 3) return true;
     try {
       const payload = JSON.parse(atob(segmentos[1].replace(/-/g, '+').replace(/_/g, '/')));
-      if (typeof payload.exp !== 'number') return false;
+      if (typeof payload.exp !== 'number') return true;
       return Date.now() >= payload.exp * 1000;
     } catch {
-      return false;
+      return true;
     }
   }
 }

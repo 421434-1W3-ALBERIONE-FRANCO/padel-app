@@ -2,25 +2,30 @@ package com.padel.service.impl;
 
 import com.padel.domain.entity.BloqueoCancha;
 import com.padel.domain.entity.Cancha;
+import com.padel.domain.entity.Reserva;
+import com.padel.domain.evento.DisponibilidadCambiadaEvent;
+import com.padel.domain.valueobject.RangoHorario;
 import com.padel.dto.request.BloqueoCanchaRequest;
 import com.padel.dto.response.BloqueoCanchaResponse;
 import com.padel.exception.RangoHorarioInvalidoException;
+import com.padel.exception.ReservasAfectadasException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.SolapamientoBloqueoException;
 import com.padel.mapper.BloqueoCanchaMapper;
 import com.padel.repository.BloqueoCanchaRepository;
 import com.padel.repository.CanchaRepository;
+import com.padel.repository.ReservaRepository;
 import com.padel.service.BloqueoCanchaService;
+import com.padel.service.ReservaService;
 import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -30,7 +35,9 @@ public class BloqueoCanchaServiceImpl implements BloqueoCanchaService {
     private final BloqueoCanchaRepository bloqueoCanchaRepository;
     private final CanchaRepository canchaRepository;
     private final BloqueoCanchaMapper bloqueoCanchaMapper;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ReservaRepository reservaRepository;
+    private final ReservaService reservaService;
+    private final ApplicationEventPublisher eventos;
     private final FechaHoraUtil fechaHoraUtil;
 
     @Override
@@ -41,6 +48,7 @@ public class BloqueoCanchaServiceImpl implements BloqueoCanchaService {
 
         validarRangos(request.fechaDesde(), request.fechaHasta(), request.horaDesde(), request.horaHasta());
         validarSolapamientos(canchaId, request.fechaDesde(), request.fechaHasta(), request.horaDesde(), request.horaHasta(), null);
+        cancelarReservasAfectadas(canchaId, request);
 
         BloqueoCancha bloqueo = bloqueoCanchaMapper.toEntity(request);
         bloqueo.setCancha(cancha);
@@ -78,6 +86,7 @@ public class BloqueoCanchaServiceImpl implements BloqueoCanchaService {
         Long canchaId = bloqueoExistente.getCancha().getId();
         validarRangos(request.fechaDesde(), request.fechaHasta(), request.horaDesde(), request.horaHasta());
         validarSolapamientos(canchaId, request.fechaDesde(), request.fechaHasta(), request.horaDesde(), request.horaHasta(), id);
+        cancelarReservasAfectadas(canchaId, request);
 
         bloqueoExistente.setFechaDesde(request.fechaDesde());
         bloqueoExistente.setFechaHasta(request.fechaHasta());
@@ -121,13 +130,27 @@ public class BloqueoCanchaServiceImpl implements BloqueoCanchaService {
     }
 
     private void notificarCambioDisponibilidad(Long canchaId) {
-        try {
-            messagingTemplate.convertAndSend("/topic/disponibilidad", Map.of(
-                    "type", "availability_update",
-                    "canchaId", canchaId
-            ));
-        } catch (Exception e) {
-            // Ignorar excepciones en tests donde SimpMessagingTemplate podría no estar mockeado
+        eventos.publishEvent(new DisponibilidadCambiadaEvent(canchaId));
+    }
+
+    /**
+     * Un bloqueo (lluvia, mantenimiento, torneo) que pisa reservas vigentes ya no las deja en el aire: hay que
+     * confirmarlo y, al hacerlo, se cancelan como cancelación del club (con reintegro y aviso al jugador).
+     */
+    private void cancelarReservasAfectadas(Long canchaId, BloqueoCanchaRequest request) {
+        RangoHorario rangoBloqueo = new RangoHorario(request.horaDesde(), request.horaHasta());
+        List<Reserva> afectadas = reservaRepository.findVigentesEntreFechas(canchaId, request.fechaDesde(), request.fechaHasta())
+                .stream()
+                .filter(r -> rangoBloqueo.seSuperponeCon(r.getHoraInicio(), r.getHoraFin()))
+                .toList();
+        if (afectadas.isEmpty()) {
+            return;
         }
+        if (!request.confirmaCancelarReservas()) {
+            throw new ReservasAfectadasException(afectadas.size() == 1
+                    ? "Hay 1 reserva vigente en ese horario. Confirmá el bloqueo para cancelarla y avisarle al jugador."
+                    : "Hay " + afectadas.size() + " reservas vigentes en ese horario. Confirmá el bloqueo para cancelarlas y avisar a los jugadores.");
+        }
+        afectadas.forEach(r -> reservaService.cancelarPorClub(r.getId(), "Cancha no disponible: " + request.motivo()));
     }
 }

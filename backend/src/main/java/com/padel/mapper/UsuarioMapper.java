@@ -14,5 +14,8 @@ public interface UsuarioMapper {
     @Mapping(target = "id", ignore = true)
     @Mapping(target = "passwordHash", ignore = true)
     @Mapping(target = "activo", ignore = true)
+    @Mapping(target = "rol", ignore = true)
+    @Mapping(target = "emailVerificado", ignore = true)
+    @Mapping(target = "tokenVersion", ignore = true)
     Usuario toEntity(CrearUsuarioRequest request);
 }

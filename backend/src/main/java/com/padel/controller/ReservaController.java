@@ -1,7 +1,9 @@
 package com.padel.controller;
 
+import com.padel.domain.enums.EstadoReserva;
 import com.padel.dto.request.CobroMostradorRequest;
 import com.padel.dto.request.ReservaRequest;
+import com.padel.dto.response.PaginaResponse;
 import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.ReservaResponse;
 import com.padel.service.PagoService;
@@ -12,7 +14,13 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -34,7 +42,7 @@ public class ReservaController {
     private final PagoService pagoService;
 
     @PostMapping
-    @Operation(summary = "Crear una nueva reserva", description = "Registra una reserva para un usuario en estado PENDIENTE_PAGO. Valida concurrencia con lock Redis, bloqueos de cancha y reservas previas.")
+    @Operation(summary = "Crear una nueva reserva", description = "Registra una reserva en estado PENDIENTE_PAGO. Valida bloqueos y superposición (la base lo garantiza con una restricción de exclusión) y limita las reservas pendientes de pago por jugador.")
     @ApiResponses(value = {
         @ApiResponse(responseCode = "201", description = "Reserva creada exitosamente"),
         @ApiResponse(responseCode = "400", description = "Datos de entrada inválidos"),
@@ -59,7 +67,7 @@ public class ReservaController {
     })
     public ResponseEntity<ReservaResponse> cancelar(
             @PathVariable Long id,
-            @RequestParam(required = false) String motivo,
+            @RequestParam(required = false) @Size(max = 255, message = "El motivo no puede superar los 255 caracteres") String motivo,
             Principal principal) {
         ReservaResponse response = reservaService.cancelarReserva(id, principal.getName(), motivo);
         return ResponseEntity.ok(response);
@@ -92,20 +100,37 @@ public class ReservaController {
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
-    @Operation(summary = "Obtener todas las reservas (Admin/Recepción)", description = "Sin parámetros retorna la lista completa de todas las reservas registradas en el sistema. " +
-            "Con `fecha` (yyyy-MM-dd) retorna sólo las de ese día, en todos sus estados, ordenadas por hora de inicio y cancha. Sólo accesible por administradores y recepcionistas.")
+    @Operation(summary = "Historial de reservas (Admin/Recepción)", description = "Lista paginada (más recientes primero) con filtros opcionales: " +
+            "rango de fechas (yyyy-MM-dd), estado y texto (cliente o cancha). Tamaño de página máximo: 100.")
     @ApiResponses(value = {
-        @ApiResponse(responseCode = "200", description = "Lista de reservas obtenida exitosamente"),
-        @ApiResponse(responseCode = "400", description = "Fecha con formato inválido"),
+        @ApiResponse(responseCode = "200", description = "Página de reservas"),
         @ApiResponse(responseCode = "401", description = "No autorizado"),
-        @ApiResponse(responseCode = "403", description = "Permisos insuficientes")
+        @ApiResponse(responseCode = "403", description = "Prohibido - Requiere rol ADMIN o RECEPCIONISTA")
     })
-    public ResponseEntity<List<ReservaResponse>> obtenerTodas(
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        List<ReservaResponse> response = fecha != null
-                ? reservaService.obtenerPorFecha(fecha)
-                : reservaService.obtenerTodas();
-        return ResponseEntity.ok(response);
+    public ResponseEntity<PaginaResponse<ReservaResponse>> buscar(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta,
+            @RequestParam(required = false) EstadoReserva estado,
+            @RequestParam(required = false) @Size(max = 100, message = "La búsqueda no puede superar los 100 caracteres") String q,
+            @RequestParam(defaultValue = "0") @Min(value = 0, message = "La página no puede ser negativa") int page,
+            @RequestParam(defaultValue = "20") @Min(value = 1, message = "El tamaño de página mínimo es 1")
+            @Max(value = 100, message = "El tamaño de página máximo es 100") int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.desc("fecha"), Sort.Order.desc("horaInicio"), Sort.Order.desc("id")));
+        return ResponseEntity.ok(reservaService.buscar(desde, hasta, estado, q, pageable));
+    }
+
+    @GetMapping("/agenda")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPCIONISTA')")
+    @Operation(summary = "Agenda de un día (Admin/Recepción)", description = "Reservas de la fecha indicada (yyyy-MM-dd), en todos sus estados, " +
+            "ordenadas por hora de inicio y cancha.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Reservas del día"),
+        @ApiResponse(responseCode = "401", description = "No autorizado"),
+        @ApiResponse(responseCode = "403", description = "Prohibido - Requiere rol ADMIN o RECEPCIONISTA")
+    })
+    public ResponseEntity<List<ReservaResponse>> agenda(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        return ResponseEntity.ok(reservaService.obtenerPorFecha(fecha));
     }
 
     @PutMapping("/{id}/confirmar")

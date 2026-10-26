@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.padel.domain.entity.Cancha;
 import com.padel.domain.entity.FranjaHoraria;
 import com.padel.domain.entity.Reserva;
+import com.padel.domain.entity.TipoBono;
 import com.padel.domain.entity.Usuario;
 import com.padel.domain.enums.EstadoReserva;
 import com.padel.domain.enums.OrigenReserva;
@@ -16,6 +17,7 @@ import com.padel.dto.response.LoginResponse;
 import com.padel.repository.CanchaRepository;
 import com.padel.repository.FranjaHorariaRepository;
 import com.padel.repository.ReservaRepository;
+import com.padel.repository.TipoBonoRepository;
 import com.padel.repository.UsuarioRepository;
 import com.padel.service.RedisLockService;
 import org.junit.jupiter.api.Test;
@@ -53,6 +55,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class CajaDiariaIntegrationTest {
 
     @Autowired
+    private TipoBonoRepository tipoBonoRepository;
+    @Autowired
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
@@ -73,7 +77,7 @@ class CajaDiariaIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new CrearUsuarioRequest(
-                                "Test", "Caja", email, null, "password123", RolUsuario.JUGADOR))))
+                                "Test", "Caja", email, null, "ClaveSegura-2026"))))
                 .andExpect(status().isCreated());
         if (rol != RolUsuario.JUGADOR) {
             Usuario usuario = usuarioRepository.findByEmail(email).orElseThrow();
@@ -82,7 +86,7 @@ class CajaDiariaIntegrationTest {
         }
         String json = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "ClaveSegura-2026"))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return "Bearer " + objectMapper.readValue(json, LoginResponse.class).token();
@@ -176,13 +180,15 @@ class CajaDiariaIntegrationTest {
         assertFalse(contiene(conPendiente.get("pendientesDeCobro"), "reservaId", cobradaEnElActo.getId()));
 
         // 3) Venta de un bono con tarjeta: entra a la caja; sin medio de pago no se puede vender.
-        Map<String, Object> bono = Map.of("usuarioEmail", "cliente.caja@test.com", "tipo", "10HS", "horasTotales", 10,
-                "precioPagado", 8000, "fechaVencimiento", hoy.plusDays(30).toString(), "metodo", "TARJETA");
+        // Con H2 no corre la migración que carga el catálogo: el pack se da de alta acá.
+        TipoBono pack = tipoBonoRepository.findAll().stream().filter(t -> "10HS".equals(t.getNombre())).findFirst()
+                .orElseGet(() -> tipoBonoRepository.save(TipoBono.builder().nombre("10HS").horas(10)
+                        .precio(new BigDecimal("8000.00")).diasVigencia(30).activo(true).build()));
+        Map<String, Object> bono = Map.of("usuarioEmail", "cliente.caja@test.com", "tipoBonoId", pack.getId(), "metodo", "TARJETA");
         mockMvc.perform(post("/api/v1/bonos").header("Authorization", admin)
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(bono)))
                 .andExpect(status().isCreated());
-        Map<String, Object> bonoSinMetodo = Map.of("usuarioEmail", "cliente.caja@test.com", "tipo", "10HS", "horasTotales", 10,
-                "precioPagado", 8000, "fechaVencimiento", hoy.plusDays(30).toString());
+        Map<String, Object> bonoSinMetodo = Map.of("usuarioEmail", "cliente.caja@test.com", "tipoBonoId", pack.getId());
         mockMvc.perform(post("/api/v1/bonos").header("Authorization", admin)
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(bonoSinMetodo)))
                 .andExpect(status().isBadRequest());

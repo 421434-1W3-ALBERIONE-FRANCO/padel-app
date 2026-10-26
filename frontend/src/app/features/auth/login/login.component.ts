@@ -1,5 +1,4 @@
 import { Component, inject, signal } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -7,11 +6,11 @@ import { ToastService } from '../../../core/services/toast.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { UiCardComponent } from '../../../shared/components/ui-card/ui-card.component';
 import { Scene3dComponent } from '../../../shared/components/scene-3d/scene-3d.component';
+import { ApiError } from '../../../shared/models/api-error.model';
 
 @Component({
   selector: 'app-login',
-  standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, UiCardComponent, Scene3dComponent],
+  imports: [ReactiveFormsModule, RouterLink, UiCardComponent, Scene3dComponent],
   templateUrl: './login.component.html'
 })
 export class LoginComponent {
@@ -22,10 +21,14 @@ export class LoginComponent {
 
   loginForm: FormGroup = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
-    password: ['', [Validators.required, Validators.minLength(6)]]
+    // Sin largo mínimo: las contraseñas anteriores a la política actual siguen sirviendo para entrar.
+    password: ['', [Validators.required]]
   });
 
   isLoading = signal<boolean>(false);
+  /** Email de una cuenta que todavía no confirmó su correo: se ofrece reenviar el enlace. */
+  emailSinVerificar = signal<string | null>(null);
+  reenviando = signal<boolean>(false);
 
   onSubmit(): void {
     if (this.loginForm.invalid) {
@@ -34,6 +37,7 @@ export class LoginComponent {
     }
 
     this.isLoading.set(true);
+    this.emailSinVerificar.set(null);
 
     this.authService.login(this.loginForm.value).subscribe({
       next: () => {
@@ -44,9 +48,30 @@ export class LoginComponent {
       },
       error: (error: HttpErrorResponse) => {
         this.isLoading.set(false);
-        // Extraer mensaje del formato ApiError del backend
-        const message = error.error?.message || 'Ocurrió un error inesperado al intentar iniciar sesión.';
+        const apiError = error.error as ApiError | null;
+        if (apiError?.codigo === 'EMAIL_NO_VERIFICADO') {
+          this.emailSinVerificar.set(this.loginForm.value.email);
+          return;
+        }
+        // 401 credenciales incorrectas o 429 demasiados intentos (con cuánto esperar): el mensaje lo arma el backend.
+        const message = apiError?.message || 'Ocurrió un error inesperado al intentar iniciar sesión.';
         this.toast.error(message);
+      }
+    });
+  }
+
+  reenviarVerificacion(): void {
+    const email = this.emailSinVerificar();
+    if (!email || this.reenviando()) return;
+    this.reenviando.set(true);
+    this.authService.reenviarVerificacion(email).subscribe({
+      next: () => {
+        this.reenviando.set(false);
+        this.toast.success('Te enviamos un nuevo enlace de confirmación. Revisá tu correo (y el spam).');
+      },
+      error: (error: HttpErrorResponse) => {
+        this.reenviando.set(false);
+        this.toast.error(error.error?.message || 'No pudimos reenviar el email. Probá de nuevo en unos minutos.');
       }
     });
   }

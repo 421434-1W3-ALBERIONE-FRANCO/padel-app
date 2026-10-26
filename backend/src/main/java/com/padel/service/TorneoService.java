@@ -22,7 +22,12 @@ public interface TorneoService {
     TorneoResponse reactivar(Long id);
 
     InscripcionTorneoResponse inscribirPareja(Long torneoId, InscripcionTorneoRequest request, String usuarioEmail);
-    List<InscripcionTorneoResponse> listarInscripciones(Long torneoId);
+    /** Parejas confirmadas, más las invitaciones pendientes en las que participa quien consulta. */
+    List<InscripcionTorneoResponse> listarInscripciones(Long torneoId, String usuarioEmail);
+
+    InscripcionTorneoResponse aceptarInvitacion(Long torneoId, Long inscripcionId, String usuarioEmail);
+
+    InscripcionTorneoResponse rechazarInvitacion(Long torneoId, Long inscripcionId, String usuarioEmail);
     void cancelarInscripcion(Long torneoId, Long inscripcionId, String usuarioEmail);
 
     List<PartidoTorneoResponse> generarFixture(Long torneoId);

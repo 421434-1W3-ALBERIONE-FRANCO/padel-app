@@ -1,7 +1,15 @@
 package com.padel.exception;
 
-public class CupoCompletoException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class CupoCompletoException extends NegocioException {
+
     public CupoCompletoException(String message) {
         super(message);
+    }
+
+    @Override
+    public HttpStatus getStatus() {
+        return HttpStatus.CONFLICT;
     }
 }

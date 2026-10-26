@@ -1,6 +1,6 @@
 <div class="min-height-screen flex items-center justify-center p-4 md:p-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-black">
   <div class="w-full max-w-xl">
-    
+
     <!-- Logo / Brand Header -->
     <div class="text-center mb-6">
       <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary-500 to-emerald-400 shadow-lg shadow-primary-500/20 mb-3 animate-bounce">
@@ -19,9 +19,23 @@
 
     <!-- Register Card -->
     <div class="backdrop-blur-md bg-slate-900/60 border border-slate-800/80 rounded-3xl p-6 sm:p-8 shadow-2xl">
-      
+
+      @if (emailPendiente(); as email) {
+        <div class="text-center space-y-3" role="status">
+          <p class="text-lg font-bold text-white">Revisá tu correo</p>
+          <p class="text-sm text-slate-300">
+            Te enviamos un enlace a <span class="font-semibold text-primary-300">{{ email }}</span> para confirmar tu cuenta.
+            Hasta confirmarla no vas a poder iniciar sesión.
+          </p>
+          <p class="text-xs text-slate-500">¿No llegó? Revisá el spam o pedí otro.</p>
+          <button type="button" (click)="reenviarVerificacion()" [disabled]="reenviando()"
+            class="text-xs font-bold text-primary-400 hover:text-primary-300 hover:underline disabled:opacity-50 cursor-pointer">
+            {{ reenviando() ? 'Enviando...' : 'Reenviar email de confirmación' }}
+          </button>
+        </div>
+      } @else {
       <form [formGroup]="registroForm" (ngSubmit)="onSubmit()" class="space-y-4">
-        
+
         <!-- Nombre & Apellido Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
@@ -33,93 +47,106 @@
               placeholder="Juan"
               class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
               [class.border-red-500]="isFieldInvalid('nombre')"
-            />
-            <p *ngIf="isFieldInvalid('nombre')" class="mt-1 text-xs text-red-400">El nombre es obligatorio.</p>
+              />
+              @if (isFieldInvalid('nombre')) {
+                <p class="mt-1 text-xs text-red-400">El nombre es obligatorio.</p>
+              }
+            </div>
+
+            <div>
+              <label for="apellido" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Apellido</label>
+              <input
+                id="apellido"
+                type="text"
+                formControlName="apellido"
+                placeholder="Pérez"
+                class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
+                [class.border-red-500]="isFieldInvalid('apellido')"
+                />
+                @if (isFieldInvalid('apellido')) {
+                  <p class="mt-1 text-xs text-red-400">El apellido es obligatorio.</p>
+                }
+              </div>
+            </div>
+
+            <!-- Email -->
+            <div>
+              <label for="email" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Correo Electrónico</label>
+              <input
+                id="email"
+                type="email"
+                formControlName="email"
+                placeholder="juan.perez@ejemplo.com"
+                class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
+                [class.border-red-500]="isFieldInvalid('email')"
+                />
+                @if (isFieldInvalid('email')) {
+                  <p class="mt-1 text-xs text-red-400">Debe ingresar un email válido.</p>
+                }
+              </div>
+
+              <!-- Teléfono -->
+              <div>
+                <label for="telefono" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Teléfono</label>
+                <input
+                  id="telefono"
+                  type="text"
+                  formControlName="telefono"
+                  placeholder="+54 9 11 1234 5678"
+                  class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
+                  [class.border-red-500]="isFieldInvalid('telefono')"
+                  />
+                </div>
+
+                <!-- Password -->
+                <div>
+                  <label for="password" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Contraseña</label>
+                  <input
+                    id="password"
+                    type="password"
+                    formControlName="password"
+                    placeholder="••••••••"
+                    class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
+                    [class.border-red-500]="isFieldInvalid('password')"
+                    />
+                    @if (isFieldInvalid('password')) {
+                      <p class="mt-1 text-xs text-red-400 font-medium">Usá al menos 10 caracteres. Una frase corta es más segura y fácil de recordar.</p>
+                    }
+                  </div>
+
+                  <!-- Submit -->
+                  <button
+                    type="submit"
+                    [disabled]="isLoading()"
+                    class="w-full relative flex items-center justify-center py-3.5 px-4 rounded-xl text-slate-950 font-bold bg-gradient-to-r from-primary-400 to-emerald-400 hover:from-primary-300 hover:to-emerald-300 active:scale-98 transition duration-200 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed shadow-lg shadow-primary-500/10 mt-6 cursor-pointer"
+                    >
+                    @if (!isLoading()) {
+                      <span>Registrarse</span>
+                    }
+                    @if (isLoading()) {
+                      <span class="flex items-center space-x-2">
+                        <svg class="animate-spin h-5 w-5 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>Procesando...</span>
+                      </span>
+                    }
+                  </button>
+
+                </form>
+      }
+
+                <!-- Navigation Link -->
+                <div class="mt-6 text-center">
+                  <p class="text-xs text-slate-400">
+                    ¿Ya tenés cuenta?
+                    <a routerLink="/auth/login" class="text-primary-400 hover:text-primary-300 hover:underline font-semibold transition duration-150 cursor-pointer">
+                      Iniciá sesión
+                    </a>
+                  </p>
+                </div>
+
+              </div>
+            </div>
           </div>
-
-          <div>
-            <label for="apellido" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Apellido</label>
-            <input
-              id="apellido"
-              type="text"
-              formControlName="apellido"
-              placeholder="Pérez"
-              class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
-              [class.border-red-500]="isFieldInvalid('apellido')"
-            />
-            <p *ngIf="isFieldInvalid('apellido')" class="mt-1 text-xs text-red-400">El apellido es obligatorio.</p>
-          </div>
-        </div>
-
-        <!-- Email -->
-        <div>
-          <label for="email" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Correo Electrónico</label>
-          <input
-            id="email"
-            type="email"
-            formControlName="email"
-            placeholder="juan.perez@ejemplo.com"
-            class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
-            [class.border-red-500]="isFieldInvalid('email')"
-          />
-          <p *ngIf="isFieldInvalid('email')" class="mt-1 text-xs text-red-400">Debe ingresar un email válido.</p>
-        </div>
-
-        <!-- Teléfono -->
-        <div>
-          <label for="telefono" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Teléfono</label>
-          <input
-            id="telefono"
-            type="text"
-            formControlName="telefono"
-            placeholder="+54 9 11 1234 5678"
-            class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
-            [class.border-red-500]="isFieldInvalid('telefono')"
-          />
-        </div>
-
-        <!-- Password -->
-        <div>
-          <label for="password" class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Contraseña</label>
-          <input
-            id="password"
-            type="password"
-            formControlName="password"
-            placeholder="••••••••"
-            class="w-full bg-slate-950/60 border border-slate-800 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 text-white rounded-xl py-2.5 px-4 text-sm transition duration-200 outline-none"
-            [class.border-red-500]="isFieldInvalid('password')"
-          />
-          <p *ngIf="isFieldInvalid('password')" class="mt-1 text-xs text-red-400 font-medium">Debe tener al menos 8 caracteres, con mayúscula, minúscula y número.</p>
-        </div>
-
-        <!-- Submit -->
-        <button
-          type="submit"
-          [disabled]="isLoading()"
-          class="w-full relative flex items-center justify-center py-3.5 px-4 rounded-xl text-slate-950 font-bold bg-gradient-to-r from-primary-400 to-emerald-400 hover:from-primary-300 hover:to-emerald-300 active:scale-98 transition duration-200 disabled:opacity-50 disabled:scale-100 disabled:cursor-not-allowed shadow-lg shadow-primary-500/10 mt-6 cursor-pointer"
-        >
-          <span *ngIf="!isLoading()">Registrarse</span>
-          <span *ngIf="isLoading()" class="flex items-center space-x-2">
-            <svg class="animate-spin h-5 w-5 text-slate-950" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span>Procesando...</span>
-          </span>
-        </button>
-
-      </form>
-
-      <!-- Navigation Link -->
-      <div class="mt-6 text-center">
-        <p class="text-xs text-slate-400">
-          ¿Ya tenés cuenta? 
-          <a routerLink="/auth/login" class="text-primary-400 hover:text-primary-300 hover:underline font-semibold transition duration-150 cursor-pointer">
-            Iniciá sesión
-          </a>
-        </p>
-      </div>
-
-    </div>
-  </div>
-</div>

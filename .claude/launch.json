@@ -4,13 +4,37 @@
     {
       "name": "backend",
       "runtimeExecutable": "mvn",
-      "runtimeArgs": ["-f", "backend/pom.xml", "spring-boot:run"],
+      "runtimeArgs": [
+        "-f",
+        "backend/pom.xml",
+        "spring-boot:run",
+        "-Dspring-boot.run.profiles=dev"
+      ],
+      "port": 8080
+    },
+    {
+      "name": "backend-sin-docker",
+      "runtimeExecutable": "mvn",
+      "runtimeArgs": [
+        "-f",
+        "backend/pom.xml",
+        "-q",
+        "test-compile",
+        "exec:java",
+        "-Dexec.classpathScope=test",
+        "-Dexec.mainClass=com.padel.DesarrolloSinDocker"
+      ],
       "port": 8080
     },
     {
       "name": "frontend",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["--prefix", "frontend", "run", "start"],
+      "runtimeArgs": [
+        "--prefix",
+        "frontend",
+        "run",
+        "start"
+      ],
       "port": 4200
     }
   ]

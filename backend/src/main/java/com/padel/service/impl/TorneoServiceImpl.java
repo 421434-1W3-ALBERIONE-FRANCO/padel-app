@@ -10,6 +10,8 @@ import com.padel.domain.enums.EstadoInscripcion;
 import com.padel.domain.enums.EstadoPartido;
 import com.padel.domain.enums.EstadoTorneo;
 import com.padel.domain.enums.FormatoTorneo;
+import com.padel.domain.enums.RolUsuario;
+import com.padel.domain.enums.TipoNotificacion;
 import com.padel.domain.enums.TipoTorneo;
 import com.padel.dto.request.InscripcionTorneoRequest;
 import com.padel.dto.request.ResultadoPartidoRequest;
@@ -29,17 +31,21 @@ import com.padel.repository.PartidoTorneoRepository;
 import com.padel.repository.RankingJugadorRepository;
 import com.padel.repository.TorneoRepository;
 import com.padel.repository.UsuarioRepository;
+import com.padel.service.NotificacionInAppService;
 import com.padel.service.TorneoService;
+import com.padel.util.EmailUtil;
+import com.padel.util.FechaHoraUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.padel.util.FechaHoraUtil;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -59,6 +65,7 @@ public class TorneoServiceImpl implements TorneoService {
     private final InscripcionTorneoMapper inscripcionTorneoMapper;
     private final PartidoTorneoMapper partidoTorneoMapper;
     private final FechaHoraUtil fechaHoraUtil;
+    private final NotificacionInAppService notificacionInAppService;
 
     @Override
     public TorneoResponse crear(TorneoRequest request) {
@@ -94,8 +101,16 @@ public class TorneoServiceImpl implements TorneoService {
     @Override
     @Transactional(readOnly = true)
     public List<TorneoResponse> buscar(EstadoTorneo estado, CategoriaJugador categoria, TipoTorneo tipo) {
-        return torneoRepository.buscar(estado, categoria, tipo).stream()
-                .map(t -> torneoMapper.toResponse(t, inscripcionTorneoRepository.countByTorneoIdAndEstado(t.getId(), EstadoInscripcion.CONFIRMADA)))
+        List<Torneo> torneos = torneoRepository.buscar(estado, categoria, tipo);
+        if (torneos.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, Long> confirmadas = new HashMap<>();
+        for (Object[] fila : inscripcionTorneoRepository.contarConfirmadasPorTorneo(torneos.stream().map(Torneo::getId).toList())) {
+            confirmadas.put((Long) fila[0], ((Number) fila[1]).longValue());
+        }
+        return torneos.stream()
+                .map(t -> torneoMapper.toResponse(t, confirmadas.getOrDefault(t.getId(), 0L)))
                 .toList();
     }
 
@@ -148,94 +163,146 @@ public class TorneoServiceImpl implements TorneoService {
         return torneoMapper.toResponse(saved, inscriptas);
     }
 
+    /**
+     * Invita a un compañero: la pareja queda PENDIENTE_ACEPTACION hasta que él acepte. Antes la inscripción
+     * quedaba confirmada sin su consentimiento y lo bloqueaba para anotarse con otra pareja.
+     */
     @Override
     public InscripcionTorneoResponse inscribirPareja(Long torneoId, InscripcionTorneoRequest request, String usuarioEmail) {
-        log.info("Inscribiendo pareja en torneo ID {} por usuario {}", torneoId, usuarioEmail);
         Torneo torneo = obtenerTorneoOrThrow(torneoId);
-
         if (torneo.getEstado() != EstadoTorneo.INSCRIPCION_ABIERTA) {
             throw new EstadoInvalidoException("El torneo no admite inscripciones en su estado actual");
         }
-
-        Usuario jugador1 = usuarioRepository.findByEmail(usuarioEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + usuarioEmail));
-
-        if (request.companeroEmail().equalsIgnoreCase(usuarioEmail)) {
+        Usuario jugador1 = buscarUsuario(usuarioEmail);
+        Usuario jugador2 = usuarioRepository.findByEmail(EmailUtil.normalizar(request.companeroEmail()))
+                .filter(Usuario::isActivo)
+                .orElseThrow(() -> new DatosInvalidosException("No encontramos un jugador habilitado con ese email. Pedile que se registre en PadelApp."));
+        if (jugador1.getId().equals(jugador2.getId())) {
             throw new DatosInvalidosException("No podés inscribirte en pareja con vos mismo");
         }
 
-        Usuario jugador2 = usuarioRepository.findByEmail(request.companeroEmail())
-                .orElseThrow(() -> new ResourceNotFoundException("No se encontró un jugador con email: " + request.companeroEmail()));
-
-        long cupoActual = inscripcionTorneoRepository.countByTorneoIdAndEstado(torneoId, EstadoInscripcion.CONFIRMADA);
-        if (cupoActual >= torneo.getMaxParejas()) {
+        List<InscripcionTorneo> vigentes = inscripcionTorneoRepository.findByTorneoIdAndEstadoIn(torneoId,
+                List.of(EstadoInscripcion.PENDIENTE_ACEPTACION, EstadoInscripcion.CONFIRMADA));
+        if (vigentes.stream().anyMatch(i -> i.getJugador1().getId().equals(jugador1.getId())
+                || (i.getEstado() == EstadoInscripcion.CONFIRMADA && i.incluyeA(jugador1.getId())))) {
+            throw new DatosInvalidosException("Ya tenés una inscripción o una invitación activa en este torneo");
+        }
+        if (vigentes.stream().anyMatch(i -> i.getEstado() == EstadoInscripcion.CONFIRMADA && i.incluyeA(jugador2.getId()))) {
+            throw new DatosInvalidosException("Tu compañero ya está inscripto en otra pareja de este torneo");
+        }
+        if (inscripcionTorneoRepository.countByTorneoIdAndEstado(torneoId, EstadoInscripcion.CONFIRMADA) >= torneo.getMaxParejas()) {
             throw new CupoCompletoException("El torneo ya alcanzó el cupo máximo de parejas");
         }
 
-        List<InscripcionTorneo> confirmadas = inscripcionTorneoRepository.findByTorneoIdAndEstado(torneoId, EstadoInscripcion.CONFIRMADA);
-        boolean yaInscriptos = confirmadas.stream()
-                .anyMatch(i -> contieneJugadores(i, jugador1.getId(), jugador2.getId()));
-        if (yaInscriptos) {
-            throw new DatosInvalidosException("Esta pareja ya está inscripta en el torneo");
-        }
-        // Un jugador no puede jugar el mismo torneo en dos parejas distintas.
-        confirmadas.stream()
-                .filter(i -> participa(i, jugador1.getId()) || participa(i, jugador2.getId()))
-                .findFirst()
-                .ifPresent(i -> {
-                    String email = participa(i, jugador1.getId()) ? jugador1.getEmail() : jugador2.getEmail();
-                    throw new DatosInvalidosException("El jugador " + email + " ya está inscripto en otra pareja de este torneo");
-                });
-
-        InscripcionTorneo inscripcion = InscripcionTorneo.builder()
+        InscripcionTorneo invitacion = inscripcionTorneoRepository.save(InscripcionTorneo.builder()
                 .torneo(torneo)
                 .jugador1(jugador1)
                 .jugador2(jugador2)
-                .estado(EstadoInscripcion.CONFIRMADA)
-                .build();
-
-        InscripcionTorneo saved = inscripcionTorneoRepository.save(inscripcion);
-        return inscripcionTorneoMapper.toResponse(saved);
+                .estado(EstadoInscripcion.PENDIENTE_ACEPTACION)
+                .build());
+        notificacionInAppService.crear(jugador2, TipoNotificacion.INVITACION_TORNEO,
+                "Te invitaron a un torneo",
+                String.format("%s %s te invitó a jugar \"%s\" en pareja. Aceptá o rechazá la invitación desde el torneo.",
+                        jugador1.getNombre(), jugador1.getApellido(), torneo.getNombre()),
+                torneoId);
+        log.info("Invitación ID {} al torneo ID {} enviada", invitacion.getId(), torneoId);
+        return inscripcionTorneoMapper.toResponse(invitacion);
     }
 
-    private boolean contieneJugadores(InscripcionTorneo inscripcion, Long jugador1Id, Long jugador2Id) {
-        Long a = inscripcion.getJugador1().getId();
-        Long b = inscripcion.getJugador2().getId();
-        return (a.equals(jugador1Id) && b.equals(jugador2Id)) || (a.equals(jugador2Id) && b.equals(jugador1Id));
+    @Override
+    public InscripcionTorneoResponse aceptarInvitacion(Long torneoId, Long inscripcionId, String usuarioEmail) {
+        Torneo torneo = torneoRepository.findByIdForUpdate(torneoId)
+                .orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado con ID: " + torneoId));
+        InscripcionTorneo invitacion = invitacionParaResponder(torneoId, inscripcionId, usuarioEmail);
+        if (torneo.getEstado() != EstadoTorneo.INSCRIPCION_ABIERTA) {
+            throw new EstadoInvalidoException("El torneo ya no admite inscripciones");
+        }
+        List<InscripcionTorneo> confirmadas = inscripcionTorneoRepository.findByTorneoIdAndEstado(torneoId, EstadoInscripcion.CONFIRMADA);
+        if (confirmadas.size() >= torneo.getMaxParejas()) {
+            throw new CupoCompletoException("El torneo ya alcanzó el cupo máximo de parejas");
+        }
+        Long id1 = invitacion.getJugador1().getId();
+        Long id2 = invitacion.getJugador2().getId();
+        if (confirmadas.stream().anyMatch(i -> i.incluyeA(id1) || i.incluyeA(id2))) {
+            throw new DatosInvalidosException("Uno de los dos ya está inscripto en otra pareja de este torneo");
+        }
+
+        invitacion.setEstado(EstadoInscripcion.CONFIRMADA);
+        inscripcionTorneoRepository.save(invitacion);
+        // Las demás invitaciones pendientes de cualquiera de los dos en este torneo ya no tienen sentido.
+        List<InscripcionTorneo> otrasPendientes = inscripcionTorneoRepository.findByTorneoIdAndEstado(torneoId, EstadoInscripcion.PENDIENTE_ACEPTACION)
+                .stream()
+                .filter(i -> !i.getId().equals(invitacion.getId()) && (i.incluyeA(id1) || i.incluyeA(id2)))
+                .toList();
+        otrasPendientes.forEach(i -> i.setEstado(EstadoInscripcion.CANCELADA));
+        inscripcionTorneoRepository.saveAll(otrasPendientes);
+
+        avisarRespuesta(invitacion, torneo, "aceptó");
+        return inscripcionTorneoMapper.toResponse(invitacion);
     }
 
-    private boolean participa(InscripcionTorneo inscripcion, Long jugadorId) {
-        return inscripcion.getJugador1().getId().equals(jugadorId) || inscripcion.getJugador2().getId().equals(jugadorId);
+    @Override
+    public InscripcionTorneoResponse rechazarInvitacion(Long torneoId, Long inscripcionId, String usuarioEmail) {
+        Torneo torneo = obtenerTorneoOrThrow(torneoId);
+        InscripcionTorneo invitacion = invitacionParaResponder(torneoId, inscripcionId, usuarioEmail);
+        invitacion.setEstado(EstadoInscripcion.RECHAZADA);
+        inscripcionTorneoRepository.save(invitacion);
+        avisarRespuesta(invitacion, torneo, "rechazó");
+        return inscripcionTorneoMapper.toResponse(invitacion);
+    }
+
+    private InscripcionTorneo invitacionParaResponder(Long torneoId, Long inscripcionId, String usuarioEmail) {
+        Usuario usuario = buscarUsuario(usuarioEmail);
+        InscripcionTorneo invitacion = inscripcionTorneoRepository.findByIdAndTorneoId(inscripcionId, torneoId)
+                .filter(i -> i.getJugador2().getId().equals(usuario.getId()))
+                .orElseThrow(() -> new ResourceNotFoundException("Invitación no encontrada"));
+        if (invitacion.getEstado() != EstadoInscripcion.PENDIENTE_ACEPTACION) {
+            throw new EstadoInvalidoException("La invitación ya fue respondida");
+        }
+        return invitacion;
+    }
+
+    private void avisarRespuesta(InscripcionTorneo invitacion, Torneo torneo, String verbo) {
+        Usuario invitado = invitacion.getJugador2();
+        notificacionInAppService.crear(invitacion.getJugador1(), TipoNotificacion.INVITACION_TORNEO_RESPONDIDA,
+                "Respondieron tu invitación",
+                String.format("%s %s %s tu invitación para jugar \"%s\".", invitado.getNombre(), invitado.getApellido(), verbo, torneo.getNombre()),
+                torneo.getId());
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<InscripcionTorneoResponse> listarInscripciones(Long torneoId) {
+    public List<InscripcionTorneoResponse> listarInscripciones(Long torneoId, String usuarioEmail) {
         obtenerTorneoOrThrow(torneoId);
-        return inscripcionTorneoRepository.findByTorneoId(torneoId).stream()
+        Usuario usuario = buscarUsuario(usuarioEmail);
+        boolean esAdmin = usuario.getRol() == RolUsuario.ADMIN;
+        return inscripcionTorneoRepository.findByTorneoIdAndEstadoIn(torneoId,
+                        List.of(EstadoInscripcion.CONFIRMADA, EstadoInscripcion.PENDIENTE_ACEPTACION)).stream()
+                .filter(i -> i.getEstado() == EstadoInscripcion.CONFIRMADA || esAdmin || i.incluyeA(usuario.getId()))
                 .map(inscripcionTorneoMapper::toResponse)
                 .toList();
     }
 
     @Override
     public void cancelarInscripcion(Long torneoId, Long inscripcionId, String usuarioEmail) {
-        log.info("Cancelando inscripción ID {} del torneo ID {} por usuario {}", inscripcionId, torneoId, usuarioEmail);
+        log.info("Cancelando la inscripción ID {} del torneo ID {}", inscripcionId, torneoId);
         Torneo torneo = obtenerTorneoOrThrow(torneoId);
         InscripcionTorneo inscripcion = inscripcionTorneoRepository.findByIdAndTorneoId(inscripcionId, torneoId)
                 .orElseThrow(() -> new ResourceNotFoundException("Inscripción no encontrada con ID: " + inscripcionId));
 
-        Usuario usuario = usuarioRepository.findByEmail(usuarioEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado con email: " + usuarioEmail));
+        Usuario usuario = buscarUsuario(usuarioEmail);
 
-        boolean esJugadorDeLaPareja = inscripcion.getJugador1().getId().equals(usuario.getId())
-                || inscripcion.getJugador2().getId().equals(usuario.getId());
-        boolean esAdmin = usuario.getRol() == com.padel.domain.enums.RolUsuario.ADMIN;
+        boolean esJugadorDeLaPareja = inscripcion.incluyeA(usuario.getId());
+        boolean esAdmin = usuario.getRol() == RolUsuario.ADMIN;
         if (!esJugadorDeLaPareja && !esAdmin) {
             throw new AccessDeniedException("No tiene permisos para cancelar esta inscripción");
         }
 
         if (torneo.getEstado() != EstadoTorneo.INSCRIPCION_ABIERTA) {
             throw new EstadoInvalidoException("No se puede cancelar la inscripción una vez iniciado el torneo");
+        }
+        if (!inscripcion.getEstado().vigente()) {
+            throw new EstadoInvalidoException("La inscripción ya no está activa");
         }
 
         inscripcion.setEstado(EstadoInscripcion.CANCELADA);
@@ -265,6 +332,10 @@ public class TorneoServiceImpl implements TorneoService {
                 : generarPrimeraRondaEliminacion(torneo, inscripciones);
 
         partidoTorneoRepository.saveAll(partidos);
+        // Al cerrar la inscripción, las invitaciones que nadie respondió quedan sin efecto.
+        List<InscripcionTorneo> sinResponder = inscripcionTorneoRepository.findByTorneoIdAndEstado(torneoId, EstadoInscripcion.PENDIENTE_ACEPTACION);
+        sinResponder.forEach(i -> i.setEstado(EstadoInscripcion.CANCELADA));
+        inscripcionTorneoRepository.saveAll(sinResponder);
         torneo.setEstado(EstadoTorneo.EN_CURSO);
         torneoRepository.save(torneo);
 
@@ -474,5 +545,10 @@ public class TorneoServiceImpl implements TorneoService {
     private Torneo obtenerTorneoOrThrow(Long id) {
         return torneoRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Torneo no encontrado con ID: " + id));
+    }
+
+    private Usuario buscarUsuario(String email) {
+        return usuarioRepository.findByEmail(EmailUtil.normalizar(email))
+                .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
 }

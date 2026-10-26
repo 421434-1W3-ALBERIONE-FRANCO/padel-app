@@ -13,10 +13,8 @@ public class InscripcionTorneoMapper {
                 entity.getTorneo().getId(),
                 entity.getJugador1().getId(),
                 entity.getJugador1().getNombre() + " " + entity.getJugador1().getApellido(),
-                entity.getJugador1().getEmail(),
                 entity.getJugador2().getId(),
                 entity.getJugador2().getNombre() + " " + entity.getJugador2().getApellido(),
-                entity.getJugador2().getEmail(),
                 entity.getEstado()
         );
     }

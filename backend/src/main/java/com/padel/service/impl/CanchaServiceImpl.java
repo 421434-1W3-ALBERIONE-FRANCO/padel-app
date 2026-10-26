@@ -1,28 +1,33 @@
 package com.padel.service.impl;
 
 import com.padel.domain.entity.Cancha;
+import com.padel.domain.enums.EstadoReserva;
+import com.padel.domain.evento.DisponibilidadCambiadaEvent;
 import com.padel.dto.request.CanchaRequest;
 import com.padel.dto.response.CanchaResponse;
+import com.padel.exception.EstadoInvalidoException;
 import com.padel.exception.NombreDuplicadoException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.mapper.CanchaMapper;
 import com.padel.repository.CanchaRepository;
+import com.padel.repository.ReservaRepository;
 import com.padel.service.CanchaService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 public class CanchaServiceImpl implements CanchaService {
 
     private final CanchaRepository canchaRepository;
+    private final ReservaRepository reservaRepository;
     private final CanchaMapper canchaMapper;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final ApplicationEventPublisher eventos;
 
     @Override
     @Transactional
@@ -82,19 +87,17 @@ public class CanchaServiceImpl implements CanchaService {
         Cancha cancha = canchaRepository.findByIdAndActivaTrue(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Cancha no encontrada o inactiva con id: " + id));
 
+        // Dar de baja una cancha con turnos vendidos los dejaba en una cancha inexistente para el jugador.
+        if (reservaRepository.existsByCanchaIdAndFechaGreaterThanEqualAndEstadoReservaIn(
+                id, LocalDate.now(), List.of(EstadoReserva.PENDIENTE_PAGO, EstadoReserva.CONFIRMADA))) {
+            throw new EstadoInvalidoException("La cancha tiene reservas vigentes. Bloqueala para cancelarlas y avisar a los jugadores antes de darla de baja.");
+        }
         cancha.setActiva(false);
         canchaRepository.save(cancha);
         notificarCambio(id);
     }
 
     private void notificarCambio(Long canchaId) {
-        try {
-            messagingTemplate.convertAndSend("/topic/disponibilidad", Map.of(
-                    "type", "court_update",
-                    "canchaId", canchaId
-            ));
-        } catch (Exception e) {
-            // Ignorar en tests
-        }
+        eventos.publishEvent(new DisponibilidadCambiadaEvent(canchaId));
     }
 }

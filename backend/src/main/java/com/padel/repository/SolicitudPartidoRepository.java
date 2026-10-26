@@ -13,12 +13,12 @@ import java.util.List;
 @Repository
 public interface SolicitudPartidoRepository extends JpaRepository<SolicitudPartido, Long> {
 
-    @Query("SELECT s FROM SolicitudPartido s WHERE " +
+    @Query("SELECT s FROM SolicitudPartido s JOIN FETCH s.creador LEFT JOIN FETCH s.cancha WHERE " +
             "(:estado IS NULL OR s.estado = :estado) AND " +
             "(:categoria IS NULL OR s.categoria = :categoria) AND " +
             "(:tipoSolicitud IS NULL OR s.tipoSolicitud = :tipoSolicitud) " +
             "ORDER BY s.fechaHoraPropuesta ASC")
     List<SolicitudPartido> buscar(EstadoSolicitud estado, CategoriaJugador categoria, TipoSolicitud tipoSolicitud);
 
-    List<SolicitudPartido> findByCreadorEmailOrderByCreatedAtDesc(String email);
+    List<SolicitudPartido> findByCreadorIdOrderByCreatedAtDesc(Long creadorId);
 }

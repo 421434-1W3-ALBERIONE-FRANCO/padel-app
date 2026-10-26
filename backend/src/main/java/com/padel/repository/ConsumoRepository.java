@@ -12,5 +12,6 @@ import java.util.Optional;
 public interface ConsumoRepository extends JpaRepository<Consumo, Long> {
     List<Consumo> findByReservaId(Long reservaId);
     List<Consumo> findByPagoId(Long pagoId);
-    Optional<Consumo> findByReserva_IdAndProducto_IdAndEstadoPago(Long reservaId, Long productoId, EstadoConsumoPago estadoPago);
+    // Fila pendiente y todavía sin pago (las que ya se mandaron a cobrar al Point no se tocan).
+    Optional<Consumo> findFirstByReserva_IdAndProducto_IdAndEstadoPagoAndPagoIsNull(Long reservaId, Long productoId, EstadoConsumoPago estadoPago);
 }

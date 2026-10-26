@@ -1,5 +1,5 @@
 <div class="min-h-screen bg-dark-950 text-slate-100 p-4 sm:p-6 md:p-8 relative overflow-hidden">
-  
+
   <!-- Background Glows -->
   <div class="absolute top-0 right-[-10%] w-[600px] h-[300px] rounded-full bg-primary-500/5 blur-[120px] pointer-events-none"></div>
   <div class="absolute bottom-[-10%] left-[-10%] w-[500px] h-[400px] rounded-full bg-accent-500/3 blur-[120px] pointer-events-none"></div>
@@ -27,11 +27,13 @@
       <div class="flex-1">
         <label class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Seleccionar Cancha</label>
         <div class="relative">
-          <select 
-            [ngModel]="canchaSeleccionadaId()" 
+          <select
+            [ngModel]="canchaSeleccionadaId()"
             (ngModelChange)="onCanchaChange($event)"
             class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition duration-200 text-sm cursor-pointer appearance-none">
-            <option *ngFor="let cancha of canchas()" [ngValue]="cancha.id">{{ cancha.nombre }} ({{ cancha.tipoSuelo }})</option>
+            @for (cancha of canchas(); track cancha) {
+              <option [ngValue]="cancha.id">{{ cancha.nombre }} ({{ cancha.tipoSuelo }})</option>
+            }
           </select>
           <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-400">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
@@ -49,261 +51,279 @@
           [min]="fechaMin"
           [max]="fechaMax"
           class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition duration-200 text-sm cursor-pointer" />
-        <p class="text-[11px] text-slate-500 mt-1.5">Reservas disponibles hasta el {{ fechaMax | date:'dd/MM/yyyy' }}.</p>
+          <p class="text-[11px] text-slate-500 mt-1.5">Reservas disponibles hasta el {{ fechaMax | date:'dd/MM/yyyy' }}.</p>
+        </div>
       </div>
-    </div>
-  </ui-card>
+    </ui-card>
 
-  <!-- GRILLA DE DISPONIBILIDAD -->
-  <div class="max-w-6xl mx-auto relative z-10">
-    <!-- Titulo Grilla -->
-    <div class="flex items-center justify-between gap-4 mb-6">
-      <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2 font-display">
-        <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-        Horarios Disponibles
-      </h2>
-      <span class="text-xs text-slate-400 bg-surface-1/60 border border-white/5 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold">
-        <span class="w-1.5 h-1.5 bg-primary-400 rounded-full animate-pulse"></span>
-        En tiempo real
-      </span>
-    </div>
-
-    <!-- SKELETON LOADERS -->
-    <div *ngIf="cargando()" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      <div *ngFor="let i of [1,2,3,4,5,6,7,8]" class="bg-surface-1/30 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 animate-pulse">
-        <div class="h-6 bg-slate-800 rounded-md w-2/3"></div>
-        <div class="h-4 bg-slate-800 rounded-md w-1/3"></div>
-        <div class="h-8 bg-slate-800 rounded-md w-full mt-2"></div>
+    <!-- GRILLA DE DISPONIBILIDAD -->
+    <div class="max-w-6xl mx-auto relative z-10">
+      <!-- Titulo Grilla -->
+      <div class="flex items-center justify-between gap-4 mb-6">
+        <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2 font-display">
+          <svg class="w-5 h-5 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Horarios Disponibles
+        </h2>
+        <span class="text-xs text-slate-400 bg-surface-1/60 border border-white/5 px-3 py-1 rounded-full flex items-center gap-1.5 font-semibold">
+          <span class="w-1.5 h-1.5 bg-primary-400 rounded-full animate-pulse"></span>
+          En tiempo real
+        </span>
       </div>
-    </div>
 
-    <!-- EMPTY STATE -->
-    <div 
-      *ngIf="!cargando() && slots().length === 0" 
-      class="bg-surface-1/10 border border-white/5 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
-      <div class="w-14 h-14 bg-surface-1 border border-white/5 rounded-full flex items-center justify-center text-slate-500 mb-4 shadow-inner">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-      </div>
-      <h3 class="text-base font-bold text-slate-400 font-display">Sin Turnos Configurados</h3>
-      <p class="text-xs text-slate-500 max-w-xs mt-1">
-        No hay franjas horarias configuradas en la cancha para este día de la semana.
-      </p>
-    </div>
+      <!-- SKELETON LOADERS -->
+      @if (cargando()) {
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          @for (i of [1,2,3,4,5,6,7,8]; track i) {
+            <div class="bg-surface-1/30 border border-white/5 rounded-2xl p-5 flex flex-col gap-4 animate-pulse">
+              <div class="h-6 bg-slate-800 rounded-md w-2/3"></div>
+              <div class="h-4 bg-slate-800 rounded-md w-1/3"></div>
+              <div class="h-8 bg-slate-800 rounded-md w-full mt-2"></div>
+            </div>
+          }
+        </div>
+      }
 
-    <!-- LISTADO DE SLOTS -->
-    <div 
-      *ngIf="!cargando() && slots().length > 0" 
-      class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-      
-      <div 
-        *ngFor="let slot of slots()"
+      <!-- EMPTY STATE -->
+      @if (!cargando() && slots().length === 0) {
+        <div
+          class="bg-surface-1/10 border border-white/5 rounded-2xl p-12 text-center flex flex-col items-center justify-center min-h-[300px]">
+          <div class="w-14 h-14 bg-surface-1 border border-white/5 rounded-full flex items-center justify-center text-slate-500 mb-4 shadow-inner">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <h3 class="text-base font-bold text-slate-400 font-display">Sin Turnos Configurados</h3>
+          <p class="text-xs text-slate-500 max-w-xs mt-1">
+            No hay franjas horarias configuradas en la cancha para este día de la semana.
+          </p>
+        </div>
+      }
+
+      <!-- LISTADO DE SLOTS -->
+      @if (!cargando() && slots().length > 0) {
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          @for (slot of slots(); track slot) {
+            <div
         [class]="slot.disponible 
           ? 'bg-primary-500/5 hover:bg-primary-500/10 border-primary-500/10 hover:border-primary-500/40 cursor-pointer shadow-lg hover:shadow-glow-primary' 
           : slot.motivoBloqueo === 'Fecha pasada' || slot.motivoBloqueo === 'Horario pasado'
             ? 'bg-slate-900/10 border-white/5 text-slate-600 cursor-not-allowed opacity-40 select-none'
             : 'bg-red-500/5 border-red-500/10 text-slate-500 cursor-not-allowed select-none'"
-        class="border rounded-2xl p-5 flex flex-col justify-between gap-4 transition duration-300 group transform hover:-translate-y-0.5"
-        (click)="seleccionarSlot(slot)">
-        
-        <div>
-          <!-- Horas -->
-          <div class="flex items-center justify-between">
-            <span 
-              [class]="slot.disponible ? 'text-slate-100 font-extrabold text-lg group-hover:text-primary-400 font-display' : 'text-slate-500 font-bold text-base font-display'"
-              class="transition duration-150">
-              {{ slot.horaInicio.substring(0, 5) }} - {{ slot.horaFin.substring(0, 5) }}
-            </span>
-            <span 
-              *ngIf="slot.disponible"
-              class="px-2 py-0.5 bg-primary-500/10 text-primary-400 text-[10px] font-bold rounded uppercase tracking-wider">
-              Disponible
-            </span>
-            <span 
-              *ngIf="!slot.disponible"
-              [class]="slot.motivoBloqueo === 'Fecha pasada' || slot.motivoBloqueo === 'Horario pasado' ? 'bg-slate-950 text-slate-600' : 'bg-red-500/10 text-red-400'"
-              class="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider">
-              {{ etiquetaNoDisponible(slot) }}
-            </span>
-          </div>
-          
-          <!-- Duración -->
-          <span class="text-xs text-slate-500 block mt-1 font-medium">
-            Duración: {{ slot.duracionMin }} min
-          </span>
+              class="border rounded-2xl p-5 flex flex-col justify-between gap-4 transition duration-300 group transform hover:-translate-y-0.5"
+              (click)="seleccionarSlot(slot)">
+              <div>
+                <!-- Horas -->
+                <div class="flex items-center justify-between">
+                  <span
+                    [class]="slot.disponible ? 'text-slate-100 font-extrabold text-lg group-hover:text-primary-400 font-display' : 'text-slate-500 font-bold text-base font-display'"
+                    class="transition duration-150">
+                    {{ slot.horaInicio.substring(0, 5) }} - {{ slot.horaFin.substring(0, 5) }}
+                  </span>
+                  @if (slot.disponible) {
+                    <span
+                      class="px-2 py-0.5 bg-primary-500/10 text-primary-400 text-[10px] font-bold rounded uppercase tracking-wider">
+                      Disponible
+                    </span>
+                  }
+                  @if (!slot.disponible) {
+                    <span
+                      [class]="slot.motivoBloqueo === 'Fecha pasada' || slot.motivoBloqueo === 'Horario pasado' ? 'bg-slate-950 text-slate-600' : 'bg-red-500/10 text-red-400'"
+                      class="px-2 py-0.5 text-[10px] font-bold rounded uppercase tracking-wider">
+                      {{ etiquetaNoDisponible(slot) }}
+                    </span>
+                  }
+                </div>
+                <!-- Duración -->
+                <span class="text-xs text-slate-500 block mt-1 font-medium">
+                  Duración: {{ slot.duracionMin }} min
+                </span>
+              </div>
+              <!-- Precio o Motivo de Bloqueo -->
+              <div class="mt-2 border-t border-white/5 pt-3 flex items-center justify-between">
+                @if (slot.disponible) {
+                  <div>
+                    <span class="text-[9px] text-slate-500 block uppercase tracking-wider font-bold">Precio Turno</span>
+                    <span class="text-xl font-extrabold text-accent-400 group-hover:text-accent-300 transition duration-150 block font-display">
+                      ${{ slot.precio | number:'1.2-2' }}
+                    </span>
+                  </div>
+                }
+                @if (!slot.disponible) {
+                  <div class="w-full">
+                    <span class="text-[9px] text-slate-500 block uppercase tracking-wider font-bold">Detalle</span>
+                    <span class="text-xs font-semibold text-slate-500 truncate block mt-0.5">
+                      {{ slot.motivoBloqueo || 'Turno ocupado' }}
+                    </span>
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
-
-        <!-- Precio o Motivo de Bloqueo -->
-        <div class="mt-2 border-t border-white/5 pt-3 flex items-center justify-between">
-          <div *ngIf="slot.disponible">
-            <span class="text-[9px] text-slate-500 block uppercase tracking-wider font-bold">Precio Turno</span>
-            <span class="text-xl font-extrabold text-accent-400 group-hover:text-accent-300 transition duration-150 block font-display">
-              ${{ slot.precio | number:'1.2-2' }}
-            </span>
-          </div>
-          
-          <div *ngIf="!slot.disponible" class="w-full">
-            <span class="text-[9px] text-slate-500 block uppercase tracking-wider font-bold">Detalle</span>
-            <span class="text-xs font-semibold text-slate-500 truncate block mt-0.5">
-              {{ slot.motivoBloqueo || 'Turno ocupado' }}
-            </span>
-          </div>
-        </div>
-
-      </div>
+      }
     </div>
-  </div>
 
-  <!-- MODAL DE RESERVA -->
-  <div *ngIf="slotParaReservar()" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-    <ui-card class="max-w-md w-full p-6 sm:p-8 relative overflow-hidden text-slate-100 border border-white/5">
-      <!-- Glow background decoration -->
-      <div class="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>
-
-      <!-- Close button -->
-      <button 
-        (click)="cerrarModal()" 
-        [disabled]="cargandoReserva()"
-        class="absolute top-4 right-4 text-slate-400 hover:text-slate-100 disabled:opacity-50 transition cursor-pointer">
-        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
-
-      <!-- CONTENT: Formulario / Resumen -->
-      <div *ngIf="!reservaExitosa()">
-        <h3 class="text-2xl font-bold text-slate-100 mb-2 flex items-center gap-2 font-display">
-          Confirmar Reserva
-        </h3>
-        <p class="text-slate-400 text-xs mb-6">
-          Estás por reservar un turno. Tendrás 15 minutos para realizar el pago y confirmar tu turno.
-        </p>
-
-        <!-- Detalle de la reserva -->
-        <div class="space-y-4 bg-surface-1/40 border border-white/5 rounded-xl p-4 mb-6 text-sm">
-          <div class="flex justify-between">
-            <span class="text-slate-500 font-medium">Cancha</span>
-            <span class="text-slate-100 font-semibold">{{ obtenerNombreCanchaSeleccionada() }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-slate-500 font-medium">Fecha</span>
-            <span class="text-slate-100 font-semibold">{{ fechaSeleccionada() | date:'dd/MM/yyyy' }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-slate-500 font-medium">Horario</span>
-            <span class="text-slate-100 font-semibold font-display">{{ slotParaReservar()?.horaInicio?.substring(0, 5) }} - {{ (duracionSeleccionada()?.horaFin || slotParaReservar()?.horaFin)?.substring(0, 5) }}</span>
-          </div>
-
-          <!-- Selector de duración (opciones que entran en la ventana libre) -->
-          <div *ngIf="(slotParaReservar()?.opcionesDuracion?.length || 0) > 0">
-            <span class="text-slate-500 font-medium block mb-2">Duración</span>
-            <div class="flex flex-wrap gap-2">
-              <button *ngFor="let op of slotParaReservar()?.opcionesDuracion"
-                      type="button" (click)="elegirDuracion(op)"
-                      class="px-3 py-1.5 rounded-lg text-xs font-bold border transition text-center"
+    <!-- MODAL DE RESERVA -->
+    @if (slotParaReservar()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <ui-card class="max-w-md w-full p-6 sm:p-8 relative overflow-hidden text-slate-100 border border-white/5">
+          <!-- Glow background decoration -->
+          <div class="absolute -top-24 -right-24 w-48 h-48 bg-primary-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <!-- Close button -->
+          <button
+            (click)="cerrarModal()"
+            [disabled]="cargandoReserva()"
+            class="absolute top-4 right-4 text-slate-400 hover:text-slate-100 disabled:opacity-50 transition cursor-pointer">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+          <!-- CONTENT: Formulario / Resumen -->
+          @if (!reservaExitosa()) {
+            <div>
+              <h3 class="text-2xl font-bold text-slate-100 mb-2 flex items-center gap-2 font-display">
+                Confirmar Reserva
+              </h3>
+              <p class="text-slate-400 text-xs mb-6">
+                Estás por reservar un turno. Tendrás 15 minutos para realizar el pago y confirmar tu turno.
+              </p>
+              <!-- Detalle de la reserva -->
+              <div class="space-y-4 bg-surface-1/40 border border-white/5 rounded-xl p-4 mb-6 text-sm">
+                <div class="flex justify-between">
+                  <span class="text-slate-500 font-medium">Cancha</span>
+                  <span class="text-slate-100 font-semibold">{{ obtenerNombreCanchaSeleccionada() }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500 font-medium">Fecha</span>
+                  <span class="text-slate-100 font-semibold">{{ fechaSeleccionada() | date:'dd/MM/yyyy' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-slate-500 font-medium">Horario</span>
+                  <span class="text-slate-100 font-semibold font-display">{{ slotParaReservar()?.horaInicio?.substring(0, 5) }} - {{ (duracionSeleccionada()?.horaFin || slotParaReservar()?.horaFin)?.substring(0, 5) }}</span>
+                </div>
+                <!-- Selector de duración (opciones que entran en la ventana libre) -->
+                @if ((slotParaReservar()?.opcionesDuracion?.length || 0) > 0) {
+                  <div>
+                    <span class="text-slate-500 font-medium block mb-2">Duración</span>
+                    <div class="flex flex-wrap gap-2">
+                      @for (op of slotParaReservar()?.opcionesDuracion; track op) {
+                        <button
+                          type="button" (click)="elegirDuracion(op)"
+                          class="px-3 py-1.5 rounded-lg text-xs font-bold border transition text-center"
                       [ngClass]="duracionSeleccionada()?.duracionMin === op.duracionMin
                         ? 'bg-accent-500/20 text-accent-300 border-accent-500/40'
                         : 'bg-slate-950/60 text-slate-300 border-white/10 hover:border-accent-500/30'">
-                {{ op.duracionMin }} min
-                <span class="block text-[10px] font-medium opacity-80">${{ op.precio | number:'1.0-0' }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="border-t border-white/5 my-2 pt-2 flex justify-between items-baseline">
-            <span class="text-slate-400 font-bold">Total a Pagar</span>
-            <span class="text-xl font-extrabold text-accent-400 font-display">${{ precioSeleccionado() | number:'1.2-2' }}</span>
-          </div>
-        </div>
-
-        <!-- Información de Bono -->
-        <div class="bg-surface-1/60 border border-white/5 rounded-xl p-4 mb-4 text-xs space-y-3">
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 font-bold uppercase tracking-wider">Tu saldo de Bono:</span>
-            <span class="text-slate-100 font-bold text-sm bg-slate-950 border border-white/5 px-2.5 py-0.5 rounded font-display">{{ saldoHoras() }} hs</span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="text-slate-400 font-bold uppercase tracking-wider">Horas requeridas:</span>
-            <span class="text-slate-100 font-bold text-sm bg-slate-950 border border-white/5 px-2.5 py-0.5 rounded font-display">{{ horasRequeridas() }} hs</span>
-          </div>
-          
-          <div *ngIf="tieneSaldoBono()" class="mt-2 flex items-start gap-2 text-primary-400 bg-primary-500/10 border border-primary-500/20 px-3 py-2.5 rounded-lg text-[11px] font-medium">
-            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            <span>Tenés saldo de bono suficiente para este turno.</span>
-          </div>
-          <div *ngIf="!tieneSaldoBono()" class="mt-2 flex items-start gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-lg text-[11px] font-medium">
-            <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-            <span>No tenés saldo de bono suficiente para pagar con bono.</span>
-          </div>
-        </div>
-
-        <!-- Alerta de error -->
-        <div *ngIf="errorReserva()" class="bg-red-950/30 border border-red-800/40 text-red-400 text-xs p-3 rounded-xl mb-4">
-          {{ errorReserva() }}
-        </div>
-
-        <!-- Botones de Acción -->
-        <div class="flex flex-col gap-3 mt-6">
-          <div class="flex gap-3">
-            <button 
-              (click)="cerrarModal()" 
-              [disabled]="cargandoReserva()"
-              class="flex-1 btn-secondary py-3 text-sm">
-              Cancelar
-            </button>
-            <button 
-              (click)="confirmarReserva()"
-              [disabled]="cargandoReserva()"
+                          {{ op.duracionMin }} min
+                          <span class="block text-[10px] font-medium opacity-80">${{ op.precio | number:'1.0-0' }}</span>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+                <div class="border-t border-white/5 my-2 pt-2 flex justify-between items-baseline">
+                  <span class="text-slate-400 font-bold">Total a Pagar</span>
+                  <span class="text-xl font-extrabold text-accent-400 font-display">${{ precioSeleccionado() | number:'1.2-2' }}</span>
+                </div>
+              </div>
+              <!-- Información de Bono -->
+              <div class="bg-surface-1/60 border border-white/5 rounded-xl p-4 mb-4 text-xs space-y-3">
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 font-bold uppercase tracking-wider">Tu saldo de Bono:</span>
+                  <span class="text-slate-100 font-bold text-sm bg-slate-950 border border-white/5 px-2.5 py-0.5 rounded font-display">{{ saldoHoras() }} hs</span>
+                </div>
+                <div class="flex justify-between items-center">
+                  <span class="text-slate-400 font-bold uppercase tracking-wider">Horas requeridas:</span>
+                  <span class="text-slate-100 font-bold text-sm bg-slate-950 border border-white/5 px-2.5 py-0.5 rounded font-display">{{ horasRequeridas() }} hs</span>
+                </div>
+                @if (tieneSaldoBono()) {
+                  <div class="mt-2 flex items-start gap-2 text-primary-400 bg-primary-500/10 border border-primary-500/20 px-3 py-2.5 rounded-lg text-[11px] font-medium">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <span>Tenés saldo de bono suficiente para este turno.</span>
+                  </div>
+                }
+                @if (!tieneSaldoBono()) {
+                  <div class="mt-2 flex items-start gap-2 text-amber-400 bg-amber-500/10 border border-amber-500/20 px-3 py-2.5 rounded-lg text-[11px] font-medium">
+                    <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span>No tenés saldo de bono suficiente para pagar con bono.</span>
+                  </div>
+                }
+              </div>
+              <!-- Alerta de error -->
+              @if (errorReserva()) {
+                <div class="bg-red-950/30 border border-red-800/40 text-red-400 text-xs p-3 rounded-xl mb-4">
+                  {{ errorReserva() }}
+                </div>
+              }
+              <!-- Botones de Acción -->
+              <div class="flex flex-col gap-3 mt-6">
+                <div class="flex gap-3">
+                  <button
+                    (click)="cerrarModal()"
+                    [disabled]="cargandoReserva()"
+                    class="flex-1 btn-secondary py-3 text-sm">
+                    Cancelar
+                  </button>
+                  <button
+                    (click)="confirmarReserva()"
+                    [disabled]="cargandoReserva()"
               [class]="tieneSaldoBono() 
                 ? 'flex-1 btn-secondary py-3 text-sm flex items-center justify-center gap-2'
                 : 'flex-1 btn-primary py-3 text-sm flex items-center justify-center gap-2'"
-              >
-              <svg *ngIf="cargandoReserva() && !tieneSaldoBono()" class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-              {{ cargandoReserva() ? 'Reservando...' : tieneSaldoBono() ? 'Reservar sin Bono' : 'Reservar Turno' }}
-            </button>
-          </div>
-          <button 
-            *ngIf="tieneSaldoBono()"
-            (click)="confirmarYReservarConBono()"
-            [disabled]="cargandoReserva()"
-            class="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2">
-            <svg *ngIf="cargandoReserva()" class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-            Reservar y Pagar con Bono
-          </button>
-        </div>
+                    >
+                    @if (cargandoReserva() && !tieneSaldoBono()) {
+                      <svg class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    }
+                    {{ cargandoReserva() ? 'Reservando...' : tieneSaldoBono() ? 'Reservar sin Bono' : 'Reservar Turno' }}
+                  </button>
+                </div>
+                @if (tieneSaldoBono()) {
+                  <button
+                    (click)="confirmarYReservarConBono()"
+                    [disabled]="cargandoReserva()"
+                    class="w-full btn-primary py-3 text-sm flex items-center justify-center gap-2">
+                    @if (cargandoReserva()) {
+                      <svg class="animate-spin h-4 w-4 text-slate-950" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    }
+                    Reservar y Pagar con Bono
+                  </button>
+                }
+              </div>
+            </div>
+          }
+          <!-- CONTENT: Éxito -->
+          @if (reservaExitosa()) {
+            <div class="text-center py-4">
+              <div class="w-16 h-16 bg-primary-500/10 text-primary-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary-500/20">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <h3 class="text-xl font-bold text-slate-100 mb-2 font-display">
+                {{ pagadoConBono() ? '¡Reserva Confirmada!' : '¡Pre-reserva Realizada!' }}
+              </h3>
+              <p class="text-slate-400 text-xs max-w-xs mx-auto mb-6">
+                {{ pagadoConBono()
+                ? 'Tu turno ha sido reservado y pagado con tu saldo de bono. Se ha enviado un mensaje de confirmación por WhatsApp.'
+                : 'Tu turno ha sido pre-reservado con éxito. Recordá realizar el pago dentro de los próximos 15 minutos para confirmarlo.' }}
+              </p>
+              <div class="space-y-3">
+                @if (!pagadoConBono() && reservaCreadaId()) {
+                  <a
+                    [routerLink]="['/pagos/checkout', reservaCreadaId()]"
+                    (click)="cerrarModal()"
+                    class="w-full btn-primary py-3">
+                    Pagar Turno online
+                  </a>
+                }
+                <button
+                  (click)="irAMisReservas()"
+                  class="w-full btn-secondary py-3 text-sm">
+                  Ir a Mis Reservas
+                </button>
+                <button
+                  (click)="cerrarModal()"
+                  class="w-full btn-secondary bg-transparent border-none hover:bg-slate-900 text-slate-400 hover:text-slate-100 py-2 text-xs">
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          }
+        </ui-card>
       </div>
-
-      <!-- CONTENT: Éxito -->
-      <div *ngIf="reservaExitosa()" class="text-center py-4">
-        <div class="w-16 h-16 bg-primary-500/10 text-primary-400 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary-500/20">
-          <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
-        </div>
-        <h3 class="text-xl font-bold text-slate-100 mb-2 font-display">
-          {{ pagadoConBono() ? '¡Reserva Confirmada!' : '¡Pre-reserva Realizada!' }}
-        </h3>
-        <p class="text-slate-400 text-xs max-w-xs mx-auto mb-6">
-          {{ pagadoConBono() 
-            ? 'Tu turno ha sido reservado y pagado con tu saldo de bono. Se ha enviado un mensaje de confirmación por WhatsApp.' 
-            : 'Tu turno ha sido pre-reservado con éxito. Recordá realizar el pago dentro de los próximos 15 minutos para confirmarlo.' }}
-        </p>
-
-        <div class="space-y-3">
-          <a 
-            *ngIf="!pagadoConBono() && reservaCreadaId()"
-            [routerLink]="['/pagos/checkout', reservaCreadaId()]"
-            (click)="cerrarModal()"
-            class="w-full btn-primary py-3">
-            Pagar Turno online
-          </a>
-          <button 
-            (click)="irAMisReservas()" 
-            class="w-full btn-secondary py-3 text-sm">
-            Ir a Mis Reservas
-          </button>
-          <button 
-            (click)="cerrarModal()" 
-            class="w-full btn-secondary bg-transparent border-none hover:bg-slate-900 text-slate-400 hover:text-slate-100 py-2 text-xs">
-            Cerrar
-          </button>
-        </div>
-      </div>
-    </ui-card>
+    }
   </div>
-</div>

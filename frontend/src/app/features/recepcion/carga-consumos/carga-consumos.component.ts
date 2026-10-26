@@ -13,7 +13,6 @@ import { todayIsoDate } from '../../../shared/utils/date.util';
 
 @Component({
   selector: 'app-carga-consumos',
-  standalone: true,
   imports: [CommonModule, FormsModule, ReactiveFormsModule, RouterLink],
   templateUrl: './carga-consumos.component.html',
   styleUrls: ['./carga-consumos.component.css']
@@ -56,7 +55,7 @@ export class CargaConsumosComponent implements OnInit {
     // Fecha local: toISOString() es UTC y desde las 21 h mostraba los turnos de mañana.
     const hoyStr = todayIsoDate();
 
-    this.reservaService.getAllReservas(hoyStr).subscribe({
+    this.reservaService.getAgenda(hoyStr).subscribe({
       next: (data) => {
         // El backend ya trae solo las de hoy, ordenadas por hora; descartamos las canceladas
         this.reservasHoy.set(data.filter(r => r.estadoReserva !== 'CANCELADA'));

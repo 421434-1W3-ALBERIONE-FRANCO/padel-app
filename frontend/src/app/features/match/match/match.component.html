@@ -21,224 +21,266 @@
     <!-- Pestañas -->
     <div class="mt-6 inline-flex p-1 rounded-2xl bg-surface-1/60 border border-white/5" role="tablist">
       <button type="button" role="tab" [attr.aria-selected]="vista() === 'descubrir'" (click)="cambiarVista('descubrir')"
-              [ngClass]="vista() === 'descubrir' ? 'bg-surface-3 text-slate-100' : 'text-slate-400 hover:text-slate-200'"
-              class="px-5 py-2 rounded-xl text-sm font-bold transition">Descubrir</button>
+        [ngClass]="vista() === 'descubrir' ? 'bg-surface-3 text-slate-100' : 'text-slate-400 hover:text-slate-200'"
+      class="px-5 py-2 rounded-xl text-sm font-bold transition">Descubrir</button>
       <button type="button" role="tab" [attr.aria-selected]="vista() === 'matches'" (click)="cambiarVista('matches')"
-              [ngClass]="vista() === 'matches' ? 'bg-surface-3 text-slate-100' : 'text-slate-400 hover:text-slate-200'"
-              class="px-5 py-2 rounded-xl text-sm font-bold transition inline-flex items-center gap-2">
+        [ngClass]="vista() === 'matches' ? 'bg-surface-3 text-slate-100' : 'text-slate-400 hover:text-slate-200'"
+        class="px-5 py-2 rounded-xl text-sm font-bold transition inline-flex items-center gap-2">
         Mis matches
-        <span *ngIf="parejas().length > 0" class="min-w-5 h-5 px-1.5 rounded-full bg-primary-500 text-dark-950 text-[11px] font-extrabold inline-flex items-center justify-center">{{ parejas().length }}</span>
+        @if (parejas().length > 0) {
+          <span class="min-w-5 h-5 px-1.5 rounded-full bg-primary-500 text-dark-950 text-[11px] font-extrabold inline-flex items-center justify-center">{{ parejas().length }}</span>
+        }
       </button>
     </div>
   </div>
 
   <!-- ===================== DESCUBRIR ===================== -->
-  <div *ngIf="vista() === 'descubrir'" class="max-w-6xl mx-auto relative z-10 mt-8">
-
-    <div *ngIf="estadoPerfil() === 'cargando'" class="max-w-sm mx-auto h-[480px] rounded-3xl bg-surface-1/40 animate-pulse"></div>
-
-    <div *ngIf="estadoPerfil() === 'error'" class="max-w-md mx-auto text-center p-8 rounded-3xl bg-surface-1/40 border border-white/5">
-      <p class="text-sm text-slate-300 mb-4">No pudimos cargar tu perfil de jugador.</p>
-      <button type="button" (click)="cargarPerfil()" class="btn-secondary px-6">Reintentar</button>
-    </div>
-
-    <!-- Sin perfil: onboarding -->
-    <div *ngIf="estadoPerfil() === 'sin-perfil'" class="max-w-lg mx-auto text-center p-8 sm:p-10 rounded-3xl bg-surface-1/40 border border-primary-500/20">
-      <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
-        <svg class="w-8 h-8 text-primary-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg>
-      </div>
-      <h2 class="text-2xl font-bold font-display text-slate-100">Armá tu perfil de jugador</h2>
-      <p class="text-sm text-slate-400 mt-2 mb-6">Contanos tu categoría, de qué lado jugás y cuándo podés. Con eso te mostramos parejas compatibles.</p>
-      <a routerLink="/perfil/jugador" class="btn-primary px-8">Crear mi perfil</a>
-    </div>
-
-    <!-- Perfil oculto -->
-    <div *ngIf="estadoPerfil() === 'oculto'" class="max-w-lg mx-auto text-center p-8 rounded-3xl bg-surface-1/40 border border-white/5">
-      <h2 class="text-xl font-bold font-display text-slate-100">Tu perfil está oculto</h2>
-      <p class="text-sm text-slate-400 mt-2 mb-6">Mientras esté oculto nadie te ve en el mazo y vos tampoco podés deslizar. Tus matches siguen en "Mis matches".</p>
-      <a routerLink="/perfil/jugador" [queryParams]="{ volver: 'match' }" class="btn-primary px-8">Activar mi perfil</a>
-    </div>
-
-    <!-- Mazo -->
-    <div *ngIf="estadoPerfil() === 'listo'" class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8 items-start">
-      <div>
-        <div class="relative h-[500px] w-full max-w-sm mx-auto select-none">
-          <div *ngIf="cargandoMazo() && !actual()" class="absolute inset-0 rounded-3xl bg-surface-1/40 animate-pulse"></div>
-
-          <!-- Mazo vacío -->
-          <div *ngIf="!cargandoMazo() && !actual()" class="absolute inset-0 rounded-3xl border border-dashed border-slate-700 flex flex-col items-center justify-center text-center p-8">
-            <svg class="w-10 h-10 text-slate-600 mb-3" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
-            <h3 class="text-lg font-bold text-slate-200 font-display">No hay más jugadores compatibles por ahora</h3>
-            <p class="text-sm text-slate-400 mt-2">Sumá horarios a tu disponibilidad para cruzarte con más gente, o volvé más tarde.</p>
-            <div class="flex flex-wrap justify-center gap-2 mt-5">
-              <a routerLink="/perfil/jugador" [queryParams]="{ volver: 'match' }" class="btn-secondary py-2.5 px-4 text-xs">Ampliar horarios</a>
-              <button type="button" (click)="cargarMazo()" class="btn-secondary py-2.5 px-4 text-xs">Buscar de nuevo</button>
-            </div>
+  @if (vista() === 'descubrir') {
+    <div class="max-w-6xl mx-auto relative z-10 mt-8">
+      @if (estadoPerfil() === 'cargando') {
+        <div class="max-w-sm mx-auto h-[480px] rounded-3xl bg-surface-1/40 animate-pulse"></div>
+      }
+      @if (estadoPerfil() === 'error') {
+        <div class="max-w-md mx-auto text-center p-8 rounded-3xl bg-surface-1/40 border border-white/5">
+          <p class="text-sm text-slate-300 mb-4">No pudimos cargar tu perfil de jugador.</p>
+          <button type="button" (click)="cargarPerfil()" class="btn-secondary px-6">Reintentar</button>
+        </div>
+      }
+      <!-- Sin perfil: onboarding -->
+      @if (estadoPerfil() === 'sin-perfil') {
+        <div class="max-w-lg mx-auto text-center p-8 sm:p-10 rounded-3xl bg-surface-1/40 border border-primary-500/20">
+          <div class="w-16 h-16 mx-auto mb-5 rounded-2xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
+            <svg class="w-8 h-8 text-primary-400" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m.94 3.198.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0 1 12 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 0 1 6 18.719m12 0a5.971 5.971 0 0 0-.941-3.197m0 0A5.995 5.995 0 0 0 12 12.75a5.995 5.995 0 0 0-5.058 2.772m0 0a3 3 0 0 0-4.681 2.72 8.986 8.986 0 0 0 3.74.477m.94-3.197a5.971 5.971 0 0 0-.94 3.197M15 6.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm6 3a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Zm-13.5 0a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"/></svg>
           </div>
-
-          <!-- Carta de abajo -->
-          <article *ngIf="siguiente() as s" aria-hidden="true"
-                   class="absolute inset-0 rounded-3xl bg-surface-2 border border-white/10 p-6 scale-[0.94] translate-y-4 opacity-60 overflow-hidden">
-            <app-tarjeta-jugador [candidato]="s"></app-tarjeta-jugador>
-          </article>
-
-          <!-- Carta de arriba: se arrastra -->
-          <article *ngIf="actual() as c"
-                   class="absolute inset-0 rounded-3xl bg-surface-2 border border-white/10 p-6 touch-none overflow-hidden shadow-2xl"
-                   [class.cursor-grab]="!arrastrando()" [class.cursor-grabbing]="arrastrando()"
-                   [style.transform]="transformacion()" [style.transition]="transicion()"
-                   (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)"
-                   (pointerup)="onPointerUp()" (pointercancel)="onPointerUp()"
-                   [attr.aria-label]="'Jugador ' + c.nombre">
-            <span class="absolute top-6 left-6 z-10 px-3 py-1 rounded-lg border-2 border-primary-400 text-primary-300 font-extrabold text-sm tracking-widest -rotate-12 pointer-events-none"
+          <h2 class="text-2xl font-bold font-display text-slate-100">Armá tu perfil de jugador</h2>
+          <p class="text-sm text-slate-400 mt-2 mb-6">Contanos tu categoría, de qué lado jugás y cuándo podés. Con eso te mostramos parejas compatibles.</p>
+          <a routerLink="/perfil/jugador" class="btn-primary px-8">Crear mi perfil</a>
+        </div>
+      }
+      <!-- Perfil oculto -->
+      @if (estadoPerfil() === 'oculto') {
+        <div class="max-w-lg mx-auto text-center p-8 rounded-3xl bg-surface-1/40 border border-white/5">
+          <h2 class="text-xl font-bold font-display text-slate-100">Tu perfil está oculto</h2>
+          <p class="text-sm text-slate-400 mt-2 mb-6">Mientras esté oculto nadie te ve en el mazo y vos tampoco podés deslizar. Tus matches siguen en "Mis matches".</p>
+          <a routerLink="/perfil/jugador" [queryParams]="{ volver: 'match' }" class="btn-primary px-8">Activar mi perfil</a>
+        </div>
+      }
+      <!-- Mazo -->
+      @if (estadoPerfil() === 'listo') {
+        <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-8 items-start">
+          <div>
+            <div class="relative h-[500px] w-full max-w-sm mx-auto select-none">
+              @if (cargandoMazo() && !actual()) {
+                <div class="absolute inset-0 rounded-3xl bg-surface-1/40 animate-pulse"></div>
+              }
+              <!-- Mazo vacío -->
+              @if (!cargandoMazo() && !actual()) {
+                <div class="absolute inset-0 rounded-3xl border border-dashed border-slate-700 flex flex-col items-center justify-center text-center p-8">
+                  <svg class="w-10 h-10 text-slate-600 mb-3" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"/></svg>
+                  <h3 class="text-lg font-bold text-slate-200 font-display">No hay más jugadores compatibles por ahora</h3>
+                  <p class="text-sm text-slate-400 mt-2">Sumá horarios a tu disponibilidad para cruzarte con más gente, o volvé más tarde.</p>
+                  <div class="flex flex-wrap justify-center gap-2 mt-5">
+                    <a routerLink="/perfil/jugador" [queryParams]="{ volver: 'match' }" class="btn-secondary py-2.5 px-4 text-xs">Ampliar horarios</a>
+                    <button type="button" (click)="cargarMazo()" class="btn-secondary py-2.5 px-4 text-xs">Buscar de nuevo</button>
+                  </div>
+                </div>
+              }
+              <!-- Carta de abajo -->
+              @if (siguiente(); as s) {
+                <article aria-hidden="true"
+                  class="absolute inset-0 rounded-3xl bg-surface-2 border border-white/10 p-6 scale-[0.94] translate-y-4 opacity-60 overflow-hidden">
+                  <app-tarjeta-jugador [candidato]="s"></app-tarjeta-jugador>
+                </article>
+              }
+              <!-- Carta de arriba: se arrastra -->
+              @if (actual(); as c) {
+                <article
+                  class="absolute inset-0 rounded-3xl bg-surface-2 border border-white/10 p-6 touch-none overflow-hidden shadow-2xl"
+                  [class.cursor-grab]="!arrastrando()" [class.cursor-grabbing]="arrastrando()"
+                  [style.transform]="transformacion()" [style.transition]="transicion()"
+                  (pointerdown)="onPointerDown($event)" (pointermove)="onPointerMove($event)"
+                  (pointerup)="onPointerUp()" (pointercancel)="onPointerUp()"
+                  [attr.aria-label]="'Jugador ' + c.nombre">
+                  <span class="absolute top-6 left-6 z-10 px-3 py-1 rounded-lg border-2 border-primary-400 text-primary-300 font-extrabold text-sm tracking-widest -rotate-12 pointer-events-none"
                   [style.opacity]="opacidadLike()">ME INTERESA</span>
-            <span class="absolute top-6 right-6 z-10 px-3 py-1 rounded-lg border-2 border-red-400 text-red-300 font-extrabold text-sm tracking-widest rotate-12 pointer-events-none"
+                  <span class="absolute top-6 right-6 z-10 px-3 py-1 rounded-lg border-2 border-red-400 text-red-300 font-extrabold text-sm tracking-widest rotate-12 pointer-events-none"
                   [style.opacity]="opacidadPass()">PASO</span>
-            <app-tarjeta-jugador [candidato]="c"></app-tarjeta-jugador>
-          </article>
-        </div>
-
-        <!-- Acciones -->
-        <div class="flex items-center justify-center gap-6 mt-8">
-          <button type="button" (click)="responder('PASS')" [disabled]="!actual() || respondiendo()" aria-label="Paso"
-                  class="w-16 h-16 rounded-full border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:scale-105 transition flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100">
-            <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
-          </button>
-          <button type="button" (click)="responder('LIKE')" [disabled]="!actual() || respondiendo()" aria-label="Me interesa"
-                  class="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-turquoise-500 text-dark-950 hover:scale-105 transition flex items-center justify-center shadow-[0_0_24px_rgba(82,196,26,0.35)] disabled:opacity-40 disabled:hover:scale-100">
-            <svg class="w-9 h-9" fill="currentColor" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/></svg>
-          </button>
-        </div>
-        <p class="text-center text-[11px] text-slate-500 mt-3">También podés usar las flechas ← y → del teclado.</p>
-      </div>
-
-      <!-- Panel lateral -->
-      <aside class="space-y-4">
-        <div *ngIf="miPerfil() as p" class="p-5 rounded-3xl bg-surface-1/40 border border-white/5">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tu búsqueda</h2>
-          <ul class="space-y-2 text-sm text-slate-300">
-            <li class="flex justify-between gap-3"><span class="text-slate-500">Categoría</span><span class="font-semibold">{{ p.categoria | titlecase }} ± 1</span></li>
-            <li class="flex justify-between gap-3"><span class="text-slate-500">Jugás de</span><span class="font-semibold">{{ etiquetaPosicion(p.posicion) }}</span></li>
-            <li class="flex justify-between gap-3"><span class="text-slate-500">Horarios</span><span class="font-semibold">{{ p.disponibilidad.length }} bloques por semana</span></li>
-          </ul>
-        </div>
-        <div class="p-5 rounded-3xl bg-surface-1/40 border border-white/5">
-          <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Cómo leer la carta</h2>
-          <div class="space-y-2.5 text-xs text-slate-400">
-            <p class="flex items-center gap-2"><span class="w-5 h-4 rounded-md bg-primary-400 border border-primary-300 shrink-0"></span>Horario que coincide con el tuyo</p>
-            <p class="flex items-center gap-2"><span class="w-5 h-4 rounded-md bg-accent-500/40 border border-accent-400/40 shrink-0"></span>Horario disponible del otro jugador</p>
-            <p>La <strong class="text-primary-300">afinidad</strong> suma horarios en común (50%), cercanía de categoría (30%) y lados complementarios drive/revés (20%).</p>
-            <p>Su contacto aparece recién cuando los dos se eligen.</p>
-          </div>
-        </div>
-      </aside>
-    </div>
-  </div>
-
-  <!-- ===================== MIS MATCHES ===================== -->
-  <div *ngIf="vista() === 'matches'" class="max-w-4xl mx-auto relative z-10 mt-8">
-    <div *ngIf="cargandoParejas() && parejas().length === 0" class="space-y-3">
-      <div class="h-24 rounded-2xl bg-surface-1/40 animate-pulse"></div>
-      <div class="h-24 rounded-2xl bg-surface-1/40 animate-pulse"></div>
-    </div>
-
-    <div *ngIf="!cargandoParejas() && parejas().length === 0" class="text-center p-10 rounded-3xl border border-dashed border-slate-700">
-      <h2 class="text-lg font-bold text-slate-200 font-display">Todavía no tenés matches</h2>
-      <p class="text-sm text-slate-400 mt-2 mb-5">Cuando alguien que elegiste también te elija, va a aparecer acá con su contacto.</p>
-      <button type="button" (click)="cambiarVista('descubrir')" class="btn-primary px-6">Empezar a deslizar</button>
-    </div>
-
-    <div class="space-y-4">
-      <article *ngFor="let p of parejas()" class="rounded-3xl bg-surface-1/40 border border-white/5 overflow-hidden">
-        <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
-          <div class="flex items-center gap-4 min-w-0 flex-1">
-            <div class="shrink-0 w-14 h-14 rounded-full p-[2px] bg-gradient-to-br from-primary-400 to-accent-500">
-              <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center font-extrabold font-display">{{ p.iniciales }}</div>
+                  <app-tarjeta-jugador [candidato]="c"></app-tarjeta-jugador>
+                </article>
+              }
             </div>
-            <div class="min-w-0">
-              <h3 class="font-bold text-slate-100 truncate">{{ p.nombre }}</h3>
-              <p class="text-xs text-slate-400">
-                <span *ngIf="p.categoria">{{ p.categoria | titlecase }} · </span>{{ etiquetaPosicion(p.posicion) }}
-              </p>
-              <p class="text-xs text-primary-300 mt-1" *ngIf="p.coincidencias.length > 0">Coinciden: {{ describirBloques(p.coincidencias) }}</p>
-              <p class="text-xs text-slate-500 mt-1" *ngIf="p.coincidencias.length === 0">Hoy no comparten horarios: coordinen por mensaje.</p>
-            </div>
-          </div>
-          <div class="flex flex-wrap gap-2 sm:justify-end">
-            <a *ngIf="linkWhatsapp(p) as wa" [href]="wa" target="_blank" rel="noopener"
-               class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition">WhatsApp</a>
-            <a [href]="'mailto:' + p.email" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-surface-2 text-slate-300 border border-white/10 hover:border-white/20 transition">Email</a>
-            <button type="button" (click)="abrirTurnos(p)"
-                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-primary-500/15 text-primary-300 border border-primary-500/30 hover:bg-primary-500/25 transition">
-              {{ parejaAbierta() === p.id ? 'Ocultar turnos' : 'Reservar juntos' }}
-            </button>
-          </div>
-        </div>
-
-        <!-- Turnos para jugar juntos -->
-        <div *ngIf="parejaAbierta() === p.id" class="border-t border-white/5 bg-surface-1/30 p-5">
-          <p class="text-xs text-slate-400 mb-4">Turnos libres de los próximos 7 días en los horarios que comparten. La reserva queda a tu nombre y {{ p.nombre.split(' ')[0] }} recibe el aviso.</p>
-
-          <div *ngIf="cargandoTurnos()" class="h-16 rounded-xl bg-surface-2/50 animate-pulse"></div>
-
-          <p *ngIf="!cargandoTurnos() && turnos().length === 0" class="text-sm text-slate-400">
-            No hay turnos libres en sus horarios en común esta semana. Escribile para buscar otro momento.
-          </p>
-
-          <div *ngIf="!cargandoTurnos()" class="space-y-4">
-            <div *ngFor="let dia of turnosPorDia()">
-              <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{{ etiquetaFecha(dia.fecha) }}</h4>
-              <div class="flex flex-wrap gap-2">
-                <button *ngFor="let t of dia.turnos" type="button" (click)="turnoElegido.set(t)" [attr.aria-pressed]="esTurnoElegido(t)"
-                        [ngClass]="esTurnoElegido(t) ? 'border-primary-400 bg-primary-500/20 text-primary-200' : 'border-white/10 bg-surface-2 text-slate-300 hover:border-primary-500/40'"
-                        class="px-3 py-2 rounded-xl border text-left transition">
-                  <span class="block text-sm font-bold">{{ t.horaInicio.substring(0, 5) }} – {{ t.horaFin.substring(0, 5) }}</span>
-                  <span class="block text-[11px] text-slate-400">{{ t.canchaNombre }} · ${{ t.precio | number:'1.0-0' }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div *ngIf="turnoElegido() as t" class="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-primary-500/10 border border-primary-500/25">
-            <p class="text-sm text-slate-200">
-              {{ etiquetaFecha(t.fecha) }} · {{ t.horaInicio.substring(0, 5) }} – {{ t.horaFin.substring(0, 5) }} · {{ t.canchaNombre }}
-            </p>
-            <div class="flex gap-2">
-              <button type="button" (click)="turnoElegido.set(null)" class="btn-secondary py-2.5 px-4 text-xs">Cancelar</button>
-              <button type="button" (click)="confirmarReserva(p)" [disabled]="reservando()" class="btn-primary py-2.5 px-5 text-xs">
-                {{ reservando() ? 'Reservando...' : 'Reservar y pagar' }}
+            <!-- Acciones -->
+            <div class="flex items-center justify-center gap-6 mt-8">
+              <button type="button" (click)="responder('PASS')" [disabled]="!actual() || respondiendo()" aria-label="Paso"
+                class="w-16 h-16 rounded-full border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:scale-105 transition flex items-center justify-center disabled:opacity-40 disabled:hover:scale-100">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+              </button>
+              <button type="button" (click)="responder('LIKE')" [disabled]="!actual() || respondiendo()" aria-label="Me interesa"
+                class="w-20 h-20 rounded-full bg-gradient-to-br from-primary-500 to-turquoise-500 text-dark-950 hover:scale-105 transition flex items-center justify-center shadow-[0_0_24px_rgba(82,196,26,0.35)] disabled:opacity-40 disabled:hover:scale-100">
+                <svg class="w-9 h-9" fill="currentColor" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/></svg>
               </button>
             </div>
+            <p class="text-center text-[11px] text-slate-500 mt-3">También podés usar las flechas ← y → del teclado.</p>
+          </div>
+          <!-- Panel lateral -->
+          <aside class="space-y-4">
+            @if (miPerfil(); as p) {
+              <div class="p-5 rounded-3xl bg-surface-1/40 border border-white/5">
+                <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Tu búsqueda</h2>
+                <ul class="space-y-2 text-sm text-slate-300">
+                  <li class="flex justify-between gap-3"><span class="text-slate-500">Categoría</span><span class="font-semibold">{{ p.categoria | titlecase }} ± 1</span></li>
+                  <li class="flex justify-between gap-3"><span class="text-slate-500">Jugás de</span><span class="font-semibold">{{ etiquetaPosicion(p.posicion) }}</span></li>
+                  <li class="flex justify-between gap-3"><span class="text-slate-500">Horarios</span><span class="font-semibold">{{ p.disponibilidad.length }} bloques por semana</span></li>
+                </ul>
+              </div>
+            }
+            <div class="p-5 rounded-3xl bg-surface-1/40 border border-white/5">
+              <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Cómo leer la carta</h2>
+              <div class="space-y-2.5 text-xs text-slate-400">
+                <p class="flex items-center gap-2"><span class="w-5 h-4 rounded-md bg-primary-400 border border-primary-300 shrink-0"></span>Horario que coincide con el tuyo</p>
+                <p class="flex items-center gap-2"><span class="w-5 h-4 rounded-md bg-accent-500/40 border border-accent-400/40 shrink-0"></span>Horario disponible del otro jugador</p>
+                <p>La <strong class="text-primary-300">afinidad</strong> suma horarios en común (50%), cercanía de categoría (30%) y lados complementarios drive/revés (20%).</p>
+                <p>Su contacto aparece recién cuando los dos se eligen.</p>
+              </div>
+            </div>
+          </aside>
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ===================== MIS MATCHES ===================== -->
+  @if (vista() === 'matches') {
+    <div class="max-w-4xl mx-auto relative z-10 mt-8">
+      @if (cargandoParejas() && parejas().length === 0) {
+        <div class="space-y-3">
+          <div class="h-24 rounded-2xl bg-surface-1/40 animate-pulse"></div>
+          <div class="h-24 rounded-2xl bg-surface-1/40 animate-pulse"></div>
+        </div>
+      }
+      @if (!cargandoParejas() && parejas().length === 0) {
+        <div class="text-center p-10 rounded-3xl border border-dashed border-slate-700">
+          <h2 class="text-lg font-bold text-slate-200 font-display">Todavía no tenés matches</h2>
+          <p class="text-sm text-slate-400 mt-2 mb-5">Cuando alguien que elegiste también te elija, va a aparecer acá con su contacto.</p>
+          <button type="button" (click)="cambiarVista('descubrir')" class="btn-primary px-6">Empezar a deslizar</button>
+        </div>
+      }
+      <div class="space-y-4">
+        @for (p of parejas(); track p) {
+          <article class="rounded-3xl bg-surface-1/40 border border-white/5 overflow-hidden">
+            <div class="p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+              <div class="flex items-center gap-4 min-w-0 flex-1">
+                <div class="shrink-0 w-14 h-14 rounded-full p-[2px] bg-gradient-to-br from-primary-400 to-accent-500">
+                  <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center font-extrabold font-display">{{ p.iniciales }}</div>
+                </div>
+                <div class="min-w-0">
+                  <h3 class="font-bold text-slate-100 truncate">{{ p.nombre }}</h3>
+                  <p class="text-xs text-slate-400">
+                    @if (p.categoria) {
+                      <span>{{ p.categoria | titlecase }} · </span>
+                      }{{ etiquetaPosicion(p.posicion) }}
+                    </p>
+                    @if (p.coincidencias.length > 0) {
+                      <p class="text-xs text-primary-300 mt-1">Coinciden: {{ describirBloques(p.coincidencias) }}</p>
+                    }
+                    @if (p.coincidencias.length === 0) {
+                      <p class="text-xs text-slate-500 mt-1">Hoy no comparten horarios: coordinen por mensaje.</p>
+                    }
+                  </div>
+                </div>
+                <div class="flex flex-wrap gap-2 sm:justify-end">
+                  @if (linkWhatsapp(p); as wa) {
+                    <a [href]="wa" target="_blank" rel="noopener"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition">WhatsApp</a>
+                  }
+                  <a [href]="'mailto:' + p.email" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-surface-2 text-slate-300 border border-white/10 hover:border-white/20 transition">Email</a>
+                  <button type="button" (click)="abrirTurnos(p)"
+                    class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold bg-primary-500/15 text-primary-300 border border-primary-500/30 hover:bg-primary-500/25 transition">
+                    {{ parejaAbierta() === p.id ? 'Ocultar turnos' : 'Reservar juntos' }}
+                  </button>
+                </div>
+              </div>
+              <!-- Turnos para jugar juntos -->
+              @if (parejaAbierta() === p.id) {
+                <div class="border-t border-white/5 bg-surface-1/30 p-5">
+                  <p class="text-xs text-slate-400 mb-4">Turnos libres de los próximos 7 días en los horarios que comparten. La reserva queda a tu nombre y {{ p.nombre.split(' ')[0] }} recibe el aviso.</p>
+                  @if (cargandoTurnos()) {
+                    <div class="h-16 rounded-xl bg-surface-2/50 animate-pulse"></div>
+                  }
+                  @if (!cargandoTurnos() && turnos().length === 0) {
+                    <p class="text-sm text-slate-400">
+                      No hay turnos libres en sus horarios en común esta semana. Escribile para buscar otro momento.
+                    </p>
+                  }
+                  @if (!cargandoTurnos()) {
+                    <div class="space-y-4">
+                      @for (dia of turnosPorDia(); track dia) {
+                        <div>
+                          <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{{ etiquetaFecha(dia.fecha) }}</h4>
+                          <div class="flex flex-wrap gap-2">
+                            @for (t of dia.turnos; track t) {
+                              <button type="button" (click)="turnoElegido.set(t)" [attr.aria-pressed]="esTurnoElegido(t)"
+                                [ngClass]="esTurnoElegido(t) ? 'border-primary-400 bg-primary-500/20 text-primary-200' : 'border-white/10 bg-surface-2 text-slate-300 hover:border-primary-500/40'"
+                                class="px-3 py-2 rounded-xl border text-left transition">
+                                <span class="block text-sm font-bold">{{ t.horaInicio.substring(0, 5) }} – {{ t.horaFin.substring(0, 5) }}</span>
+                                <span class="block text-[11px] text-slate-400">{{ t.canchaNombre }} · ${{ t.precio | number:'1.0-0' }}</span>
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  }
+                  @if (turnoElegido(); as t) {
+                    <div class="mt-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-2xl bg-primary-500/10 border border-primary-500/25">
+                      <p class="text-sm text-slate-200">
+                        {{ etiquetaFecha(t.fecha) }} · {{ t.horaInicio.substring(0, 5) }} – {{ t.horaFin.substring(0, 5) }} · {{ t.canchaNombre }}
+                      </p>
+                      <div class="flex gap-2">
+                        <button type="button" (click)="turnoElegido.set(null)" class="btn-secondary py-2.5 px-4 text-xs">Cancelar</button>
+                        <button type="button" (click)="confirmarReserva(p)" [disabled]="reservando()" class="btn-primary py-2.5 px-5 text-xs">
+                          {{ reservando() ? 'Reservando...' : 'Reservar y pagar' }}
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </article>
+          }
+        </div>
+      </div>
+    }
+
+    <!-- ===================== ¡ES MATCH! ===================== -->
+    @if (matchNuevo(); as m) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="titulo-match">
+        <div class="max-w-md w-full text-center p-8 rounded-3xl bg-surface-1 border border-primary-500/30 shadow-[0_0_60px_rgba(82,196,26,0.25)]">
+          <div class="flex items-center justify-center mb-6">
+            <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-primary-400 to-turquoise-500 -mr-3 z-10">
+              <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center text-2xl font-extrabold font-display">{{ misIniciales() }}</div>
+            </div>
+            <div class="w-12 h-12 rounded-full bg-primary-500 text-dark-950 flex items-center justify-center z-20 shadow-[0_0_24px_rgba(82,196,26,0.5)]">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/></svg>
+            </div>
+            <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-accent-400 to-accent-600 -ml-3 z-10">
+              <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center text-2xl font-extrabold font-display">{{ m.iniciales }}</div>
+            </div>
+          </div>
+          <h2 id="titulo-match" class="text-3xl font-extrabold font-display bg-gradient-to-r from-primary-300 to-accent-300 bg-clip-text text-transparent">¡Es match!</h2>
+          <p class="text-sm text-slate-300 mt-2">Vos y <strong>{{ m.nombre }}</strong> quieren jugar juntos. Ya pueden contactarse.</p>
+          @if (m.coincidencias.length > 0) {
+            <p class="text-xs text-primary-300 mt-3">Coinciden: {{ describirBloques(m.coincidencias) }}</p>
+          }
+          <div class="flex flex-col gap-2.5 mt-7">
+            <button type="button" (click)="verTurnosDelMatch(m)" class="btn-primary w-full">Ver turnos para jugar juntos</button>
+            @if (linkWhatsapp(m); as wa) {
+              <a [href]="wa" target="_blank" rel="noopener"
+              class="w-full inline-flex justify-center px-4 py-3 rounded-xl text-sm font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition">Escribirle por WhatsApp</a>
+            }
+            <button type="button" (click)="matchNuevo.set(null)" class="btn-secondary w-full">Seguir deslizando</button>
           </div>
         </div>
-      </article>
-    </div>
-  </div>
-
-  <!-- ===================== ¡ES MATCH! ===================== -->
-  <div *ngIf="matchNuevo() as m" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="titulo-match">
-    <div class="max-w-md w-full text-center p-8 rounded-3xl bg-surface-1 border border-primary-500/30 shadow-[0_0_60px_rgba(82,196,26,0.25)]">
-      <div class="flex items-center justify-center mb-6">
-        <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-primary-400 to-turquoise-500 -mr-3 z-10">
-          <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center text-2xl font-extrabold font-display">{{ misIniciales() }}</div>
-        </div>
-        <div class="w-12 h-12 rounded-full bg-primary-500 text-dark-950 flex items-center justify-center z-20 shadow-[0_0_24px_rgba(82,196,26,0.5)]">
-          <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z"/></svg>
-        </div>
-        <div class="w-20 h-20 rounded-full p-[3px] bg-gradient-to-br from-accent-400 to-accent-600 -ml-3 z-10">
-          <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center text-2xl font-extrabold font-display">{{ m.iniciales }}</div>
-        </div>
       </div>
-      <h2 id="titulo-match" class="text-3xl font-extrabold font-display bg-gradient-to-r from-primary-300 to-accent-300 bg-clip-text text-transparent">¡Es match!</h2>
-      <p class="text-sm text-slate-300 mt-2">Vos y <strong>{{ m.nombre }}</strong> quieren jugar juntos. Ya pueden contactarse.</p>
-      <p *ngIf="m.coincidencias.length > 0" class="text-xs text-primary-300 mt-3">Coinciden: {{ describirBloques(m.coincidencias) }}</p>
-
-      <div class="flex flex-col gap-2.5 mt-7">
-        <button type="button" (click)="verTurnosDelMatch(m)" class="btn-primary w-full">Ver turnos para jugar juntos</button>
-        <a *ngIf="linkWhatsapp(m) as wa" [href]="wa" target="_blank" rel="noopener"
-           class="w-full inline-flex justify-center px-4 py-3 rounded-xl text-sm font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 hover:bg-emerald-500/20 transition">Escribirle por WhatsApp</a>
-        <button type="button" (click)="matchNuevo.set(null)" class="btn-secondary w-full">Seguir deslizando</button>
-      </div>
-    </div>
+    }
   </div>
-</div>

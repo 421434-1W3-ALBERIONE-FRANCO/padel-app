@@ -42,3 +42,15 @@ export interface CajaDiariaResponse {
   movimientos: MovimientoCaja[];
   pendientesDeCobro: PendienteCobro[];
 }
+
+/** Métricas de reservas de un período, calculadas en el backend para el panel de administración. */
+export interface MetricasReservasResponse {
+  desde: string;
+  hasta: string;
+  totalReservas: number;
+  confirmadas: number;
+  canceladas: number;
+  ingresos: number;
+  tasaConfirmacion: number;
+  porDia: { fecha: string; cantidad: number }[];
+}

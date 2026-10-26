@@ -65,7 +65,7 @@ public class ComisionServiceImpl implements ComisionService {
                 .build();
 
         comisionRepository.save(comision);
-        log.info("Comisión {} de ${} registrada para recepcionista {}", origen, montoComision, recepcionista.getEmail());
+        log.info("Comisión {} de ${} registrada para el recepcionista ID {}", origen, montoComision, recepcionista.getId());
     }
 
     @Override

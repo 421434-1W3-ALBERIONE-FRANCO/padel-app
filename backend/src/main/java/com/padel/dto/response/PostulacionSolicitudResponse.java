@@ -9,7 +9,8 @@ public record PostulacionSolicitudResponse(
     Long solicitudId,
     Long jugadorId,
     String jugadorNombre,
-    String jugadorEmail,
+    // Solo cuando la ve el creador de la solicitud y la postulación está aceptada.
+    ContactoResponse contacto,
     String mensaje,
     EstadoPostulacion estado,
     LocalDateTime createdAt

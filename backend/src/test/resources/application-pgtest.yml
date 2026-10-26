@@ -1,0 +1,16 @@
+# Perfil que se combina con "test" para correr contra un PostgreSQL REAL embebido (ver PostgresEmbebido).
+# Valida lo que H2 no puede: las migraciones Flyway (incluido el seed de desarrollo), sus constraints
+# específicas de Postgres y que el esquema coincida con las entidades (ddl-auto: validate).
+# La URL de la base la inyecta el test con @DynamicPropertySource.
+spring:
+  datasource:
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: postgres
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+    locations: classpath:db/migration,classpath:db/dev

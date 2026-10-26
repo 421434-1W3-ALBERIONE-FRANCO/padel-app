@@ -21,174 +21,229 @@
       <div class="flex items-center gap-2">
         <label for="fechaCaja" class="sr-only">Fecha de la caja</label>
         <input id="fechaCaja" type="date" [ngModel]="fecha()" (ngModelChange)="cambiarFecha($event)" [max]="hoy"
-               class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-3 text-sm outline-none" />
-        <button *ngIf="!esHoy()" type="button" (click)="irAHoy()" class="btn-secondary py-2.5 px-4 text-sm">Hoy</button>
-        <button type="button" (click)="cargar()" class="btn-secondary py-2.5 px-4 text-sm" aria-label="Refrescar la caja">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Skeleton -->
-    <div *ngIf="cargando() && !caja()" class="space-y-4 animate-pulse">
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div *ngFor="let i of [1, 2, 3]" class="h-28 rounded-3xl bg-surface-1/60"></div>
-      </div>
-      <div class="h-64 rounded-3xl bg-surface-1/40"></div>
-    </div>
-
-    <ng-container *ngIf="caja() as c">
-      <!-- Indicadores -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <div class="rounded-3xl border border-primary-500/30 bg-gradient-to-br from-primary-500/15 to-transparent p-5">
-          <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-300">Efectivo en el cajón</span>
-          <span class="mt-1 block font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(c.totalEfectivo) }}</span>
-          <span class="text-xs text-slate-400">Para el arqueo</span>
-        </div>
-        <div class="rounded-3xl border border-white/5 bg-surface-1/40 p-5">
-          <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Ingresos del día</span>
-          <span class="mt-1 block font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(c.totalIngresos) }}</span>
-          <span class="text-xs text-slate-400">{{ cantidadIngresos() }} {{ cantidadIngresos() === 1 ? 'cobro' : 'cobros' }}</span>
-        </div>
-        <div class="rounded-3xl border p-5"
-             [ngClass]="c.pendientesDeCobro.length > 0 ? 'border-amber-400/30 bg-amber-400/[0.06]' : 'border-white/5 bg-surface-1/40'">
-          <span class="text-[10px] font-bold uppercase tracking-[0.14em]" [ngClass]="c.pendientesDeCobro.length > 0 ? 'text-amber-300' : 'text-slate-500'">Pendiente de cobro</span>
-          <span class="mt-1 block font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(totalPendiente()) }}</span>
-          <span class="text-xs text-slate-400">
-            {{ c.pendientesDeCobro.length === 0 ? 'Todos los turnos del día están cobrados' : c.pendientesDeCobro.length + (c.pendientesDeCobro.length === 1 ? ' turno sin cobrar' : ' turnos sin cobrar') }}
-          </span>
+          class="bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-3 text-sm outline-none" />
+          @if (!esHoy()) {
+            <button type="button" (click)="irAHoy()" class="btn-secondary py-2.5 px-4 text-sm">Hoy</button>
+          }
+          <button type="button" (click)="cargar()" class="btn-secondary py-2.5 px-4 text-sm" aria-label="Refrescar la caja">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+          </button>
         </div>
       </div>
 
-      <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
-        <div class="space-y-6 min-w-0">
+      <!-- Skeleton -->
+      @if (cargando() && !caja()) {
+        <div class="space-y-4 animate-pulse">
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            @for (i of [1, 2, 3]; track i) {
+              <div class="h-28 rounded-3xl bg-surface-1/60"></div>
+            }
+          </div>
+          <div class="h-64 rounded-3xl bg-surface-1/40"></div>
+        </div>
+      }
 
-          <!-- Pendientes de cobro -->
-          <section *ngIf="c.pendientesDeCobro.length > 0">
-            <h2 class="font-display text-lg font-bold text-white">Turnos sin cobrar</h2>
-            <p class="text-xs text-slate-400 mb-3">Confirmados para pagar al llegar. Cobralos cuando el cliente pague.</p>
-            <ul class="space-y-2">
-              <li *ngFor="let p of c.pendientesDeCobro; trackBy: porReserva"
-                  class="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 flex items-center gap-3">
-                <div class="shrink-0 text-center">
-                  <span class="block font-display text-lg font-bold text-white tabular-nums">{{ p.horaInicio.substring(0, 5) }}</span>
-                  <span class="block text-[10px] text-slate-500">a {{ p.horaFin.substring(0, 5) }}</span>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <p class="text-sm font-semibold text-slate-100 truncate">{{ p.cliente }}</p>
-                  <p class="text-xs text-slate-400 truncate">{{ p.canchaNombre }}<span *ngIf="p.estadoReserva === 'COMPLETADA'"> · ya jugado</span></p>
-                </div>
-                <span class="shrink-0 font-display font-bold text-white tabular-nums">{{ formatearPesos(p.monto) }}</span>
-                <button type="button" (click)="pendienteACobrar.set(p)"
+      @if (caja(); as c) {
+        <!-- Indicadores -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="rounded-3xl border border-primary-500/30 bg-gradient-to-br from-primary-500/15 to-transparent p-5">
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-primary-300">Efectivo en el cajón</span>
+            <span class="mt-1 block font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(c.totalEfectivo) }}</span>
+            <span class="text-xs text-slate-400">Para el arqueo</span>
+          </div>
+          <div class="rounded-3xl border border-white/5 bg-surface-1/40 p-5">
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Ingresos del día</span>
+            <span class="mt-1 block font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(c.totalIngresos) }}</span>
+            <span class="text-xs text-slate-400">{{ cantidadIngresos() }} {{ cantidadIngresos() === 1 ? 'cobro' : 'cobros' }}</span>
+          </div>
+          <div class="rounded-3xl border p-5"
+            [ngClass]="c.pendientesDeCobro.length > 0 ? 'border-amber-400/30 bg-amber-400/[0.06]' : 'border-white/5 bg-surface-1/40'">
+            <span class="text-[10px] font-bold uppercase tracking-[0.14em]" [ngClass]="c.pendientesDeCobro.length > 0 ? 'text-amber-300' : 'text-slate-500'">Pendiente de cobro</span>
+            <span class="mt-1 block font-display text-3xl font-extrabold text-white tabular-nums">{{ formatearPesos(totalPendiente()) }}</span>
+            <span class="text-xs text-slate-400">
+              {{ c.pendientesDeCobro.length === 0 ? 'Todos los turnos del día están cobrados' : c.pendientesDeCobro.length + (c.pendientesDeCobro.length === 1 ? ' turno sin cobrar' : ' turnos sin cobrar') }}
+            </span>
+          </div>
+        </div>
+        <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_20rem]">
+          <div class="space-y-6 min-w-0">
+            <!-- Pendientes de cobro -->
+            @if (c.pendientesDeCobro.length > 0) {
+              <section>
+                <h2 class="font-display text-lg font-bold text-white">Turnos sin cobrar</h2>
+                <p class="text-xs text-slate-400 mb-3">Confirmados para pagar al llegar. Cobralos cuando el cliente pague.</p>
+                <ul class="space-y-2">
+                  @for (p of c.pendientesDeCobro; track porReserva($index, p)) {
+                    <li
+                      class="rounded-2xl border border-amber-400/20 bg-amber-400/[0.04] px-4 py-3 flex items-center gap-3">
+                      <div class="shrink-0 text-center">
+                        <span class="block font-display text-lg font-bold text-white tabular-nums">{{ p.horaInicio.substring(0, 5) }}</span>
+                        <span class="block text-[10px] text-slate-500">a {{ p.horaFin.substring(0, 5) }}</span>
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-slate-100 truncate">{{ p.cliente }}</p>
+                        <p class="text-xs text-slate-400 truncate">{{ p.canchaNombre }}@if (p.estadoReserva === 'COMPLETADA') {
+                          <span> · ya jugado</span>
+                        }</p>
+                      </div>
+                      <span class="shrink-0 font-display font-bold text-white tabular-nums">{{ formatearPesos(p.monto) }}</span>
+                      <button type="button" (click)="pendienteACobrar.set(p)"
                         class="shrink-0 text-xs font-bold px-3 py-2 rounded-xl border border-primary-500/40 text-primary-300 hover:bg-primary-500/10 transition">
-                  Cobrar
-                </button>
-              </li>
-            </ul>
-          </section>
-
-          <!-- Movimientos -->
-          <section>
-            <div class="flex items-end justify-between gap-3 mb-3">
-              <h2 class="font-display text-lg font-bold text-white">Movimientos <span class="text-sm font-semibold text-slate-500">({{ c.movimientos.length }})</span></h2>
-              <span *ngIf="ultimaActualizacion()" class="text-[11px] text-slate-500">Actualizado {{ ultimaActualizacion() }}{{ esHoy() ? ' · se refresca solo' : '' }}</span>
-            </div>
-
-            <div *ngIf="c.movimientos.length === 0" class="rounded-3xl border border-white/5 bg-surface-1/40 p-8 text-center text-sm text-slate-500">
-              Todavía no hay cobros registrados {{ esHoy() ? 'hoy' : 'ese día' }}.
-            </div>
-
-            <!-- Escritorio: tabla -->
-            <div *ngIf="c.movimientos.length > 0" class="hidden md:block rounded-3xl border border-white/5 bg-surface-1/40 overflow-hidden">
-              <table class="w-full text-sm">
-                <thead class="text-[10px] uppercase tracking-[0.12em] text-slate-500 border-b border-white/5">
-                  <tr>
-                    <th scope="col" class="text-left font-bold px-4 py-3">Hora</th>
-                    <th scope="col" class="text-left font-bold px-4 py-3">Concepto</th>
-                    <th scope="col" class="text-left font-bold px-4 py-3">Cliente</th>
-                    <th scope="col" class="text-left font-bold px-4 py-3">Método</th>
-                    <th scope="col" class="text-left font-bold px-4 py-3">Atendió</th>
-                    <th scope="col" class="text-right font-bold px-4 py-3">Monto</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr *ngFor="let m of c.movimientos; trackBy: porPago" class="border-t border-white/5" [class.opacity-60]="!m.ingreso">
-                    <td class="px-4 py-3 text-slate-300 tabular-nums">{{ hora(m) }}</td>
-                    <td class="px-4 py-3">
-                      <span class="inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider" [ngClass]="claseConcepto(m.concepto)">{{ etiquetaConcepto(m.concepto) }}</span>
-                      <p class="text-xs text-slate-500 mt-1">{{ m.detalle }}</p>
-                    </td>
-                    <td class="px-4 py-3 text-slate-200">{{ m.cliente }}</td>
-                    <td class="px-4 py-3 text-slate-300">{{ etiquetaMetodo(m.metodo) }}</td>
-                    <td class="px-4 py-3 text-slate-400">{{ m.atendidoPor || 'Online' }}</td>
-                    <td class="px-4 py-3 text-right whitespace-nowrap">
-                      <span class="font-display font-bold tabular-nums" [ngClass]="m.ingreso ? 'text-white' : 'text-slate-400 line-through decoration-slate-600'">{{ formatearPesos(m.monto) }}</span>
-                      <span *ngIf="!m.ingreso" class="block text-[10px] text-slate-500">no suma</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Mobile: tarjetas -->
-            <ul *ngIf="c.movimientos.length > 0" class="md:hidden space-y-2">
-              <li *ngFor="let m of c.movimientos; trackBy: porPago" class="rounded-2xl border border-white/5 bg-surface-1/40 px-4 py-3" [class.opacity-60]="!m.ingreso">
-                <div class="flex items-center justify-between gap-3">
-                  <span class="inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider" [ngClass]="claseConcepto(m.concepto)">{{ etiquetaConcepto(m.concepto) }}</span>
-                  <span class="font-display font-bold tabular-nums" [ngClass]="m.ingreso ? 'text-white' : 'text-slate-400 line-through decoration-slate-600'">{{ formatearPesos(m.monto) }}</span>
-                </div>
-                <p class="mt-1.5 text-sm text-slate-200 truncate">{{ m.cliente }}</p>
-                <p class="text-xs text-slate-500 truncate">{{ m.detalle }}</p>
-                <p class="mt-1 text-[11px] text-slate-400">{{ hora(m) }} · {{ etiquetaMetodo(m.metodo) }} · {{ m.atendidoPor || 'Online' }}<span *ngIf="!m.ingreso"> · no suma</span></p>
-              </li>
-            </ul>
-          </section>
-        </div>
-
-        <aside class="space-y-6">
-          <!-- Por método -->
-          <section class="rounded-3xl border border-white/5 bg-surface-1/40 p-5">
-            <h2 class="font-display text-base font-bold text-white mb-3">Por método</h2>
-            <p *ngIf="c.detalles.length === 0" class="text-sm text-slate-500">Sin cobros.</p>
-            <ul class="space-y-3">
-              <li *ngFor="let d of c.detalles">
-                <div class="flex items-baseline justify-between gap-2">
-                  <span class="text-sm text-slate-200">{{ etiquetaMetodo(d.metodo) }} <span class="text-xs text-slate-500">· {{ d.cantidad }}</span></span>
-                  <span class="font-display font-bold tabular-nums" [ngClass]="d.ingreso ? 'text-white' : 'text-slate-400'">{{ formatearPesos(d.total) }}</span>
-                </div>
-                <div *ngIf="d.ingreso && c.totalIngresos > 0" class="mt-1.5 h-1 rounded-full bg-white/5 overflow-hidden">
-                  <div class="h-full rounded-full bg-primary-500/70" [style.width.%]="d.total / c.totalIngresos * 100"></div>
-                </div>
-                <p *ngIf="!d.ingreso" class="mt-0.5 text-[11px] text-slate-500">Turnos pagados con horas de bono: el dinero entró al vender el bono, no suma a los ingresos.</p>
-              </li>
-            </ul>
-          </section>
-
-          <!-- Arqueo -->
-          <section class="rounded-3xl border border-white/5 bg-surface-1/40 p-5">
-            <h2 class="font-display text-base font-bold text-white">Arqueo</h2>
-            <p class="text-xs text-slate-400 mb-3">Contá el efectivo del cajón y compará con lo registrado.</p>
-            <label for="efectivoContado" class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-1.5">Efectivo contado</label>
-            <input id="efectivoContado" type="number" min="0" inputmode="decimal" placeholder="0"
-                   [ngModel]="efectivoContado()" (ngModelChange)="efectivoContado.set($event === '' || $event == null ? null : +$event)"
-                   class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500" />
-            <div *ngIf="diferencia() as dif; else sinDiferencia" class="mt-3 rounded-2xl px-4 py-3 text-sm font-semibold"
-                 [ngClass]="dif > 0 ? 'bg-turquoise-500/10 text-turquoise-300' : 'bg-red-500/10 text-red-300'">
-              {{ dif > 0 ? 'Sobran ' + formatearPesos(dif) : 'Faltan ' + formatearPesos(-dif) }}
-            </div>
-            <ng-template #sinDiferencia>
-              <div *ngIf="efectivoContado() != null" class="mt-3 rounded-2xl px-4 py-3 text-sm font-semibold bg-primary-500/10 text-primary-300">
-                La caja cuadra
+                        Cobrar
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+            <!-- Reintegros por entregar -->
+            @if (reintegros().length > 0) {
+              <section>
+                <h2 class="font-display text-lg font-bold text-white">Reintegros por entregar</h2>
+                <p class="text-xs text-slate-400 mb-3">Turnos cancelados con derecho a devolución. Registralos cuando le devuelvas la plata al cliente.</p>
+                <ul class="space-y-2">
+                  @for (r of reintegros(); track r.id) {
+                    <li class="rounded-2xl border border-red-400/20 bg-red-400/[0.04] px-4 py-3 flex items-center gap-3">
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm font-semibold text-slate-100 truncate">{{ r.usuarioEmail }}</p>
+                        <p class="text-xs text-slate-400 truncate">{{ etiquetaMetodo(r.metodo) }} · desde el {{ r.createdAt.substring(0, 10) }}</p>
+                      </div>
+                      <span class="shrink-0 font-display font-bold text-red-300 tabular-nums">{{ formatearPesos(r.monto) }}</span>
+                      <button type="button" (click)="entregarReintegro(r)" [disabled]="entregandoId() === r.id"
+                        class="shrink-0 text-xs font-bold px-3 py-2 rounded-xl border border-red-400/40 text-red-200 hover:bg-red-400/10 transition disabled:opacity-50">
+                        {{ entregandoId() === r.id ? 'Registrando...' : 'Entregado' }}
+                      </button>
+                    </li>
+                  }
+                </ul>
+              </section>
+            }
+            <!-- Movimientos -->
+            <section>
+              <div class="flex items-end justify-between gap-3 mb-3">
+                <h2 class="font-display text-lg font-bold text-white">Movimientos <span class="text-sm font-semibold text-slate-500">({{ c.movimientos.length }})</span></h2>
+                @if (ultimaActualizacion()) {
+                  <span class="text-[11px] text-slate-500">Actualizado {{ ultimaActualizacion() }}{{ esHoy() ? ' · se refresca solo' : '' }}</span>
+                }
               </div>
-            </ng-template>
-          </section>
-        </aside>
+              @if (c.movimientos.length === 0) {
+                <div class="rounded-3xl border border-white/5 bg-surface-1/40 p-8 text-center text-sm text-slate-500">
+                  Todavía no hay cobros registrados {{ esHoy() ? 'hoy' : 'ese día' }}.
+                </div>
+              }
+              <!-- Escritorio: tabla -->
+              @if (c.movimientos.length > 0) {
+                <div class="hidden md:block rounded-3xl border border-white/5 bg-surface-1/40 overflow-hidden">
+                  <table class="w-full text-sm">
+                    <thead class="text-[10px] uppercase tracking-[0.12em] text-slate-500 border-b border-white/5">
+                      <tr>
+                        <th scope="col" class="text-left font-bold px-4 py-3">Hora</th>
+                        <th scope="col" class="text-left font-bold px-4 py-3">Concepto</th>
+                        <th scope="col" class="text-left font-bold px-4 py-3">Cliente</th>
+                        <th scope="col" class="text-left font-bold px-4 py-3">Método</th>
+                        <th scope="col" class="text-left font-bold px-4 py-3">Atendió</th>
+                        <th scope="col" class="text-right font-bold px-4 py-3">Monto</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (m of c.movimientos; track porPago($index, m)) {
+                        <tr class="border-t border-white/5" [class.opacity-60]="!m.ingreso">
+                          <td class="px-4 py-3 text-slate-300 tabular-nums">{{ hora(m) }}</td>
+                          <td class="px-4 py-3">
+                            <span class="inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider" [ngClass]="claseConcepto(m.concepto)">{{ etiquetaConcepto(m.concepto) }}</span>
+                            <p class="text-xs text-slate-500 mt-1">{{ m.detalle }}</p>
+                          </td>
+                          <td class="px-4 py-3 text-slate-200">{{ m.cliente }}</td>
+                          <td class="px-4 py-3 text-slate-300">{{ etiquetaMetodo(m.metodo) }}</td>
+                          <td class="px-4 py-3 text-slate-400">{{ m.atendidoPor || 'Online' }}</td>
+                          <td class="px-4 py-3 text-right whitespace-nowrap">
+                            <span class="font-display font-bold tabular-nums" [ngClass]="m.ingreso ? 'text-white' : 'text-slate-400 line-through decoration-slate-600'">{{ formatearPesos(m.monto) }}</span>
+                            @if (!m.ingreso) {
+                              <span class="block text-[10px] text-slate-500">no suma</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              }
+              <!-- Mobile: tarjetas -->
+              @if (c.movimientos.length > 0) {
+                <ul class="md:hidden space-y-2">
+                  @for (m of c.movimientos; track porPago($index, m)) {
+                    <li class="rounded-2xl border border-white/5 bg-surface-1/40 px-4 py-3" [class.opacity-60]="!m.ingreso">
+                      <div class="flex items-center justify-between gap-3">
+                        <span class="inline-block px-2 py-0.5 rounded-full border text-[10px] font-bold uppercase tracking-wider" [ngClass]="claseConcepto(m.concepto)">{{ etiquetaConcepto(m.concepto) }}</span>
+                        <span class="font-display font-bold tabular-nums" [ngClass]="m.ingreso ? 'text-white' : 'text-slate-400 line-through decoration-slate-600'">{{ formatearPesos(m.monto) }}</span>
+                      </div>
+                      <p class="mt-1.5 text-sm text-slate-200 truncate">{{ m.cliente }}</p>
+                      <p class="text-xs text-slate-500 truncate">{{ m.detalle }}</p>
+                      <p class="mt-1 text-[11px] text-slate-400">{{ hora(m) }} · {{ etiquetaMetodo(m.metodo) }} · {{ m.atendidoPor || 'Online' }}@if (!m.ingreso) {
+                        <span> · no suma</span>
+                      }</p>
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+          </div>
+          <aside class="space-y-6">
+            <!-- Por método -->
+            <section class="rounded-3xl border border-white/5 bg-surface-1/40 p-5">
+              <h2 class="font-display text-base font-bold text-white mb-3">Por método</h2>
+              @if (c.detalles.length === 0) {
+                <p class="text-sm text-slate-500">Sin cobros.</p>
+              }
+              <ul class="space-y-3">
+                @for (d of c.detalles; track d) {
+                  <li>
+                    <div class="flex items-baseline justify-between gap-2">
+                      <span class="text-sm text-slate-200">{{ etiquetaMetodo(d.metodo) }} <span class="text-xs text-slate-500">· {{ d.cantidad }}</span></span>
+                      <span class="font-display font-bold tabular-nums" [ngClass]="d.ingreso ? 'text-white' : 'text-slate-400'">{{ formatearPesos(d.total) }}</span>
+                    </div>
+                    @if (d.ingreso && c.totalIngresos > 0) {
+                      <div class="mt-1.5 h-1 rounded-full bg-white/5 overflow-hidden">
+                        <div class="h-full rounded-full bg-primary-500/70" [style.width.%]="d.total / c.totalIngresos * 100"></div>
+                      </div>
+                    }
+                    @if (!d.ingreso) {
+                      <p class="mt-0.5 text-[11px] text-slate-500">Turnos pagados con horas de bono: el dinero entró al vender el bono, no suma a los ingresos.</p>
+                    }
+                  </li>
+                }
+              </ul>
+            </section>
+            <!-- Arqueo -->
+            <section class="rounded-3xl border border-white/5 bg-surface-1/40 p-5">
+              <h2 class="font-display text-base font-bold text-white">Arqueo</h2>
+              <p class="text-xs text-slate-400 mb-3">Contá el efectivo del cajón y compará con lo registrado.</p>
+              <label for="efectivoContado" class="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 mb-1.5">Efectivo contado</label>
+              <input id="efectivoContado" type="number" min="0" inputmode="decimal" placeholder="0"
+                [ngModel]="efectivoContado()" (ngModelChange)="efectivoContado.set($event === '' || $event == null ? null : +$event)"
+                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-primary-500" />
+                @if (diferencia(); as dif) {
+                  <div class="mt-3 rounded-2xl px-4 py-3 text-sm font-semibold"
+                    [ngClass]="dif > 0 ? 'bg-turquoise-500/10 text-turquoise-300' : 'bg-red-500/10 text-red-300'">
+                    {{ dif > 0 ? 'Sobran ' + formatearPesos(dif) : 'Faltan ' + formatearPesos(-dif) }}
+                  </div>
+                } @else {
+                  @if (efectivoContado() != null) {
+                    <div class="mt-3 rounded-2xl px-4 py-3 text-sm font-semibold bg-primary-500/10 text-primary-300">
+                      La caja cuadra
+                    </div>
+                  }
+                }
+              </section>
+            </aside>
+          </div>
+        }
       </div>
-    </ng-container>
-  </div>
 
-  <app-cobro-mostrador *ngIf="pendienteACobrar() as p"
-                       [cliente]="p.cliente" [detalle]="p.canchaNombre + ' · ' + p.horaInicio.substring(0, 5) + ' a ' + p.horaFin.substring(0, 5)"
-                       [monto]="p.monto" [procesando]="cobrando()"
-                       (cobrar)="cobrar($event)" (cerrar)="pendienteACobrar.set(null)"></app-cobro-mostrador>
-</div>
+      @if (pendienteACobrar(); as p) {
+        <app-cobro-mostrador
+          [cliente]="p.cliente" [detalle]="p.canchaNombre + ' · ' + p.horaInicio.substring(0, 5) + ' a ' + p.horaFin.substring(0, 5)"
+          [monto]="p.monto" [procesando]="cobrando()"
+        (cobrar)="cobrar($event)" (cerrar)="pendienteACobrar.set(null)"></app-cobro-mostrador>
+      }
+    </div>

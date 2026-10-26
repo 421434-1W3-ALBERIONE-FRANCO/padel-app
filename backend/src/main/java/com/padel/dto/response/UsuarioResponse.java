@@ -9,5 +9,6 @@ public record UsuarioResponse(
     String email,
     String telefono,
     RolUsuario rol,
-    boolean activo
+    boolean activo,
+    boolean emailVerificado
 ) {}

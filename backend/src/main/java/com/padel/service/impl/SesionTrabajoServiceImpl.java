@@ -6,16 +6,22 @@ import com.padel.domain.entity.SesionTrabajo;
 import com.padel.domain.entity.TurnoEmpleado;
 import com.padel.domain.entity.Usuario;
 import com.padel.domain.enums.EstadoSesionTrabajo;
+import com.padel.domain.enums.RolUsuario;
 import com.padel.domain.enums.TipoMovimientoBancoHoras;
 import com.padel.dto.response.BancoHorasResponse;
+import com.padel.dto.response.FichajeResponse;
+import com.padel.exception.EstadoInvalidoException;
+import com.padel.exception.OperacionNoPermitidaException;
 import com.padel.exception.ResourceNotFoundException;
 import com.padel.repository.BancoHorasRepository;
 import com.padel.repository.MovimientoBancoHorasRepository;
 import com.padel.repository.SesionTrabajoRepository;
 import com.padel.repository.TurnoEmpleadoRepository;
 import com.padel.repository.UsuarioRepository;
+import com.padel.security.RedesPermitidas;
 import com.padel.service.ConfiguracionSistemaService;
 import com.padel.service.SesionTrabajoService;
+import com.padel.util.EmailUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Optional;
 
@@ -32,43 +39,15 @@ import java.util.Optional;
 @Slf4j
 public class SesionTrabajoServiceImpl implements SesionTrabajoService {
 
+    private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
+
     private final SesionTrabajoRepository sesionTrabajoRepository;
     private final TurnoEmpleadoRepository turnoEmpleadoRepository;
     private final BancoHorasRepository bancoHorasRepository;
     private final MovimientoBancoHorasRepository movimientoBancoHorasRepository;
     private final UsuarioRepository usuarioRepository;
     private final ConfiguracionSistemaService configuracionSistemaService;
-
-    @Override
-    @Transactional
-    public void abrirSesion(Usuario empleado) {
-        // Idempotente: si ya hay una sesión abierta, no se abre otra (ej. login en dos pestañas).
-        Optional<SesionTrabajo> abierta = sesionTrabajoRepository.findFirstByEmpleadoIdAndEstado(empleado.getId(), EstadoSesionTrabajo.ABIERTA);
-        if (abierta.isPresent()) {
-            log.info("El empleado {} ya tiene una sesión de trabajo abierta. No se abre otra.", empleado.getEmail());
-            return;
-        }
-
-        SesionTrabajo sesion = SesionTrabajo.builder()
-                .empleado(empleado)
-                .inicio(LocalDateTime.now())
-                .estado(EstadoSesionTrabajo.ABIERTA)
-                .cerradaAutomaticamente(false)
-                .build();
-        sesionTrabajoRepository.save(sesion);
-        log.info("Sesión de trabajo abierta para {}", empleado.getEmail());
-    }
-
-    @Override
-    @Transactional
-    public void cerrarSesion(Usuario empleado, boolean automatica) {
-        Optional<SesionTrabajo> abiertaOpt = sesionTrabajoRepository.findFirstByEmpleadoIdAndEstado(empleado.getId(), EstadoSesionTrabajo.ABIERTA);
-        if (abiertaOpt.isEmpty()) {
-            log.info("El empleado {} no tiene sesión de trabajo abierta para cerrar.", empleado.getEmail());
-            return;
-        }
-        cerrarYAcreditar(abiertaOpt.get(), LocalDateTime.now(), automatica);
-    }
+    private final RedesPermitidas redesPermitidas;
 
     @Override
     @Transactional
@@ -103,6 +82,63 @@ public class SesionTrabajoServiceImpl implements SesionTrabajoService {
                 .map(BancoHoras::getSaldoMinutos)
                 .orElse(0);
         return new BancoHorasResponse(empleadoId, empleado.getEmail(), saldo);
+    }
+
+    @Override
+    @Transactional
+    public FichajeResponse ficharEntrada(String email, String ip) {
+        Usuario empleado = buscarStaff(email);
+        validarRed(ip);
+        sesionTrabajoRepository.findFirstByEmpleadoIdAndEstado(empleado.getId(), EstadoSesionTrabajo.ABIERTA)
+                .ifPresent(abierta -> {
+                    throw new EstadoInvalidoException("Ya fichaste la entrada a las " + HORA.format(abierta.getInicio()));
+                });
+        SesionTrabajo sesion = sesionTrabajoRepository.save(SesionTrabajo.builder()
+                .empleado(empleado)
+                .inicio(LocalDateTime.now())
+                .estado(EstadoSesionTrabajo.ABIERTA)
+                .cerradaAutomaticamente(false)
+                .build());
+        log.info("Entrada fichada por el empleado ID {}", empleado.getId());
+        return aRespuesta(sesion);
+    }
+
+    @Override
+    @Transactional
+    public FichajeResponse ficharSalida(String email, String ip) {
+        Usuario empleado = buscarStaff(email);
+        validarRed(ip);
+        SesionTrabajo abierta = sesionTrabajoRepository.findFirstByEmpleadoIdAndEstado(empleado.getId(), EstadoSesionTrabajo.ABIERTA)
+                .orElseThrow(() -> new EstadoInvalidoException("No tenés una jornada abierta: fichá la entrada primero"));
+        cerrarYAcreditar(abierta, LocalDateTime.now(), false);
+        return aRespuesta(abierta);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public FichajeResponse fichajeActual(String email) {
+        Usuario empleado = buscarStaff(email);
+        return sesionTrabajoRepository.findFirstByEmpleadoIdAndEstado(empleado.getId(), EstadoSesionTrabajo.ABIERTA)
+                .map(this::aRespuesta)
+                .orElse(FichajeResponse.sinJornadaAbierta());
+    }
+
+    private Usuario buscarStaff(String email) {
+        return usuarioRepository.findByEmail(EmailUtil.normalizar(email))
+                .filter(u -> u.getRol() == RolUsuario.ADMIN || u.getRol() == RolUsuario.RECEPCIONISTA)
+                .orElseThrow(() -> new ResourceNotFoundException("Empleado no encontrado"));
+    }
+
+    private void validarRed(String ip) {
+        if (!redesPermitidas.permite(ip)) {
+            log.warn("Intento de fichaje desde una red no permitida");
+            throw new OperacionNoPermitidaException("Solo se puede fichar desde la red del club");
+        }
+    }
+
+    private FichajeResponse aRespuesta(SesionTrabajo sesion) {
+        return new FichajeResponse(sesion.getId(), sesion.getEstado() == EstadoSesionTrabajo.ABIERTA,
+                sesion.getInicio(), sesion.getFin(), sesion.getMinutosTrabajados());
     }
 
     private void cerrarYAcreditar(SesionTrabajo sesion, LocalDateTime fin, boolean automatica) {

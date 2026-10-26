@@ -3,6 +3,7 @@ package com.padel.scheduler;
 import com.padel.service.ReservaService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ public class ReservaFinalizacionScheduler {
     // Ejecutar cada 15 minutos (900.000 ms) y también al arrancar: pasa a COMPLETADA las reservas
     // confirmadas cuyo turno ya terminó, incluidas las que quedaron pendientes mientras el servidor estuvo apagado.
     @Scheduled(fixedRate = 900000)
+    @SchedulerLock(name = "finalizacionReservas", lockAtMostFor = "PT10M", lockAtLeastFor = "PT30S")
     public void completarReservasFinalizadas() {
         log.info("Iniciando tarea programada de cierre de reservas con turno finalizado");
         try {

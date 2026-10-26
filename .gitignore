@@ -29,3 +29,13 @@ target/
 # =========================
 .DS_Store
 Thumbs.db
+
+# =========================
+# Secretos y datos locales (el repo es público)
+# =========================
+.env
+.env.*
+!.env.example
+backups/
+# Postgres embebido de desarrollo (DesarrolloSinDocker)
+.pg-dev/

@@ -4,7 +4,11 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.DayOfWeek;
 import java.time.LocalTime;
+import java.util.Arrays;
+import java.util.EnumSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "franjas_horarias")
@@ -40,4 +44,22 @@ public class FranjaHoraria extends BaseEntity {
 
     @Column(name = "dias_aplicables", nullable = false)
     private String diasAplicables; // Guardado como comas: MONDAY,TUESDAY,etc.
+
+    /** Días en que rige la franja (la columna los guarda separados por coma: MONDAY,TUESDAY,...). */
+    public Set<DayOfWeek> diasAplicablesSet() {
+        Set<DayOfWeek> dias = EnumSet.noneOf(DayOfWeek.class);
+        if (diasAplicables == null || diasAplicables.isBlank()) {
+            return dias;
+        }
+        Arrays.stream(diasAplicables.split(","))
+                .map(String::trim)
+                .filter(d -> !d.isEmpty())
+                .map(DayOfWeek::valueOf)
+                .forEach(dias::add);
+        return dias;
+    }
+
+    public boolean aplicaEn(DayOfWeek dia) {
+        return diasAplicablesSet().contains(dia);
+    }
 }

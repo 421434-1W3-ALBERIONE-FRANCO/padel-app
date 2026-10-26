@@ -9,5 +9,6 @@ import org.mapstruct.Mapping;
 public interface BonoMapper {
     @Mapping(target = "usuarioId", source = "usuario.id")
     @Mapping(target = "usuarioEmail", source = "usuario.email")
+    @Mapping(target = "tipoBonoId", source = "tipoBono.id")
     BonoResponse toResponse(Bono bono);
 }

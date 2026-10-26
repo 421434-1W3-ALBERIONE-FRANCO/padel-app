@@ -32,5 +32,9 @@ public class InscripcionTorneo extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Builder.Default
     @Column(nullable = false, length = 50)
-    private EstadoInscripcion estado = EstadoInscripcion.CONFIRMADA;
+    private EstadoInscripcion estado = EstadoInscripcion.PENDIENTE_ACEPTACION;
+
+    public boolean incluyeA(Long usuarioId) {
+        return jugador1.getId().equals(usuarioId) || jugador2.getId().equals(usuarioId);
+    }
 }

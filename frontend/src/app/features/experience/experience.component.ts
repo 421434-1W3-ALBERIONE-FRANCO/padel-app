@@ -1,5 +1,4 @@
 import { AfterViewInit, Component, ElementRef, HostListener, inject, OnDestroy, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
@@ -10,8 +9,7 @@ gsap.registerPlugin(ScrollTrigger);
 
 @Component({
   selector: 'app-experience',
-  standalone: true,
-  imports: [CommonModule, PaddleSceneComponent, EcosystemCarouselComponent],
+  imports: [PaddleSceneComponent, EcosystemCarouselComponent],
   templateUrl: './experience.component.html'
 })
 export class ExperienceComponent implements AfterViewInit, OnDestroy {

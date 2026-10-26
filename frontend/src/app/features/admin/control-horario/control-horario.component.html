@@ -6,26 +6,31 @@
       <h1 class="text-2xl font-extrabold text-white font-display mb-1">Control Horario y Liquidación</h1>
       <p class="text-slate-400 text-sm mb-6">Turnos, banco de horas y liquidación de sueldos del staff.</p>
 
-      <div *ngIf="exito()" class="mb-4 p-4 rounded-xl bg-primary-950/50 border border-primary-800/50 text-primary-100 text-sm">{{ exito() }}</div>
+      @if (exito()) {
+        <div class="mb-4 p-4 rounded-xl bg-primary-950/50 border border-primary-800/50 text-primary-100 text-sm">{{ exito() }}</div>
+      }
 
       <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Empleado</label>
       <select [(ngModel)]="empleadoId" (ngModelChange)="onEmpleadoChange()" name="empleadoId"
         class="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-100 focus:outline-none focus:border-primary-500 text-xs cursor-pointer">
         <option [ngValue]="null" disabled>Seleccionar...</option>
-        <option *ngFor="let e of empleados()" [ngValue]="e.id">{{ e.nombre }} {{ e.apellido }} ({{ e.rol }})</option>
+        @for (e of empleados(); track e) {
+          <option [ngValue]="e.id">{{ e.nombre }} {{ e.apellido }} ({{ e.rol }})</option>
+        }
       </select>
     </ui-card>
 
-    <ng-container *ngIf="empleadoId">
+    @if (empleadoId) {
       <!-- Turnos -->
       <ui-card class="p-6 sm:p-8">
         <h2 class="text-lg font-bold text-white font-display mb-4">Turnos asignados</h2>
-
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <div>
             <label class="block text-[10px] font-bold text-slate-400 uppercase mb-1">Día</label>
             <select [(ngModel)]="nuevoDia" name="nuevoDia" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-2 py-2 text-slate-100 text-xs">
-              <option *ngFor="let d of diasSemana" [ngValue]="d.value">{{ d.label }}</option>
+              @for (d of diasSemana; track d) {
+                <option [ngValue]="d.value">{{ d.label }}</option>
+              }
             </select>
           </div>
           <div>
@@ -40,27 +45,32 @@
             <button (click)="agregarTurno()" class="btn-primary py-2 px-4 text-xs w-full">Agregar</button>
           </div>
         </div>
-
-        <div *ngIf="turnos().length === 0" class="text-slate-400 text-xs">Sin turnos asignados.</div>
-        <table *ngIf="turnos().length > 0" class="w-full text-sm">
-          <tbody>
-            <tr *ngFor="let t of turnos()" class="border-b border-white/5">
-              <td class="py-2 text-slate-300">{{ t.diaSemana }}</td>
-              <td class="py-2 text-slate-300">{{ t.horaInicio }} - {{ t.horaFin }}</td>
-              <td class="py-2 text-right">
-                <button (click)="eliminarTurno(t.id)" class="text-red-400 hover:text-red-300 text-xs">Eliminar</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        @if (turnos().length === 0) {
+          <div class="text-slate-400 text-xs">Sin turnos asignados.</div>
+        }
+        @if (turnos().length > 0) {
+          <table class="w-full text-sm">
+            <tbody>
+              @for (t of turnos(); track t) {
+                <tr class="border-b border-white/5">
+                  <td class="py-2 text-slate-300">{{ t.diaSemana }}</td>
+                  <td class="py-2 text-slate-300">{{ t.horaInicio }} - {{ t.horaFin }}</td>
+                  <td class="py-2 text-right">
+                    <button (click)="eliminarTurno(t.id)" class="text-red-400 hover:text-red-300 text-xs">Eliminar</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
       </ui-card>
-
       <!-- Banco de horas -->
-      <ui-card class="p-6 sm:p-8" *ngIf="banco() as b">
-        <h2 class="text-lg font-bold text-white font-display mb-2">Banco de Horas</h2>
-        <p class="text-slate-400 text-sm">Saldo acumulado: <span class="text-accent-400 font-bold font-display">{{ b.saldoMinutos }} min</span></p>
-      </ui-card>
-
+      @if (banco(); as b) {
+        <ui-card class="p-6 sm:p-8">
+          <h2 class="text-lg font-bold text-white font-display mb-2">Banco de Horas</h2>
+          <p class="text-slate-400 text-sm">Saldo acumulado: <span class="text-accent-400 font-bold font-display">{{ b.saldoMinutos }} min</span></p>
+        </ui-card>
+      }
       <!-- Liquidación -->
       <ui-card class="p-6 sm:p-8">
         <h2 class="text-lg font-bold text-white font-display mb-4">Liquidar Sueldo</h2>
@@ -77,32 +87,38 @@
             <button (click)="liquidar()" class="btn-primary py-2 px-4 text-xs w-full">Generar Liquidación</button>
           </div>
         </div>
-
-        <div *ngIf="ultimaLiquidacion() as liq" class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 mb-4 text-sm space-y-1">
-          <p class="text-slate-300">Minutos trabajados: <span class="font-bold text-white">{{ liq.totalMinutosTrabajados }}</span></p>
-          <p class="text-slate-300">Banco de horas liquidado: <span class="font-bold text-white">{{ liq.totalMinutosBancoHoras }} min</span></p>
-          <p class="text-slate-300">Comisiones: <span class="font-bold text-emerald-400">${{ liq.totalComisiones | number:'1.2-2' }}</span></p>
-        </div>
-
+        @if (ultimaLiquidacion(); as liq) {
+          <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 mb-4 text-sm space-y-1">
+            <p class="text-slate-300">Minutos trabajados: <span class="font-bold text-white">{{ liq.totalMinutosTrabajados }}</span></p>
+            <p class="text-slate-300">Banco de horas liquidado: <span class="font-bold text-white">{{ liq.totalMinutosBancoHoras }} min</span></p>
+            <p class="text-slate-300">Comisiones: <span class="font-bold text-emerald-400">${{ liq.totalComisiones | number:'1.2-2' }}</span></p>
+          </div>
+        }
         <h3 class="text-sm font-bold text-slate-300 uppercase tracking-wider mt-6 mb-2">Historial</h3>
-        <div *ngIf="liquidaciones().length === 0" class="text-slate-400 text-xs">Sin liquidaciones previas.</div>
-        <table *ngIf="liquidaciones().length > 0" class="w-full text-xs">
-          <thead>
-            <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5">
-              <th class="pb-2">Período</th><th class="pb-2 text-right">Min. trab.</th><th class="pb-2 text-right">Banco</th><th class="pb-2 text-right">Comisiones</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let l of liquidaciones()" class="border-b border-white/5">
-              <td class="py-2 text-slate-300">{{ l.periodoDesde }} → {{ l.periodoHasta }}</td>
-              <td class="py-2 text-right text-slate-300">{{ l.totalMinutosTrabajados }}</td>
-              <td class="py-2 text-right text-slate-300">{{ l.totalMinutosBancoHoras }}</td>
-              <td class="py-2 text-right text-emerald-400">${{ l.totalComisiones | number:'1.2-2' }}</td>
-            </tr>
-          </tbody>
-        </table>
+        @if (liquidaciones().length === 0) {
+          <div class="text-slate-400 text-xs">Sin liquidaciones previas.</div>
+        }
+        @if (liquidaciones().length > 0) {
+          <table class="w-full text-xs">
+            <thead>
+              <tr class="text-left text-[10px] uppercase tracking-wider text-slate-400 border-b border-white/5">
+                <th class="pb-2">Período</th><th class="pb-2 text-right">Min. trab.</th><th class="pb-2 text-right">Banco</th><th class="pb-2 text-right">Comisiones</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of liquidaciones(); track l) {
+                <tr class="border-b border-white/5">
+                  <td class="py-2 text-slate-300">{{ l.periodoDesde }} → {{ l.periodoHasta }}</td>
+                  <td class="py-2 text-right text-slate-300">{{ l.totalMinutosTrabajados }}</td>
+                  <td class="py-2 text-right text-slate-300">{{ l.totalMinutosBancoHoras }}</td>
+                  <td class="py-2 text-right text-emerald-400">${{ l.totalComisiones | number:'1.2-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
       </ui-card>
-    </ng-container>
+    }
 
     <a routerLink="/admin" class="btn-secondary py-2.5 px-5 text-xs inline-block">Volver al Panel</a>
   </main>

@@ -9,7 +9,6 @@ import { ReservaResponse } from '../../../shared/models/reserva.model';
 
 @Component({
   selector: 'app-checkout',
-  standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './checkout.component.html',
   styleUrls: ['./checkout.component.css']

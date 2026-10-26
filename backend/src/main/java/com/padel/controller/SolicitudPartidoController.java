@@ -42,8 +42,9 @@ public class SolicitudPartidoController {
     public ResponseEntity<List<SolicitudPartidoResponse>> buscar(
             @RequestParam(required = false) TipoSolicitud tipoSolicitud,
             @RequestParam(required = false) CategoriaJugador categoria,
-            @RequestParam(required = false) EstadoSolicitud estado) {
-        return ResponseEntity.ok(solicitudPartidoService.buscar(tipoSolicitud, categoria, estado));
+            @RequestParam(required = false) EstadoSolicitud estado,
+            Principal principal) {
+        return ResponseEntity.ok(solicitudPartidoService.buscar(tipoSolicitud, categoria, estado, principal.getName()));
     }
 
     @GetMapping("/mis-solicitudes")
@@ -60,8 +61,8 @@ public class SolicitudPartidoController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener solicitud por ID", description = "Retorna el detalle de una solicitud junto a sus postulaciones.")
-    public ResponseEntity<SolicitudPartidoResponse> obtenerPorId(@PathVariable Long id) {
-        return ResponseEntity.ok(solicitudPartidoService.obtenerPorId(id));
+    public ResponseEntity<SolicitudPartidoResponse> obtenerPorId(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(solicitudPartidoService.obtenerPorId(id, principal.getName()));
     }
 
     @DeleteMapping("/{id}")

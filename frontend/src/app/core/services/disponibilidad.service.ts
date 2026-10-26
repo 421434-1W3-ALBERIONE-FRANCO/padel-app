@@ -3,7 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { Observable, Subject } from 'rxjs';
 import { Client } from '@stomp/stompjs';
 import { DisponibilidadResponse } from '../../shared/models/disponibilidad.model';
-import { MOCK_API_ENABLED } from '../mock/mock-config';
 import { environment } from '../../../environments/environment';
 
 @Injectable({
@@ -21,7 +20,7 @@ export class DisponibilidadService {
   updates$ = this.updatesSubject.asObservable();
 
   constructor() {
-    if (!MOCK_API_ENABLED) this.initWebSocket();
+    this.initWebSocket();
   }
 
   getDisponibilidad(canchaId: number, fecha: string): Observable<DisponibilidadResponse> {
@@ -36,14 +35,10 @@ export class DisponibilidadService {
         brokerURL: this.WS_URL,
         reconnectDelay: 5000,
         heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
-        debug: (str) => {
-          if (!environment.production) console.log('STOMP DEBUG:', str);
-        }
+        heartbeatOutgoing: 4000
       });
 
       this.stompClient.onConnect = () => {
-        if (!environment.production) console.log('WebSocket connected successfully');
         this.stompClient?.subscribe('/topic/disponibilidad', (message) => {
           try {
             const payload = JSON.parse(message.body);

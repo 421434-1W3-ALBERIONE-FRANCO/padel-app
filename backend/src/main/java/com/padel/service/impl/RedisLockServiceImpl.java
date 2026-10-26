@@ -1,9 +1,11 @@
 package com.padel.service.impl;
 
-import com.padel.repository.UsuarioRepository;
 import com.padel.service.RedisLockService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
@@ -11,50 +13,57 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+/**
+ * Lock "blando" del horario mientras se paga. Es una optimización de UX: la garantía contra reservas
+ * superpuestas está en la base (lock de la cancha + restricción EXCLUDE). Por eso, si Redis no responde,
+ * se sigue sin él en lugar de dejar al club sin poder reservar ni ver la disponibilidad.
+ */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RedisLockServiceImpl implements RedisLockService {
 
+    private static final Duration TTL = Duration.ofSeconds(600);
+
     private final StringRedisTemplate redisTemplate;
-    private final UsuarioRepository usuarioRepository;
 
     @Override
     public boolean acquireLock(Long canchaId, LocalDate fecha, LocalTime hora) {
-        String key = buildKey(canchaId, fecha, hora);
-        String userId = getUserIdOrSystem();
-        Boolean success = redisTemplate.opsForValue().setIfAbsent(key, userId, Duration.ofSeconds(600));
-        return success != null && success;
+        try {
+            Boolean ok = redisTemplate.opsForValue().setIfAbsent(buildKey(canchaId, fecha, hora), duenoDelLock(), TTL);
+            return ok == null || ok;
+        } catch (DataAccessException e) {
+            log.warn("Redis no disponible al tomar el lock del horario; se continúa con el control de la base: {}", e.getMessage());
+            return true;
+        }
     }
 
     @Override
     public void releaseLock(Long canchaId, LocalDate fecha, LocalTime hora) {
-        String key = buildKey(canchaId, fecha, hora);
-        redisTemplate.delete(key);
+        try {
+            redisTemplate.delete(buildKey(canchaId, fecha, hora));
+        } catch (DataAccessException e) {
+            log.warn("Redis no disponible al liberar el lock del horario (vence solo a los {} s): {}", TTL.toSeconds(), e.getMessage());
+        }
     }
 
     @Override
     public boolean hasLock(Long canchaId, LocalDate fecha, LocalTime hora) {
-        String key = buildKey(canchaId, fecha, hora);
-        Boolean exists = redisTemplate.hasKey(key);
-        return exists != null && exists;
+        try {
+            return Boolean.TRUE.equals(redisTemplate.hasKey(buildKey(canchaId, fecha, hora)));
+        } catch (DataAccessException e) {
+            return false;
+        }
     }
 
     private String buildKey(Long canchaId, LocalDate fecha, LocalTime hora) {
-        String fechaStr = fecha.toString();
-        String horaStr = String.format("%02d:%02d", hora.getHour(), hora.getMinute());
-        return String.format("padelapp:lock:cancha:%d:fecha:%s:hora:%s", canchaId, fechaStr, horaStr);
+        return String.format("padelapp:lock:cancha:%d:fecha:%s:hora:%02d:%02d", canchaId, fecha, hora.getHour(), hora.getMinute());
     }
 
-    private String getUserIdOrSystem() {
-        if (SecurityContextHolder.getContext().getAuthentication() == null) {
-            return "SYSTEM";
-        }
-        String email = SecurityContextHolder.getContext().getAuthentication().getName();
-        if (email == null || "anonymousUser".equals(email)) {
-            return "SYSTEM";
-        }
-        return usuarioRepository.findByEmail(email)
-                .map(u -> u.getId().toString())
-                .orElse("SYSTEM");
+    // Antes se buscaba el usuario en la base solo para guardar su id como valor del lock; alcanza con el nombre
+    // del principal (el valor no se usa para decidir nada).
+    private String duenoDelLock() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth == null || auth.getName() == null ? "SYSTEM" : String.valueOf(auth.getName().hashCode());
     }
 }

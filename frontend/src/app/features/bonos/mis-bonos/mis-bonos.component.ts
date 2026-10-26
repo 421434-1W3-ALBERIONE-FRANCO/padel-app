@@ -7,7 +7,6 @@ import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-mis-bonos',
-  standalone: true,
   imports: [CommonModule, RouterModule],
   templateUrl: './mis-bonos.component.html',
   styleUrls: ['./mis-bonos.component.css']

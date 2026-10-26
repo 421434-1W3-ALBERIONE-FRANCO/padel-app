@@ -1,177 +1,210 @@
-<div *ngIf="tabla().length === 0" class="bg-surface-1/40 border border-white/5 rounded-3xl p-8 text-center text-sm text-slate-500">
-  La tabla aparece cuando se genere el fixture.
-</div>
+@if (tabla().length === 0) {
+  <div class="bg-surface-1/40 border border-white/5 rounded-3xl p-8 text-center text-sm text-slate-500">
+    La tabla aparece cuando se genere el fixture.
+  </div>
+}
 
-<div *ngIf="tabla().length > 0" class="space-y-8">
-
-  <!-- Tabla de posiciones -->
-  <section>
-    <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
-      <div>
-        <h3 class="font-display text-lg font-bold text-white">Tabla de posiciones</h3>
-        <p class="text-xs text-slate-400">{{ jugados().length }} de {{ partidos().length }} partidos jugados</p>
+@if (tabla().length > 0) {
+  <div class="space-y-8">
+    <!-- Tabla de posiciones -->
+    <section>
+      <div class="flex flex-wrap items-end justify-between gap-3 mb-3">
+        <div>
+          <h3 class="font-display text-lg font-bold text-white">Tabla de posiciones</h3>
+          <p class="text-xs text-slate-400">{{ jugados().length }} de {{ partidos().length }} partidos jugados</p>
+        </div>
+        <div class="w-full sm:w-56 h-1.5 rounded-full bg-white/5 overflow-hidden" role="progressbar"
+          [attr.aria-valuenow]="progreso()" aria-valuemin="0" aria-valuemax="100" aria-label="Partidos jugados">
+          <div class="h-full rounded-full bg-gradient-to-r from-primary-500 to-turquoise-400 transition-all" [style.width.%]="progreso()"></div>
+        </div>
       </div>
-      <div class="w-full sm:w-56 h-1.5 rounded-full bg-white/5 overflow-hidden" role="progressbar"
-           [attr.aria-valuenow]="progreso()" aria-valuemin="0" aria-valuemax="100" aria-label="Partidos jugados">
-        <div class="h-full rounded-full bg-gradient-to-r from-primary-500 to-turquoise-400 transition-all" [style.width.%]="progreso()"></div>
+      <div class="rounded-3xl border border-white/5 bg-surface-1/40 overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 border-b border-white/5">
+                <th scope="col" class="py-3 pl-4 pr-2 text-left w-10">#</th>
+                <th scope="col" class="py-3 px-2 text-left">Pareja</th>
+                <th scope="col" class="py-3 px-2 text-center" title="Partidos jugados">PJ</th>
+                <th scope="col" class="py-3 px-2 text-center hidden sm:table-cell" title="Partidos ganados">PG</th>
+                <th scope="col" class="py-3 px-2 text-center hidden sm:table-cell" title="Partidos perdidos">PP</th>
+                <th scope="col" class="py-3 px-2 text-center hidden md:table-cell" title="Sets a favor y en contra">Sets</th>
+                <th scope="col" class="py-3 px-2 text-center" title="Diferencia de sets">Dif</th>
+                <th scope="col" class="py-3 px-2 text-center" title="Puntos">Pts</th>
+                <th scope="col" class="py-3 pl-2 pr-4 text-left hidden sm:table-cell">Racha</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (fila of tabla(); track porInscripcion($index, fila)) {
+                <tr class="border-b border-white/5 last:border-0" [ngClass]="claseFila(fila)">
+                  <td class="py-3 pl-4 pr-2">
+                    <span class="inline-flex w-7 h-7 items-center justify-center rounded-lg border text-xs font-bold font-display" [ngClass]="clasePosicion(fila)">
+                      {{ fila.posicion }}
+                    </span>
+                  </td>
+                  <td class="py-3 px-2 max-w-0 w-full">
+                    <div class="flex items-center gap-2 min-w-0">
+                      @if (fila.posicion === 1 && finalizado()) {
+                        <svg class="w-4 h-4 shrink-0 text-amber-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-label="Campeones">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8m-4-4v4m-5-17h10v5a5 5 0 01-10 0V4zm10 1h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/>
+                        </svg>
+                      }
+                      <span class="truncate font-semibold text-slate-100" [title]="fila.nombres">{{ abreviar(fila.nombres) }}</span>
+                      @if (esMiFila(fila)) {
+                        <span class="shrink-0 px-1.5 py-0.5 rounded-md bg-accent-500/20 text-accent-300 text-[9px] font-bold uppercase tracking-wider">Vos</span>
+                      }
+                    </div>
+                  </td>
+                  <td class="py-3 px-2 text-center tabular-nums text-slate-300">{{ fila.jugados }}</td>
+                  <td class="py-3 px-2 text-center tabular-nums text-slate-300 hidden sm:table-cell">{{ fila.ganados }}</td>
+                  <td class="py-3 px-2 text-center tabular-nums text-slate-400 hidden sm:table-cell">{{ fila.perdidos }}</td>
+                  <td class="py-3 px-2 text-center tabular-nums text-slate-400 hidden md:table-cell">{{ fila.setsFavor }}:{{ fila.setsContra }}</td>
+                  <td class="py-3 px-2 text-center tabular-nums"
+                    [ngClass]="fila.diferenciaSets > 0 ? 'text-primary-300' : fila.diferenciaSets < 0 ? 'text-red-300/80' : 'text-slate-400'">
+                    {{ fila.diferenciaSets > 0 ? '+' : '' }}{{ fila.diferenciaSets }}
+                  </td>
+                  <td class="py-3 px-2 text-center font-display text-base font-bold tabular-nums text-white">{{ fila.puntos }}</td>
+                  <td class="py-3 pl-2 pr-4 hidden sm:table-cell">
+                    <div class="flex items-center gap-1" [attr.aria-label]="'Últimos resultados: ' + (fila.racha.join(' ') || 'sin partidos')">
+                      @for (r of fila.racha; track r) {
+                        <span
+                          class="w-5 h-5 rounded-md text-[10px] font-bold inline-flex items-center justify-center"
+                        [ngClass]="r === 'G' ? 'bg-primary-500/20 text-primary-300' : 'bg-red-500/15 text-red-300/80'">{{ r }}</span>
+                      }
+                      @if (fila.racha.length === 0) {
+                        <span class="text-xs text-slate-600">—</span>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="text-[11px] text-slate-500 px-4 py-3 border-t border-white/5">
+          Victoria {{ puntosVictoria }} pts y derrota {{ puntosDerrota }} pt, igual que el ranking del club. Si hay empate en puntos
+          define la diferencia de sets, después los sets a favor y, entre dos parejas, el partido que jugaron entre ellas.
+        </p>
       </div>
-    </div>
-
-    <div class="rounded-3xl border border-white/5 bg-surface-1/40 overflow-hidden">
-      <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+    </section>
+    <!-- Matriz de todos contra todos -->
+    <section>
+      <h3 class="font-display text-lg font-bold text-white">Todos contra todos</h3>
+      <p class="text-xs text-slate-400 mb-3">Cada fila muestra los sets de esa pareja contra la de la columna.</p>
+      <div class="overflow-x-auto overscroll-x-contain rounded-3xl border border-white/5 bg-surface-1/40" role="region" aria-label="Matriz de resultados" tabindex="0">
+        <table class="text-xs border-separate border-spacing-1 p-2">
           <thead>
-            <tr class="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500 border-b border-white/5">
-              <th scope="col" class="py-3 pl-4 pr-2 text-left w-10">#</th>
-              <th scope="col" class="py-3 px-2 text-left">Pareja</th>
-              <th scope="col" class="py-3 px-2 text-center" title="Partidos jugados">PJ</th>
-              <th scope="col" class="py-3 px-2 text-center hidden sm:table-cell" title="Partidos ganados">PG</th>
-              <th scope="col" class="py-3 px-2 text-center hidden sm:table-cell" title="Partidos perdidos">PP</th>
-              <th scope="col" class="py-3 px-2 text-center hidden md:table-cell" title="Sets a favor y en contra">Sets</th>
-              <th scope="col" class="py-3 px-2 text-center" title="Diferencia de sets">Dif</th>
-              <th scope="col" class="py-3 px-2 text-center" title="Puntos">Pts</th>
-              <th scope="col" class="py-3 pl-2 pr-4 text-left hidden sm:table-cell">Racha</th>
+            <tr>
+              <th scope="col" class="sticky left-0 z-10 bg-surface-1 min-w-[8.5rem]"><span class="sr-only">Pareja</span></th>
+              @for (columna of tabla(); track porInscripcion($index, columna)) {
+                <th scope="col"
+                  class="w-11 h-8 text-center font-display font-bold" [title]="columna.nombres"
+                  [ngClass]="esMiFila(columna) ? 'text-accent-300' : 'text-slate-400'">
+                  {{ columna.posicion }}
+                </th>
+              }
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let fila of tabla(); trackBy: porInscripcion" class="border-b border-white/5 last:border-0" [ngClass]="claseFila(fila)">
-              <td class="py-3 pl-4 pr-2">
-                <span class="inline-flex w-7 h-7 items-center justify-center rounded-lg border text-xs font-bold font-display" [ngClass]="clasePosicion(fila)">
-                  {{ fila.posicion }}
-                </span>
-              </td>
-              <td class="py-3 px-2 max-w-0 w-full">
-                <div class="flex items-center gap-2 min-w-0">
-                  <svg *ngIf="fila.posicion === 1 && finalizado()" class="w-4 h-4 shrink-0 text-amber-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" aria-label="Campeones">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8 21h8m-4-4v4m-5-17h10v5a5 5 0 01-10 0V4zm10 1h3v2a3 3 0 01-3 3M7 5H4v2a3 3 0 003 3"/>
-                  </svg>
-                  <span class="truncate font-semibold text-slate-100" [title]="fila.nombres">{{ abreviar(fila.nombres) }}</span>
-                  <span *ngIf="esMiFila(fila)" class="shrink-0 px-1.5 py-0.5 rounded-md bg-accent-500/20 text-accent-300 text-[9px] font-bold uppercase tracking-wider">Vos</span>
-                </div>
-              </td>
-              <td class="py-3 px-2 text-center tabular-nums text-slate-300">{{ fila.jugados }}</td>
-              <td class="py-3 px-2 text-center tabular-nums text-slate-300 hidden sm:table-cell">{{ fila.ganados }}</td>
-              <td class="py-3 px-2 text-center tabular-nums text-slate-400 hidden sm:table-cell">{{ fila.perdidos }}</td>
-              <td class="py-3 px-2 text-center tabular-nums text-slate-400 hidden md:table-cell">{{ fila.setsFavor }}:{{ fila.setsContra }}</td>
-              <td class="py-3 px-2 text-center tabular-nums"
-                  [ngClass]="fila.diferenciaSets > 0 ? 'text-primary-300' : fila.diferenciaSets < 0 ? 'text-red-300/80' : 'text-slate-400'">
-                {{ fila.diferenciaSets > 0 ? '+' : '' }}{{ fila.diferenciaSets }}
-              </td>
-              <td class="py-3 px-2 text-center font-display text-base font-bold tabular-nums text-white">{{ fila.puntos }}</td>
-              <td class="py-3 pl-2 pr-4 hidden sm:table-cell">
-                <div class="flex items-center gap-1" [attr.aria-label]="'Últimos resultados: ' + (fila.racha.join(' ') || 'sin partidos')">
-                  <span *ngFor="let r of fila.racha"
-                        class="w-5 h-5 rounded-md text-[10px] font-bold inline-flex items-center justify-center"
-                        [ngClass]="r === 'G' ? 'bg-primary-500/20 text-primary-300' : 'bg-red-500/15 text-red-300/80'">{{ r }}</span>
-                  <span *ngIf="fila.racha.length === 0" class="text-xs text-slate-600">—</span>
-                </div>
-              </td>
-            </tr>
+            @for (fila of tabla(); track porInscripcion(i, fila); let i = $index) {
+              <tr>
+                <th scope="row" class="sticky left-0 z-10 bg-surface-1 pr-2 text-left font-normal">
+                  <div class="flex items-center gap-2 max-w-[8.5rem]">
+                    <span class="font-display font-bold" [ngClass]="esMiFila(fila) ? 'text-accent-300' : 'text-slate-400'">{{ fila.posicion }}</span>
+                    <span class="truncate" [ngClass]="esMiFila(fila) ? 'text-white font-semibold' : 'text-slate-300'" [title]="fila.nombres">{{ abreviar(fila.nombres) }}</span>
+                  </div>
+                </th>
+                @for (celda of matriz()[i]; track celda; let j = $index) {
+                  <td
+                    class="w-11 h-9 rounded-lg text-center tabular-nums"
+                    [ngClass]="claseCelda(celda)" [title]="tituloCelda(fila, tabla()[j], celda)">
+                    @switch (celda.tipo) {
+                      @case ('pendiente') {
+                        <span aria-label="Por jugar">·</span>
+                      }
+                      @case ('sin-partido') {
+                        <span>—</span>
+                      }
+                      @case ('propia') {
+                        <span></span>
+                      }
+                      @default {
+                        <span>{{ celda.texto }}</span>
+                      }
+                    }
+                  </td>
+                }
+              </tr>
+            }
           </tbody>
         </table>
       </div>
-      <p class="text-[11px] text-slate-500 px-4 py-3 border-t border-white/5">
-        Victoria {{ puntosVictoria }} pts y derrota {{ puntosDerrota }} pt, igual que el ranking del club. Si hay empate en puntos
-        define la diferencia de sets, después los sets a favor y, entre dos parejas, el partido que jugaron entre ellas.
-      </p>
-    </div>
-  </section>
-
-  <!-- Matriz de todos contra todos -->
-  <section>
-    <h3 class="font-display text-lg font-bold text-white">Todos contra todos</h3>
-    <p class="text-xs text-slate-400 mb-3">Cada fila muestra los sets de esa pareja contra la de la columna.</p>
-
-    <div class="overflow-x-auto overscroll-x-contain rounded-3xl border border-white/5 bg-surface-1/40" role="region" aria-label="Matriz de resultados" tabindex="0">
-      <table class="text-xs border-separate border-spacing-1 p-2">
-        <thead>
-          <tr>
-            <th scope="col" class="sticky left-0 z-10 bg-surface-1 min-w-[8.5rem]"><span class="sr-only">Pareja</span></th>
-            <th *ngFor="let columna of tabla(); trackBy: porInscripcion" scope="col"
-                class="w-11 h-8 text-center font-display font-bold" [title]="columna.nombres"
-                [ngClass]="esMiFila(columna) ? 'text-accent-300' : 'text-slate-400'">
-              {{ columna.posicion }}
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let fila of tabla(); let i = index; trackBy: porInscripcion">
-            <th scope="row" class="sticky left-0 z-10 bg-surface-1 pr-2 text-left font-normal">
-              <div class="flex items-center gap-2 max-w-[8.5rem]">
-                <span class="font-display font-bold" [ngClass]="esMiFila(fila) ? 'text-accent-300' : 'text-slate-400'">{{ fila.posicion }}</span>
-                <span class="truncate" [ngClass]="esMiFila(fila) ? 'text-white font-semibold' : 'text-slate-300'" [title]="fila.nombres">{{ abreviar(fila.nombres) }}</span>
+      <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[11px] text-slate-400">
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-primary-500/30"></span> Ganó</span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500/25"></span> Perdió</span>
+        <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-white/10 text-[9px] leading-none text-center text-slate-500">·</span> Por jugar</span>
+      </div>
+    </section>
+    <!-- Partidos -->
+    <div class="grid gap-6 lg:grid-cols-2">
+      <section>
+        <h3 class="font-display text-lg font-bold text-white mb-3">Por jugar <span class="text-sm font-semibold text-slate-500">({{ pendientes().length }})</span></h3>
+        @if (pendientes().length === 0) {
+          <div class="rounded-2xl border border-white/5 bg-surface-1/40 p-5 text-sm text-slate-500">
+            No quedan partidos por jugar.
+          </div>
+        }
+        <ul class="space-y-2">
+          @for (p of pendientes(); track porPartido($index, p)) {
+            <li
+              class="rounded-2xl border px-4 py-3 flex items-center gap-3"
+              [ngClass]="esMio(p) ? 'border-accent-400/40 bg-accent-500/[0.06]' : 'border-white/5 bg-surface-1/40'">
+              <div class="min-w-0 flex-1 text-sm">
+                <p class="truncate text-slate-200" [title]="p.inscripcion1Nombres">{{ abreviar(p.inscripcion1Nombres) }}</p>
+                <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 my-0.5">contra</p>
+                <p class="truncate text-slate-200" [title]="p.inscripcion2Nombres">{{ abreviar(p.inscripcion2Nombres) }}</p>
               </div>
-            </th>
-            <td *ngFor="let celda of matriz()[i]; let j = index"
-                class="w-11 h-9 rounded-lg text-center tabular-nums"
-                [ngClass]="claseCelda(celda)" [title]="tituloCelda(fila, tabla()[j], celda)">
-              <ng-container [ngSwitch]="celda.tipo">
-                <span *ngSwitchCase="'pendiente'" aria-label="Por jugar">·</span>
-                <span *ngSwitchCase="'sin-partido'">—</span>
-                <span *ngSwitchCase="'propia'"></span>
-                <span *ngSwitchDefault>{{ celda.texto }}</span>
-              </ng-container>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div class="flex flex-wrap items-center gap-x-5 gap-y-2 mt-3 text-[11px] text-slate-400">
-      <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-primary-500/30"></span> Ganó</span>
-      <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-red-500/25"></span> Perdió</span>
-      <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded border border-white/10 text-[9px] leading-none text-center text-slate-500">·</span> Por jugar</span>
-    </div>
-  </section>
-
-  <!-- Partidos -->
-  <div class="grid gap-6 lg:grid-cols-2">
-    <section>
-      <h3 class="font-display text-lg font-bold text-white mb-3">Por jugar <span class="text-sm font-semibold text-slate-500">({{ pendientes().length }})</span></h3>
-      <div *ngIf="pendientes().length === 0" class="rounded-2xl border border-white/5 bg-surface-1/40 p-5 text-sm text-slate-500">
-        No quedan partidos por jugar.
-      </div>
-      <ul class="space-y-2">
-        <li *ngFor="let p of pendientes(); trackBy: porPartido"
-            class="rounded-2xl border px-4 py-3 flex items-center gap-3"
-            [ngClass]="esMio(p) ? 'border-accent-400/40 bg-accent-500/[0.06]' : 'border-white/5 bg-surface-1/40'">
-          <div class="min-w-0 flex-1 text-sm">
-            <p class="truncate text-slate-200" [title]="p.inscripcion1Nombres">{{ abreviar(p.inscripcion1Nombres) }}</p>
-            <p class="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-600 my-0.5">contra</p>
-            <p class="truncate text-slate-200" [title]="p.inscripcion2Nombres">{{ abreviar(p.inscripcion2Nombres) }}</p>
-          </div>
-          <span *ngIf="esMio(p) && !puedeCargarResultados()" class="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent-300">Tu partido</span>
-          <button *ngIf="puedeCargarResultados()" type="button" (click)="cargarResultado.emit(p)"
+              @if (esMio(p) && !puedeCargarResultados()) {
+                <span class="shrink-0 text-[10px] font-bold uppercase tracking-wider text-accent-300">Tu partido</span>
+              }
+              @if (puedeCargarResultados()) {
+                <button type="button" (click)="cargarResultado.emit(p)"
                   class="shrink-0 text-xs font-bold px-3 py-2 rounded-xl border border-primary-500/40 text-primary-300 hover:bg-primary-500/10 transition">
-            Cargar resultado
-          </button>
-        </li>
-      </ul>
-    </section>
-
-    <section>
-      <h3 class="font-display text-lg font-bold text-white mb-3">Resultados <span class="text-sm font-semibold text-slate-500">({{ jugados().length }})</span></h3>
-      <div *ngIf="jugados().length === 0" class="rounded-2xl border border-white/5 bg-surface-1/40 p-5 text-sm text-slate-500">
-        Todavía no se cargó ningún resultado.
-      </div>
-      <ul class="space-y-2">
-        <li *ngFor="let p of jugados(); trackBy: porPartido"
-            class="rounded-2xl border px-4 py-3 text-sm"
-            [ngClass]="esMio(p) ? 'border-accent-400/30 bg-accent-500/[0.04]' : 'border-white/5 bg-surface-1/40'">
-          <div class="flex items-center gap-3">
-            <span class="truncate flex-1" [ngClass]="ganador(p, p.inscripcion1Id) ? 'text-white font-semibold' : 'text-slate-500'" [title]="p.inscripcion1Nombres">
-              {{ abreviar(p.inscripcion1Nombres) }}
-            </span>
-            <span class="font-display font-bold tabular-nums" [ngClass]="ganador(p, p.inscripcion1Id) ? 'text-primary-300' : 'text-slate-500'">{{ p.setsPareja1 }}</span>
+                  Cargar resultado
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      </section>
+      <section>
+        <h3 class="font-display text-lg font-bold text-white mb-3">Resultados <span class="text-sm font-semibold text-slate-500">({{ jugados().length }})</span></h3>
+        @if (jugados().length === 0) {
+          <div class="rounded-2xl border border-white/5 bg-surface-1/40 p-5 text-sm text-slate-500">
+            Todavía no se cargó ningún resultado.
           </div>
-          <div class="flex items-center gap-3 mt-1">
-            <span class="truncate flex-1" [ngClass]="ganador(p, p.inscripcion2Id) ? 'text-white font-semibold' : 'text-slate-500'" [title]="p.inscripcion2Nombres">
-              {{ abreviar(p.inscripcion2Nombres) }}
-            </span>
-            <span class="font-display font-bold tabular-nums" [ngClass]="ganador(p, p.inscripcion2Id) ? 'text-primary-300' : 'text-slate-500'">{{ p.setsPareja2 }}</span>
-          </div>
-        </li>
-      </ul>
-    </section>
+        }
+        <ul class="space-y-2">
+          @for (p of jugados(); track porPartido($index, p)) {
+            <li
+              class="rounded-2xl border px-4 py-3 text-sm"
+              [ngClass]="esMio(p) ? 'border-accent-400/30 bg-accent-500/[0.04]' : 'border-white/5 bg-surface-1/40'">
+              <div class="flex items-center gap-3">
+                <span class="truncate flex-1" [ngClass]="ganador(p, p.inscripcion1Id) ? 'text-white font-semibold' : 'text-slate-500'" [title]="p.inscripcion1Nombres">
+                  {{ abreviar(p.inscripcion1Nombres) }}
+                </span>
+                <span class="font-display font-bold tabular-nums" [ngClass]="ganador(p, p.inscripcion1Id) ? 'text-primary-300' : 'text-slate-500'">{{ p.setsPareja1 }}</span>
+              </div>
+              <div class="flex items-center gap-3 mt-1">
+                <span class="truncate flex-1" [ngClass]="ganador(p, p.inscripcion2Id) ? 'text-white font-semibold' : 'text-slate-500'" [title]="p.inscripcion2Nombres">
+                  {{ abreviar(p.inscripcion2Nombres) }}
+                </span>
+                <span class="font-display font-bold tabular-nums" [ngClass]="ganador(p, p.inscripcion2Id) ? 'text-primary-300' : 'text-slate-500'">{{ p.setsPareja2 }}</span>
+              </div>
+            </li>
+          }
+        </ul>
+      </section>
+    </div>
   </div>
-</div>
+}

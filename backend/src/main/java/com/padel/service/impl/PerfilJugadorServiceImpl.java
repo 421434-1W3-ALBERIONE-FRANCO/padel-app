@@ -49,7 +49,7 @@ public class PerfilJugadorServiceImpl implements PerfilJugadorService {
                 perfil.getDisponibilidad().add(new DisponibilidadJugador(b.diaSemana(), b.bloque())));
 
         PerfilJugador guardado = perfilJugadorRepository.save(perfil);
-        log.info("Perfil de jugador guardado para {} ({} horarios disponibles)", email, guardado.getDisponibilidad().size());
+        log.info("Perfil de jugador ID {} guardado ({} horarios disponibles)", guardado.getId(), guardado.getDisponibilidad().size());
         return matchMapper.toPerfilResponse(guardado);
     }
 

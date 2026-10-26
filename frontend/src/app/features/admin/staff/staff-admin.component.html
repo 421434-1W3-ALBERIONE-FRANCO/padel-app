@@ -11,80 +11,99 @@
   </div>
 
   <!-- Formulario de alta -->
-  <form *ngIf="mostrarForm()" [formGroup]="form" (ngSubmit)="crear()"
-        class="mb-8 p-5 rounded-2xl bg-surface-1/40 border border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <div>
-      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nombre</label>
-      <input formControlName="nombre" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-      <span *ngIf="invalido('nombre')" class="text-red-400 text-xs mt-1 block">Requerido</span>
-    </div>
-    <div>
-      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Apellido</label>
-      <input formControlName="apellido" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-      <span *ngIf="invalido('apellido')" class="text-red-400 text-xs mt-1 block">Requerido</span>
-    </div>
-    <div>
-      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
-      <input type="email" formControlName="email" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-      <span *ngIf="invalido('email')" class="text-red-400 text-xs mt-1 block">Email inválido</span>
-    </div>
-    <div>
-      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Teléfono</label>
-      <input formControlName="telefono" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-    </div>
-    <div>
-      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Contraseña</label>
-      <input type="password" formControlName="password" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
-      <span *ngIf="invalido('password')" class="text-red-400 text-xs mt-1 block">Mínimo 6 caracteres</span>
-    </div>
-    <div>
-      <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Rol</label>
-      <select formControlName="rol" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none">
-        <option value="RECEPCIONISTA">Recepcionista</option>
-        <option value="ADMIN">Administrador</option>
-      </select>
-    </div>
-    <div class="sm:col-span-2 flex justify-end">
-      <button type="submit" [disabled]="guardando()" class="btn-primary py-2.5 px-6 text-sm">
-        {{ guardando() ? 'Creando...' : 'Crear staff' }}
-      </button>
-    </div>
-  </form>
-
-  <div *ngIf="cargando()" class="text-slate-400 text-sm">Cargando staff...</div>
-
-  <div *ngIf="!cargando()" class="space-y-6">
-    <!-- Recepcionistas -->
-    <section>
-      <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Recepcionistas ({{ recepcionistas().length }})</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div *ngFor="let u of recepcionistas()" class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 flex items-center justify-center font-bold font-display shrink-0">
-            {{ u.nombre.substring(0,1) }}{{ u.apellido.substring(0,1) }}
-          </div>
-          <div class="min-w-0">
-            <span class="block text-sm font-semibold text-white truncate">{{ u.nombre }} {{ u.apellido }}</span>
-            <span class="block text-xs text-slate-400 truncate">{{ u.email }}</span>
-          </div>
-        </div>
-        <p *ngIf="recepcionistas().length === 0" class="text-slate-500 text-sm">No hay recepcionistas cargados.</p>
+  @if (mostrarForm()) {
+    <form [formGroup]="form" (ngSubmit)="crear()"
+      class="mb-8 p-5 rounded-2xl bg-surface-1/40 border border-white/5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Nombre</label>
+        <input formControlName="nombre" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+        @if (invalido('nombre')) {
+          <span class="text-red-400 text-xs mt-1 block">Requerido</span>
+        }
       </div>
-    </section>
-
-    <!-- Admins -->
-    <section>
-      <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Administradores ({{ admins().length }})</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div *ngFor="let u of admins()" class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
-          <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 flex items-center justify-center font-bold font-display shrink-0">
-            {{ u.nombre.substring(0,1) }}{{ u.apellido.substring(0,1) }}
-          </div>
-          <div class="min-w-0">
-            <span class="block text-sm font-semibold text-white truncate">{{ u.nombre }} {{ u.apellido }}</span>
-            <span class="block text-xs text-slate-400 truncate">{{ u.email }}</span>
-          </div>
-        </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Apellido</label>
+        <input formControlName="apellido" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+        @if (invalido('apellido')) {
+          <span class="text-red-400 text-xs mt-1 block">Requerido</span>
+        }
       </div>
-    </section>
-  </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Email</label>
+        <input type="email" formControlName="email" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+        @if (invalido('email')) {
+          <span class="text-red-400 text-xs mt-1 block">Email inválido</span>
+        }
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Teléfono</label>
+        <input formControlName="telefono" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Contraseña</label>
+        <input type="password" formControlName="password" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none" />
+        @if (invalido('password')) {
+          <span class="text-red-400 text-xs mt-1 block">Mínimo 10 caracteres</span>
+        }
+      </div>
+      <div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Rol</label>
+        <select formControlName="rol" class="w-full bg-slate-950/75 border border-slate-700/80 focus:border-primary-500 text-white rounded-xl py-2.5 px-4 text-sm outline-none">
+          <option value="RECEPCIONISTA">Recepcionista</option>
+          <option value="ADMIN">Administrador</option>
+        </select>
+      </div>
+      <div class="sm:col-span-2 flex justify-end">
+        <button type="submit" [disabled]="guardando()" class="btn-primary py-2.5 px-6 text-sm">
+          {{ guardando() ? 'Creando...' : 'Crear staff' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  @if (cargando()) {
+    <div class="text-slate-400 text-sm">Cargando staff...</div>
+  }
+
+  @if (!cargando()) {
+    <div class="space-y-6">
+      <!-- Recepcionistas -->
+      <section>
+        <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Recepcionistas ({{ recepcionistas().length }})</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          @for (u of recepcionistas(); track u) {
+            <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-accent-500/10 border border-accent-500/20 text-accent-400 flex items-center justify-center font-bold font-display shrink-0">
+                {{ u.nombre.substring(0,1) }}{{ u.apellido.substring(0,1) }}
+              </div>
+              <div class="min-w-0">
+                <span class="block text-sm font-semibold text-white truncate">{{ u.nombre }} {{ u.apellido }}</span>
+                <span class="block text-xs text-slate-400 truncate">{{ u.email }}</span>
+              </div>
+            </div>
+          }
+          @if (recepcionistas().length === 0) {
+            <p class="text-slate-500 text-sm">No hay recepcionistas cargados.</p>
+          }
+        </div>
+      </section>
+      <!-- Admins -->
+      <section>
+        <h2 class="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Administradores ({{ admins().length }})</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          @for (u of admins(); track u) {
+            <div class="bg-surface-1/40 border border-white/5 rounded-2xl p-4 flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 flex items-center justify-center font-bold font-display shrink-0">
+                {{ u.nombre.substring(0,1) }}{{ u.apellido.substring(0,1) }}
+              </div>
+              <div class="min-w-0">
+                <span class="block text-sm font-semibold text-white truncate">{{ u.nombre }} {{ u.apellido }}</span>
+                <span class="block text-xs text-slate-400 truncate">{{ u.email }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  }
 </div>

@@ -11,9 +11,12 @@ import com.padel.dto.response.PartidoTorneoResponse;
 import com.padel.dto.response.TorneoResponse;
 import com.padel.service.TorneoService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Size;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -73,7 +76,8 @@ public class TorneoController {
     @PutMapping("/{id}/suspender")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Suspender un torneo", description = "Suspende un torneo (con motivo) que no haya finalizado ni cancelado. Sólo administradores.")
-    public ResponseEntity<TorneoResponse> suspender(@PathVariable Long id, @RequestParam(required = false) String motivo) {
+    public ResponseEntity<TorneoResponse> suspender(@PathVariable Long id,
+            @RequestParam(required = false) @Size(max = 500, message = "El motivo no puede superar los 500 caracteres") String motivo) {
         return ResponseEntity.ok(torneoService.suspender(id, motivo));
     }
 
@@ -85,7 +89,7 @@ public class TorneoController {
     }
 
     @PostMapping("/{id}/inscripciones")
-    @Operation(summary = "Inscribir una pareja", description = "Inscribe al usuario autenticado junto a un compañero en el torneo.")
+    @Operation(summary = "Inscribir una pareja", description = "Invita a un compañero (por email) a jugar el torneo en pareja. La pareja ocupa cupo recién cuando él acepta.")
     public ResponseEntity<InscripcionTorneoResponse> inscribirPareja(
             @PathVariable Long id,
             @Valid @RequestBody InscripcionTorneoRequest request,
@@ -95,9 +99,37 @@ public class TorneoController {
     }
 
     @GetMapping("/{id}/inscripciones")
-    @Operation(summary = "Listar inscripciones del torneo", description = "Retorna las parejas inscriptas en el torneo.")
-    public ResponseEntity<List<InscripcionTorneoResponse>> listarInscripciones(@PathVariable Long id) {
-        return ResponseEntity.ok(torneoService.listarInscripciones(id));
+    @Operation(summary = "Listar inscripciones del torneo", description = "Parejas confirmadas, más las invitaciones pendientes en las que participa quien consulta.")
+    public ResponseEntity<List<InscripcionTorneoResponse>> listarInscripciones(@PathVariable Long id, Principal principal) {
+        return ResponseEntity.ok(torneoService.listarInscripciones(id, principal.getName()));
+    }
+
+    @PutMapping("/{id}/inscripciones/{inscripcionId}/aceptar")
+    @Operation(summary = "Aceptar una invitación", description = "El compañero invitado acepta: la pareja queda inscripta si todavía hay cupo.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Pareja inscripta"),
+        @ApiResponse(responseCode = "404", description = "La invitación no existe o no es para el usuario"),
+        @ApiResponse(responseCode = "409", description = "Cupo completo, torneo cerrado o invitación ya respondida")
+    })
+    public ResponseEntity<InscripcionTorneoResponse> aceptarInvitacion(
+            @PathVariable Long id,
+            @PathVariable Long inscripcionId,
+            Principal principal) {
+        return ResponseEntity.ok(torneoService.aceptarInvitacion(id, inscripcionId, principal.getName()));
+    }
+
+    @PutMapping("/{id}/inscripciones/{inscripcionId}/rechazar")
+    @Operation(summary = "Rechazar una invitación", description = "El compañero invitado rechaza la invitación.")
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Invitación rechazada"),
+        @ApiResponse(responseCode = "404", description = "La invitación no existe o no es para el usuario"),
+        @ApiResponse(responseCode = "409", description = "La invitación ya fue respondida")
+    })
+    public ResponseEntity<InscripcionTorneoResponse> rechazarInvitacion(
+            @PathVariable Long id,
+            @PathVariable Long inscripcionId,
+            Principal principal) {
+        return ResponseEntity.ok(torneoService.rechazarInvitacion(id, inscripcionId, principal.getName()));
     }
 
     @DeleteMapping("/{id}/inscripciones/{inscripcionId}")

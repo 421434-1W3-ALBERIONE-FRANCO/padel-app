@@ -1,11 +1,12 @@
 <div class="min-h-screen bg-dark-950 text-white flex">
 
   <!-- Overlay para cerrar el sidebar en mobile -->
-  <div
-    *ngIf="sidebarOpen()"
-    (click)="closeSidebar()"
-    class="fixed inset-0 bg-black/60 z-40 lg:hidden">
-  </div>
+  @if (sidebarOpen()) {
+    <div
+      (click)="closeSidebar()"
+      class="fixed inset-0 bg-black/60 z-40 lg:hidden">
+    </div>
+  }
 
   <!-- ===== Sidebar ===== -->
   <aside
@@ -30,9 +31,9 @@
     <!-- Overview link -->
     <div class="px-3 pt-3">
       <a routerLink="/admin" routerLinkActive="bg-primary-500/10 text-primary-300 border-primary-500/20"
-         [routerLinkActiveOptions]="{ exact: true }"
-         (click)="closeSidebar()"
-         class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-transparent text-sm font-semibold text-slate-300 hover:bg-white/5 transition">
+        [routerLinkActiveOptions]="{ exact: true }"
+        (click)="closeSidebar()"
+        class="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-transparent text-sm font-semibold text-slate-300 hover:bg-white/5 transition">
         <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m2.25 12 8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75"/></svg>
         Inicio de la Consola
       </a>
@@ -40,54 +41,59 @@
 
     <!-- Grupos (acordeón) -->
     <nav class="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-      <div *ngFor="let group of menu" class="rounded-xl">
-
-        <!-- Cabecera del grupo -->
-        <button type="button" (click)="toggleGroup(group.id)"
-          class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-white/5 transition">
-          <svg class="w-4.5 h-4.5 text-primary-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="group.icon"/>
-          </svg>
-          <span class="flex-1 text-xs font-bold uppercase tracking-wider">{{ group.title }}</span>
-          <svg class="w-4 h-4 text-slate-500 transition-transform duration-200"
-               [class.rotate-180]="isGroupOpen(group.id)"
-               fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
-          </svg>
-        </button>
-
-        <!-- Items del grupo -->
-        <div *ngIf="isGroupOpen(group.id)" class="mt-0.5 ml-2 pl-3 border-l border-white/5 space-y-0.5">
-          <ng-container *ngFor="let item of group.items">
-
-            <!-- Item deshabilitado (Fase 2) -->
-            <div *ngIf="item.disabled"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-not-allowed select-none">
-              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="item.icon"/></svg>
-              <span class="flex-1">{{ item.label }}</span>
-              <span class="text-[9px] font-bold uppercase tracking-wide bg-white/5 text-slate-500 px-1.5 py-0.5 rounded">Pronto</span>
+      @for (group of menu; track group) {
+        <div class="rounded-xl">
+          <!-- Cabecera del grupo -->
+          <button type="button" (click)="toggleGroup(group.id)"
+            class="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-slate-200 hover:bg-white/5 transition">
+            <svg class="w-4.5 h-4.5 text-primary-400 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" [attr.d]="group.icon"/>
+            </svg>
+            <span class="flex-1 text-xs font-bold uppercase tracking-wider">{{ group.title }}</span>
+            <svg class="w-4 h-4 text-slate-500 transition-transform duration-200"
+              [class.rotate-180]="isGroupOpen(group.id)"
+              fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5"/>
+            </svg>
+          </button>
+          <!-- Items del grupo -->
+          @if (isGroupOpen(group.id)) {
+            <div class="mt-0.5 ml-2 pl-3 border-l border-white/5 space-y-0.5">
+              @for (item of group.items; track item) {
+                <!-- Item deshabilitado (Fase 2) -->
+                @if (item.disabled) {
+                  <div
+                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-slate-600 cursor-not-allowed select-none">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="item.icon"/></svg>
+                    <span class="flex-1">{{ item.label }}</span>
+                    <span class="text-[9px] font-bold uppercase tracking-wide bg-white/5 text-slate-500 px-1.5 py-0.5 rounded">Pronto</span>
+                  </div>
+                }
+                <!-- Item activo -->
+                @if (!item.disabled) {
+                  <a
+                    [routerLink]="item.route"
+                    routerLinkActive="bg-primary-500/10 text-primary-300"
+                    (click)="closeSidebar()"
+                    class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition">
+                    <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="item.icon"/></svg>
+                    <span class="flex-1">{{ item.label }}</span>
+                    @if (item.external) {
+                      <svg class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
+                    }
+                  </a>
+                }
+              }
             </div>
-
-            <!-- Item activo -->
-            <a *ngIf="!item.disabled"
-              [routerLink]="item.route"
-              routerLinkActive="bg-primary-500/10 text-primary-300"
-              (click)="closeSidebar()"
-              class="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium text-slate-300 hover:bg-white/5 hover:text-white transition">
-              <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" [attr.d]="item.icon"/></svg>
-              <span class="flex-1">{{ item.label }}</span>
-              <svg *ngIf="item.external" class="w-3.5 h-3.5 text-slate-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 6H5.25A2.25 2.25 0 0 0 3 8.25v10.5A2.25 2.25 0 0 0 5.25 21h10.5A2.25 2.25 0 0 0 18 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25"/></svg>
-            </a>
-
-          </ng-container>
+          }
         </div>
-      </div>
+      }
     </nav>
 
     <!-- Salir al inicio -->
     <div class="p-3 border-t border-white/5 shrink-0">
       <a routerLink="/dashboard" (click)="closeSidebar()"
-         class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:bg-white/5 hover:text-white transition">
+        class="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:bg-white/5 hover:text-white transition">
         <svg class="w-4.5 h-4.5" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3"/></svg>
         Volver al panel de jugador
       </a>
@@ -107,6 +113,7 @@
       </div>
 
       <div class="flex items-center gap-3">
+        <app-fichaje></app-fichaje>
         <app-notification-bell></app-notification-bell>
         <div class="hidden sm:flex flex-col text-right">
           <span class="text-sm font-medium text-white leading-tight">{{ currentUser()?.nombre }} {{ currentUser()?.apellido }}</span>

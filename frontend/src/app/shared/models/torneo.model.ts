@@ -6,7 +6,8 @@ export type FormatoTorneo = 'LIGA_TODOS_CONTRA_TODOS' | 'ELIMINACION_DIRECTA';
 
 export type EstadoTorneo = 'INSCRIPCION_ABIERTA' | 'EN_CURSO' | 'SUSPENDIDO' | 'FINALIZADO' | 'CANCELADO';
 
-export type EstadoInscripcion = 'CONFIRMADA' | 'CANCELADA';
+/** PENDIENTE_ACEPTACION: el compañero todavía no aceptó la invitación (no ocupa cupo). */
+export type EstadoInscripcion = 'PENDIENTE_ACEPTACION' | 'CONFIRMADA' | 'RECHAZADA' | 'CANCELADA';
 
 export type EstadoPartido = 'PENDIENTE' | 'FINALIZADO';
 
@@ -47,10 +48,8 @@ export interface InscripcionTorneoResponse {
   torneoId: number;
   jugador1Id: number;
   jugador1Nombre: string;
-  jugador1Email: string;
   jugador2Id: number;
   jugador2Nombre: string;
-  jugador2Email: string;
   estado: EstadoInscripcion;
 }
 

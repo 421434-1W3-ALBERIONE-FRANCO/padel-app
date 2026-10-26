@@ -13,87 +13,93 @@
       Con estos datos te mostramos jugadores de tu nivel que pueden jugar en tus mismos horarios.
     </p>
 
-    <div *ngIf="cargando()" class="mt-8 space-y-4 animate-pulse">
-      <div class="h-24 rounded-2xl bg-surface-1/40"></div>
-      <div class="h-56 rounded-2xl bg-surface-1/40"></div>
-    </div>
-
-    <form *ngIf="!cargando()" (ngSubmit)="guardar()" class="mt-8 space-y-6">
-      <div *ngIf="esNuevo()" class="flex items-start gap-3 p-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-sm text-primary-200">
-        <svg class="w-5 h-5 shrink-0 text-primary-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-        <span>Completá tu perfil una sola vez y empezá a deslizar. Podés cambiarlo cuando quieras.</span>
+    @if (cargando()) {
+      <div class="mt-8 space-y-4 animate-pulse">
+        <div class="h-24 rounded-2xl bg-surface-1/40"></div>
+        <div class="h-56 rounded-2xl bg-surface-1/40"></div>
       </div>
+    }
 
-      <!-- Nivel y posición -->
-      <section class="p-4 sm:p-6 rounded-3xl bg-surface-1/40 border border-white/5 space-y-5">
-        <div>
-          <label for="categoria" class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Categoría</label>
-          <select id="categoria" name="categoria" [ngModel]="categoria()" (ngModelChange)="categoria.set($event)"
-                  class="w-full sm:w-64 bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-primary-500 text-sm">
-            <option *ngFor="let c of categorias" [ngValue]="c">{{ c | titlecase }}</option>
-          </select>
-          <p class="text-[11px] text-slate-500 mt-1.5">Te mostramos jugadores de tu categoría y de las vecinas (una arriba y una abajo).</p>
-        </div>
-
-        <div>
-          <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Posición en la cancha</span>
-          <div class="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Posición en la cancha">
-            <button *ngFor="let p of posiciones" type="button" role="radio" [attr.aria-checked]="posicion() === p.valor"
-                    (click)="posicion.set(p.valor)"
+    @if (!cargando()) {
+      <form (ngSubmit)="guardar()" class="mt-8 space-y-6">
+        @if (esNuevo()) {
+          <div class="flex items-start gap-3 p-4 rounded-2xl bg-primary-500/10 border border-primary-500/20 text-sm text-primary-200">
+            <svg class="w-5 h-5 shrink-0 text-primary-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            <span>Completá tu perfil una sola vez y empezá a deslizar. Podés cambiarlo cuando quieras.</span>
+          </div>
+        }
+        <!-- Nivel y posición -->
+        <section class="p-4 sm:p-6 rounded-3xl bg-surface-1/40 border border-white/5 space-y-5">
+          <div>
+            <label for="categoria" class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Categoría</label>
+            <select id="categoria" name="categoria" [ngModel]="categoria()" (ngModelChange)="categoria.set($event)"
+              class="w-full sm:w-64 bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 focus:outline-none focus:border-primary-500 text-sm">
+              @for (c of categorias; track c) {
+                <option [ngValue]="c">{{ c | titlecase }}</option>
+              }
+            </select>
+            <p class="text-[11px] text-slate-500 mt-1.5">Te mostramos jugadores de tu categoría y de las vecinas (una arriba y una abajo).</p>
+          </div>
+          <div>
+            <span class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Posición en la cancha</span>
+            <div class="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Posición en la cancha">
+              @for (p of posiciones; track p) {
+                <button type="button" role="radio" [attr.aria-checked]="posicion() === p.valor"
+                  (click)="posicion.set(p.valor)"
                     [ngClass]="posicion() === p.valor
                       ? 'border-primary-500/60 bg-primary-500/10 text-primary-300'
                       : 'border-slate-800 bg-slate-950/60 text-slate-300 hover:border-slate-600'"
-                    class="rounded-xl border px-3 py-3 text-left transition">
-              <span class="block text-sm font-bold">{{ p.etiqueta }}</span>
-              <span class="block text-[11px] text-slate-500">{{ p.detalle }}</span>
-            </button>
+                  class="rounded-xl border px-3 py-3 text-left transition">
+                  <span class="block text-sm font-bold">{{ p.etiqueta }}</span>
+                  <span class="block text-[11px] text-slate-500">{{ p.detalle }}</span>
+                </button>
+              }
+            </div>
           </div>
-        </div>
-
-        <div>
-          <label for="bio" class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Presentación (opcional)</label>
-          <textarea id="bio" name="bio" rows="3" [ngModel]="bio()" (ngModelChange)="bio.set($event)" [attr.maxlength]="BIO_MAX"
-                    placeholder="Ej: Juego hace 3 años, busco pareja fija para la liga de los martes."
-                    class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 text-sm placeholder-slate-600 resize-none focus:outline-none focus:border-primary-500"></textarea>
-          <p class="text-[11px] text-slate-500 text-right">{{ bio().length }}/{{ BIO_MAX }}</p>
-        </div>
-      </section>
-
-      <!-- Disponibilidad -->
-      <section class="p-4 sm:p-6 rounded-3xl bg-surface-1/40 border border-white/5">
-        <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
-            <h2 class="text-lg font-bold text-slate-100 font-display">¿Cuándo podés jugar?</h2>
-            <p class="text-xs text-slate-400">Tocá los bloques de la semana. Mañana: 8 a 12 h · Tarde: 12 a 18 h · Noche: 18 a 24 h.</p>
+            <label for="bio" class="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Presentación (opcional)</label>
+            <textarea id="bio" name="bio" rows="3" [ngModel]="bio()" (ngModelChange)="bio.set($event)" [attr.maxlength]="BIO_MAX"
+              placeholder="Ej: Juego hace 3 años, busco pareja fija para la liga de los martes."
+            class="w-full bg-slate-950 border border-slate-800/80 rounded-xl px-4 py-3 text-slate-100 text-sm placeholder-slate-600 resize-none focus:outline-none focus:border-primary-500"></textarea>
+            <p class="text-[11px] text-slate-500 text-right">{{ bio().length }}/{{ BIO_MAX }}</p>
           </div>
-          <div class="flex flex-wrap gap-2">
-            <button type="button" (click)="aplicarAtajo('noches')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:border-primary-500/50 transition">+ Noches de semana</button>
-            <button type="button" (click)="aplicarAtajo('finde')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:border-primary-500/50 transition">+ Fines de semana</button>
-            <button type="button" (click)="aplicarAtajo('limpiar')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-800 text-slate-500 hover:text-slate-300 transition">Limpiar</button>
+        </section>
+        <!-- Disponibilidad -->
+        <section class="p-4 sm:p-6 rounded-3xl bg-surface-1/40 border border-white/5">
+          <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+            <div>
+              <h2 class="text-lg font-bold text-slate-100 font-display">¿Cuándo podés jugar?</h2>
+              <p class="text-xs text-slate-400">Tocá los bloques de la semana. Mañana: 8 a 12 h · Tarde: 12 a 18 h · Noche: 18 a 24 h.</p>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button type="button" (click)="aplicarAtajo('noches')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:border-primary-500/50 transition">+ Noches de semana</button>
+              <button type="button" (click)="aplicarAtajo('finde')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 hover:border-primary-500/50 transition">+ Fines de semana</button>
+              <button type="button" (click)="aplicarAtajo('limpiar')" class="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-800 text-slate-500 hover:text-slate-300 transition">Limpiar</button>
+            </div>
           </div>
+          <app-disponibilidad-grid class="block w-full" [seleccion]="disponibilidad()" [editable]="true" (cambio)="disponibilidad.set($event)"></app-disponibilidad-grid>
+          @if (intentoGuardar() && sinHorarios()) {
+            <p class="text-xs text-red-400 mt-3">Marcá al menos un horario.</p>
+          }
+        </section>
+        <!-- Visibilidad -->
+        <section class="p-5 rounded-3xl bg-surface-1/40 border border-white/5 flex items-center justify-between gap-4">
+          <div>
+            <h2 class="text-sm font-bold text-slate-100">Aparecer en el match</h2>
+            <p class="text-xs text-slate-400">Si lo apagás, nadie te ve en el mazo y vos tampoco podés deslizar. Tus matches siguen activos.</p>
+          </div>
+          <button type="button" role="switch" [attr.aria-checked]="visibleEnMatch()" (click)="visibleEnMatch.set(!visibleEnMatch())"
+            [ngClass]="visibleEnMatch() ? 'bg-primary-500' : 'bg-slate-700'"
+            class="relative w-12 h-7 rounded-full transition shrink-0" aria-label="Aparecer en el match">
+            <span [ngClass]="visibleEnMatch() ? 'translate-x-5' : 'translate-x-0'" class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition"></span>
+          </button>
+        </section>
+        <div class="flex justify-end">
+          <button type="submit" [disabled]="guardando()" class="btn-primary w-full sm:w-auto px-8">
+            {{ guardando() ? 'Guardando...' : (esNuevo() ? 'Crear perfil y buscar pareja' : 'Guardar cambios') }}
+          </button>
         </div>
-        <app-disponibilidad-grid class="block w-full" [seleccion]="disponibilidad()" [editable]="true" (cambio)="disponibilidad.set($event)"></app-disponibilidad-grid>
-        <p *ngIf="intentoGuardar() && sinHorarios()" class="text-xs text-red-400 mt-3">Marcá al menos un horario.</p>
-      </section>
-
-      <!-- Visibilidad -->
-      <section class="p-5 rounded-3xl bg-surface-1/40 border border-white/5 flex items-center justify-between gap-4">
-        <div>
-          <h2 class="text-sm font-bold text-slate-100">Aparecer en el match</h2>
-          <p class="text-xs text-slate-400">Si lo apagás, nadie te ve en el mazo y vos tampoco podés deslizar. Tus matches siguen activos.</p>
-        </div>
-        <button type="button" role="switch" [attr.aria-checked]="visibleEnMatch()" (click)="visibleEnMatch.set(!visibleEnMatch())"
-                [ngClass]="visibleEnMatch() ? 'bg-primary-500' : 'bg-slate-700'"
-                class="relative w-12 h-7 rounded-full transition shrink-0" aria-label="Aparecer en el match">
-          <span [ngClass]="visibleEnMatch() ? 'translate-x-5' : 'translate-x-0'" class="absolute top-1 left-1 w-5 h-5 rounded-full bg-white transition"></span>
-        </button>
-      </section>
-
-      <div class="flex justify-end">
-        <button type="submit" [disabled]="guardando()" class="btn-primary w-full sm:w-auto px-8">
-          {{ guardando() ? 'Guardando...' : (esNuevo() ? 'Crear perfil y buscar pareja' : 'Guardar cambios') }}
-        </button>
-      </div>
-    </form>
+      </form>
+    }
   </div>
 </div>

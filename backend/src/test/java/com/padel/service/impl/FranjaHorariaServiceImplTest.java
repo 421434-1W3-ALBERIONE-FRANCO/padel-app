@@ -13,6 +13,7 @@ import com.padel.repository.CanchaRepository;
 import com.padel.repository.FranjaHorariaRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -42,6 +43,9 @@ class FranjaHorariaServiceImplTest {
 
     @Mock
     private FranjaHorariaMapper franjaHorariaMapper;
+
+    @Mock
+    private ApplicationEventPublisher eventos;
 
     @InjectMocks
     private FranjaHorariaServiceImpl franjaHorariaService;

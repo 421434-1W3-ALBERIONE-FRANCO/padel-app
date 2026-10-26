@@ -1,169 +1,147 @@
 import { Routes } from '@angular/router';
-import { LoginComponent } from './features/auth/login/login.component';
-import { RegistroComponent } from './features/auth/registro/registro.component';
-import { ForgotPasswordComponent } from './features/auth/forgot-password/forgot-password.component';
-import { ResetPasswordComponent } from './features/auth/reset-password/reset-password.component';
-import { CambiarPasswordComponent } from './features/perfil/cambiar-password/cambiar-password.component';
-import { DashboardComponent } from './features/dashboard/dashboard.component';
-import { AdminLayoutComponent } from './features/admin/layout/admin-layout.component';
-import { AdminOverviewComponent } from './features/admin/overview/admin-overview.component';
-import { ReservasAdminComponent } from './features/admin/reservas/reservas-admin.component';
-import { StaffAdminComponent } from './features/admin/staff/staff-admin.component';
-import { OcupacionAdminComponent } from './features/admin/ocupacion/ocupacion-admin.component';
-import { CanchasAdminComponent } from './features/admin/canchas/canchas-admin.component';
-import { ConfiguracionComponent } from './features/admin/configuracion/configuracion.component';
-import { ComisionesReporteComponent } from './features/admin/comisiones/comisiones-reporte.component';
-import { ControlHorarioComponent } from './features/admin/control-horario/control-horario.component';
-import { CalendarioComponent } from './features/reservas/calendario/calendario.component';
-import { MisReservasComponent } from './features/reservas/mis-reservas/mis-reservas.component';
-import { CheckoutComponent } from './features/pagos/checkout/checkout.component';
-import { CompraBonoComponent } from './features/bonos/compra-bono/compra-bono.component';
-import { MisBonosComponent } from './features/bonos/mis-bonos/mis-bonos.component';
-import { ProductosAdminComponent } from './features/admin/productos/productos-admin.component';
-import { CargaConsumosComponent } from './features/recepcion/carga-consumos/carga-consumos.component';
-import { AltaTurnoComponent } from './features/recepcion/alta-turno/alta-turno.component';
-import { CierreCuentaComponent } from './features/recepcion/cierre-cuenta/cierre-cuenta.component';
-import { CajaDiariaComponent } from './features/recepcion/caja-diaria/caja-diaria.component';
-import { ExperienceComponent } from './features/experience/experience.component';
-import { ListaTorneosComponent } from './features/torneos/lista-torneos/lista-torneos.component';
-import { TorneoDetalleComponent } from './features/torneos/torneo-detalle/torneo-detalle.component';
-import { RankingJugadoresComponent } from './features/ranking/ranking-jugadores/ranking-jugadores.component';
-import { TablonSolicitudesComponent } from './features/solicitudes/tablon-solicitudes/tablon-solicitudes.component';
-import { MatchComponent } from './features/match/match/match.component';
-import { PerfilJugadorComponent } from './features/match/perfil-jugador/perfil-jugador.component';
 import { authGuard, guestGuard } from './core/guards/auth.guard';
+
+// Todas las pantallas se cargan bajo demanda: el bundle inicial ya no incluye la consola de admin ni la escena
+// 3D, que la mayoría de los jugadores nunca abre.
+const STAFF = { roles: ['ADMIN', 'RECEPCIONISTA'] };
 
 export const routes: Routes = [
   {
     path: 'experience',
-    component: ExperienceComponent
+    loadComponent: () => import('./features/experience/experience.component').then(m => m.ExperienceComponent)
   },
   {
     path: 'auth/login',
-    component: LoginComponent,
+    loadComponent: () => import('./features/auth/login/login.component').then(m => m.LoginComponent),
     canActivate: [guestGuard]
   },
   {
     path: 'auth/registro',
-    component: RegistroComponent,
+    loadComponent: () => import('./features/auth/registro/registro.component').then(m => m.RegistroComponent),
     canActivate: [guestGuard]
   },
   {
     path: 'auth/recuperar-password',
-    component: ForgotPasswordComponent,
+    loadComponent: () => import('./features/auth/forgot-password/forgot-password.component').then(m => m.ForgotPasswordComponent),
     canActivate: [guestGuard]
   },
   {
     path: 'auth/resetear-password',
-    component: ResetPasswordComponent,
+    loadComponent: () => import('./features/auth/reset-password/reset-password.component').then(m => m.ResetPasswordComponent),
     canActivate: [guestGuard]
   },
   {
+    // Destino del enlace del email de registro.
+    path: 'auth/verificar-email',
+    loadComponent: () => import('./features/auth/verificar-email/verificar-email.component').then(m => m.VerificarEmailComponent)
+  },
+  {
     path: 'dashboard',
-    component: DashboardComponent,
+    loadComponent: () => import('./features/dashboard/dashboard.component').then(m => m.DashboardComponent),
     canActivate: [authGuard]
   },
   {
     path: 'perfil/password',
-    component: CambiarPasswordComponent,
+    loadComponent: () => import('./features/perfil/cambiar-password/cambiar-password.component').then(m => m.CambiarPasswordComponent),
     canActivate: [authGuard]
   },
   {
     // Consola de administración: shell con sidebar + pantallas como rutas hijas.
     // El guard del padre protege todo el subárbol (solo ADMIN).
     path: 'admin',
-    component: AdminLayoutComponent,
+    loadComponent: () => import('./features/admin/layout/admin-layout.component').then(m => m.AdminLayoutComponent),
     canActivate: [authGuard],
     data: { roles: ['ADMIN'] },
     children: [
-      { path: '', component: AdminOverviewComponent },
-      { path: 'reservas', component: ReservasAdminComponent },
-      { path: 'ocupacion', component: OcupacionAdminComponent },
-      { path: 'staff', component: StaffAdminComponent },
-      { path: 'canchas', component: CanchasAdminComponent },
-      { path: 'productos', component: ProductosAdminComponent },
-      { path: 'configuracion', component: ConfiguracionComponent },
-      { path: 'comisiones', component: ComisionesReporteComponent },
-      { path: 'control-horario', component: ControlHorarioComponent },
+      { path: '', loadComponent: () => import('./features/admin/overview/admin-overview.component').then(m => m.AdminOverviewComponent) },
+      { path: 'reservas', loadComponent: () => import('./features/admin/reservas/reservas-admin.component').then(m => m.ReservasAdminComponent) },
+      { path: 'ocupacion', loadComponent: () => import('./features/admin/ocupacion/ocupacion-admin.component').then(m => m.OcupacionAdminComponent) },
+      { path: 'staff', loadComponent: () => import('./features/admin/staff/staff-admin.component').then(m => m.StaffAdminComponent) },
+      { path: 'canchas', loadComponent: () => import('./features/admin/canchas/canchas-admin.component').then(m => m.CanchasAdminComponent) },
+      { path: 'productos', loadComponent: () => import('./features/admin/productos/productos-admin.component').then(m => m.ProductosAdminComponent) },
+      { path: 'tipos-bono', loadComponent: () => import('./features/admin/tipos-bono/tipos-bono-admin.component').then(m => m.TiposBonoAdminComponent) },
+      { path: 'configuracion', loadComponent: () => import('./features/admin/configuracion/configuracion.component').then(m => m.ConfiguracionComponent) },
+      { path: 'comisiones', loadComponent: () => import('./features/admin/comisiones/comisiones-reporte.component').then(m => m.ComisionesReporteComponent) },
+      { path: 'control-horario', loadComponent: () => import('./features/admin/control-horario/control-horario.component').then(m => m.ControlHorarioComponent) },
     ]
   },
   {
     path: 'recepcion/carga-consumos',
-    component: CargaConsumosComponent,
+    loadComponent: () => import('./features/recepcion/carga-consumos/carga-consumos.component').then(m => m.CargaConsumosComponent),
     canActivate: [authGuard],
-    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+    data: STAFF
   },
   {
     path: 'recepcion/alta-turno',
-    component: AltaTurnoComponent,
+    loadComponent: () => import('./features/recepcion/alta-turno/alta-turno.component').then(m => m.AltaTurnoComponent),
     canActivate: [authGuard],
-    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+    data: STAFF
   },
   {
     path: 'recepcion/cierre-cuenta/:reservaId',
-    component: CierreCuentaComponent,
+    loadComponent: () => import('./features/recepcion/cierre-cuenta/cierre-cuenta.component').then(m => m.CierreCuentaComponent),
     canActivate: [authGuard],
-    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+    data: STAFF
   },
   {
     path: 'recepcion/caja',
-    component: CajaDiariaComponent,
+    loadComponent: () => import('./features/recepcion/caja-diaria/caja-diaria.component').then(m => m.CajaDiariaComponent),
     canActivate: [authGuard],
-    data: { roles: ['ADMIN', 'RECEPCIONISTA'] }
+    data: STAFF
   },
   {
     path: 'reservas/calendario',
-    component: CalendarioComponent,
+    loadComponent: () => import('./features/reservas/calendario/calendario.component').then(m => m.CalendarioComponent),
     canActivate: [authGuard]
   },
   {
     path: 'reservas/mis-reservas',
-    component: MisReservasComponent,
+    loadComponent: () => import('./features/reservas/mis-reservas/mis-reservas.component').then(m => m.MisReservasComponent),
     canActivate: [authGuard]
   },
   {
     path: 'bonos/mis-bonos',
-    component: MisBonosComponent,
+    loadComponent: () => import('./features/bonos/mis-bonos/mis-bonos.component').then(m => m.MisBonosComponent),
     canActivate: [authGuard]
   },
   {
     path: 'bonos/comprar',
-    component: CompraBonoComponent,
+    loadComponent: () => import('./features/bonos/compra-bono/compra-bono.component').then(m => m.CompraBonoComponent),
     canActivate: [authGuard]
   },
   {
     path: 'pagos/checkout/:reservaId',
-    component: CheckoutComponent,
+    loadComponent: () => import('./features/pagos/checkout/checkout.component').then(m => m.CheckoutComponent),
     canActivate: [authGuard]
   },
   {
     path: 'torneos',
-    component: ListaTorneosComponent,
+    loadComponent: () => import('./features/torneos/lista-torneos/lista-torneos.component').then(m => m.ListaTorneosComponent),
     canActivate: [authGuard]
   },
   {
     path: 'torneos/:id',
-    component: TorneoDetalleComponent,
+    loadComponent: () => import('./features/torneos/torneo-detalle/torneo-detalle.component').then(m => m.TorneoDetalleComponent),
     canActivate: [authGuard]
   },
   {
     path: 'ranking',
-    component: RankingJugadoresComponent,
+    loadComponent: () => import('./features/ranking/ranking-jugadores/ranking-jugadores.component').then(m => m.RankingJugadoresComponent),
     canActivate: [authGuard]
   },
   {
     path: 'match',
-    component: MatchComponent,
+    loadComponent: () => import('./features/match/match/match.component').then(m => m.MatchComponent),
     canActivate: [authGuard]
   },
   {
     path: 'perfil/jugador',
-    component: PerfilJugadorComponent,
+    loadComponent: () => import('./features/match/perfil-jugador/perfil-jugador.component').then(m => m.PerfilJugadorComponent),
     canActivate: [authGuard]
   },
   {
     path: 'solicitudes-partido',
-    component: TablonSolicitudesComponent,
+    loadComponent: () => import('./features/solicitudes/tablon-solicitudes/tablon-solicitudes.component').then(m => m.TablonSolicitudesComponent),
     canActivate: [authGuard]
   },
   {

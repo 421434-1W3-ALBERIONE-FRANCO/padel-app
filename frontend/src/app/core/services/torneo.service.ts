@@ -63,6 +63,16 @@ export class TorneoService {
     return this.http.get<InscripcionTorneoResponse[]>(`${this.API_URL}/torneos/${torneoId}/inscripciones`);
   }
 
+  /** El compañero invitado acepta: recién ahí la pareja queda inscripta y ocupa cupo. */
+  aceptarInvitacion(torneoId: number, inscripcionId: number): Observable<InscripcionTorneoResponse> {
+    return this.http.put<InscripcionTorneoResponse>(`${this.API_URL}/torneos/${torneoId}/inscripciones/${inscripcionId}/aceptar`, {});
+  }
+
+  rechazarInvitacion(torneoId: number, inscripcionId: number): Observable<InscripcionTorneoResponse> {
+    return this.http.put<InscripcionTorneoResponse>(`${this.API_URL}/torneos/${torneoId}/inscripciones/${inscripcionId}/rechazar`, {});
+  }
+
+  /** Cancela una inscripción confirmada o retira una invitación todavía sin responder. */
   cancelarInscripcion(torneoId: number, inscripcionId: number): Observable<void> {
     return this.http.delete<void>(`${this.API_URL}/torneos/${torneoId}/inscripciones/${inscripcionId}`);
   }

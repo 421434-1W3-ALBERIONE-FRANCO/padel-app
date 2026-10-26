@@ -39,3 +39,12 @@ export interface BancoHorasResponse {
   empleadoEmail: string;
   saldoMinutos: number;
 }
+
+/** Jornada del staff: abierta desde que ficha la entrada hasta que ficha la salida. */
+export interface FichajeResponse {
+  sesionId: number | null;
+  abierto: boolean;
+  inicio: string | null;
+  fin: string | null;
+  minutosTrabajados: number | null;
+}

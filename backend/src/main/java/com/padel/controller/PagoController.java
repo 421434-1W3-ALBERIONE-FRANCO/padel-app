@@ -60,8 +60,8 @@ public class PagoController {
             @RequestHeader(value = "x-request-id", required = false) String xRequestId,
             @RequestBody(required = false) Map<String, Object> body) {
 
-        log.info("Webhook recibido. Query type: {}, Query id: {}, Query topic: {}, Query data.id: {}, Body: {}",
-                queryType, queryId, queryTopic, queryDataId, body);
+        // Solo identificadores: el cuerpo completo lo puede mandar cualquiera y no se vuelca al log.
+        log.info("Webhook de MercadoPago recibido: type={}, topic={}, data.id={}, id={}", queryType, queryTopic, queryDataId, queryId);
 
         String type = queryType != null ? queryType : (queryTopic != null ? queryTopic : null);
         String paymentId = queryDataId != null ? queryDataId : (queryId != null ? queryId : null);

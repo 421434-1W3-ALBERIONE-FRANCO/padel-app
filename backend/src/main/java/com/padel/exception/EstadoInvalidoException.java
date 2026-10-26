@@ -1,7 +1,15 @@
 package com.padel.exception;
 
-public class EstadoInvalidoException extends RuntimeException {
+import org.springframework.http.HttpStatus;
+
+public class EstadoInvalidoException extends NegocioException {
+
     public EstadoInvalidoException(String message) {
         super(message);
+    }
+
+    @Override
+    public HttpStatus getStatus() {
+        return HttpStatus.CONFLICT;
     }
 }

@@ -18,13 +18,12 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
-import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -32,7 +31,9 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -41,43 +42,50 @@ import java.util.Arrays;
 public class SecurityConfig {
 
     private final JwtFilter jwtFilter;
-    private final UserDetailsService userDetailsService;
+    private final LimitePedidosFilter limitePedidosFilter;
+    private final CustomUserDetailsService userDetailsService;
     private final ObjectMapper objectMapper;
 
-    // Origenes permitidos para CORS, separados por coma. Admite patrones (p.ej. https://*.netlify.app).
-    // Se inyecta por variable de entorno en prod; default localhost para desarrollo.
+    // Orígenes permitidos para CORS y para el WebSocket, separados por coma. Admite patrones.
     @Value("${app.cors.allowed-origins:http://localhost:4200}")
     private String allowedOrigins;
 
+    // Swagger UI y /v3/api-docs solo se publican si están habilitados (desarrollo): en producción describían
+    // la API completa a cualquiera.
+    @Value("${springdoc.api-docs.enabled:false}")
+    private boolean documentacionHabilitada;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        List<String> publicos = new ArrayList<>(List.of(
+                "/api/v1/auth/**",
+                "/api/v1/pagos/webhook/**",
+                "/api/v1/health",
+                // Handshake del WebSocket de disponibilidad: el navegador no puede mandar el header Authorization
+                // al abrir un WebSocket y el canal solo difunde "cambió la cancha X" (sin datos sensibles).
+                "/ws/**",
+                "/error",
+                // Probes de salud y métricas. En producción /actuator está en el puerto de management (8081),
+                // que solo es accesible dentro de la red de Docker: el puerto público no lo expone.
+                "/actuator/health", "/actuator/health/**", "/actuator/prometheus", "/actuator/info"));
+        if (documentacionHabilitada) {
+            publicos.addAll(List.of("/v3/api-docs/**", "/v3/api-docs.yaml", "/swagger-ui/**", "/swagger-ui.html"));
+        }
+
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // API stateless con token en el header Authorization (no cookies): CSRF no aplica.
                 .csrf(AbstractHttpConfigurer::disable)
-                // sameOrigin (no disable): permite el iframe de /h2-console (mismo origen) sin abrir
-                // la API entera a clickjacking desde sitios de terceros.
-                .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.deny())
+                        .referrerPolicy(r -> r.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'")))
                 .authorizeHttpRequests(req -> req
-                        .requestMatchers(
-                                "/api/v1/auth/**",
-                                "/api/v1/pagos/webhook/**",
-                                "/api/v1/health",
-                                // Handshake del WebSocket de disponibilidad: el navegador no puede mandar el
-                                // header Authorization al abrir un WebSocket, y el canal solo difunde avisos
-                                // de "cambió la cancha X" (sin datos sensibles) del servidor a los clientes.
-                                "/ws/**",
-                                "/error",
-                                "/h2-console/**",
-                                "/v3/api-docs/**",
-                                "/v3/api-docs.yaml",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html"
-                        ).permitAll()
+                        .requestMatchers(publicos.toArray(String[]::new)).permitAll()
                         .anyRequest().authenticated()
                 )
-                // Sin entry point propio Spring Security responde 403 a las peticiones sin token o con
-                // el token vencido, y el frontend (que cierra la sesión ante un 401) dejaba al usuario
-                // trabado viendo errores. Se responde 401/403 con el mismo JSON (ApiError) del resto de la API.
+                // Sin entry point propio Spring Security responde 403 a las peticiones sin token o con el token
+                // vencido, y el frontend (que cierra la sesión ante un 401) dejaba al usuario trabado.
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((request, response, e) -> escribirError(request, response,
                                 HttpStatus.UNAUTHORIZED, "Tu sesión no es válida o expiró. Iniciá sesión nuevamente."))
@@ -86,6 +94,7 @@ public class SecurityConfig {
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
+                .addFilterBefore(limitePedidosFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -103,13 +112,12 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder(); // BCryptPasswordEncoder obligatorio
+        return new BCryptPasswordEncoder();
     }
 
     @Bean
     public AuthenticationProvider authenticationProvider() {
-        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
-        authProvider.setUserDetailsService(userDetailsService);
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
     }
@@ -122,17 +130,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        // setAllowedOriginPatterns (no setAllowedOrigins) para poder combinar con allowCredentials(true)
-        // y admitir patrones con comodin (Netlify Drop cambia el subdominio en cada arrastre).
-        configuration.setAllowedOriginPatterns(Arrays.stream(allowedOrigins.split(","))
-                .map(String::trim)
-                .filter(origin -> !origin.isEmpty())
-                .toList());
+        configuration.setAllowedOriginPatterns(origenesPermitidos());
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "Accept", "X-Requested-With", "Origin"));
-        configuration.setAllowCredentials(true);
+        configuration.setExposedHeaders(List.of("Retry-After"));
+        // El token viaja en el header Authorization, no en cookies: no hace falta permitir credenciales
+        // (con ellas y un patrón como https://*.netlify.app cualquier sitio de Netlify quedaba habilitado).
+        configuration.setAllowCredentials(false);
+        configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    public List<String> origenesPermitidos() {
+        return Arrays.stream(allowedOrigins.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
     }
 }

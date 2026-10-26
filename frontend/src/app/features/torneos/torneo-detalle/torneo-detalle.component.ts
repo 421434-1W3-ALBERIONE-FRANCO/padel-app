@@ -35,7 +35,6 @@ interface Campeon {
 
 @Component({
   selector: 'app-torneo-detalle',
-  standalone: true,
   imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule, CuadroEliminacionComponent, TablaLigaComponent],
   templateUrl: './torneo-detalle.component.html'
 })
@@ -75,11 +74,21 @@ export class TorneoDetalleComponent implements OnInit {
 
   esLiga = computed(() => this.torneo()?.formato === 'LIGA_TODOS_CONTRA_TODOS');
   confirmadas = computed(() => this.inscripciones().filter(i => i.estado === 'CONFIRMADA'));
-  /** Las confirmadas primero; las canceladas quedan al final, atenuadas. */
+  /** Las confirmadas primero; las invitaciones sin responder (solo las ven los involucrados y el admin) al final. */
   inscripcionesOrdenadas = computed(() => [
     ...this.confirmadas(),
     ...this.inscripciones().filter(i => i.estado !== 'CONFIRMADA')
   ]);
+  /** Invitaciones que me hicieron y todavía no respondí. */
+  invitacionesRecibidas = computed(() => {
+    const id = this.currentUser()?.id;
+    return this.inscripciones().filter(i => i.estado === 'PENDIENTE_ACEPTACION' && i.jugador2Id === id);
+  });
+  /** La invitación que mandé y espera respuesta: mientras tanto no puedo invitar a otra persona. */
+  invitacionEnviada = computed(() => {
+    const id = this.currentUser()?.id;
+    return this.inscripciones().find(i => i.estado === 'PENDIENTE_ACEPTACION' && i.jugador1Id === id) ?? null;
+  });
   miInscripcion = computed(() => {
     const id = this.currentUser()?.id;
     return id == null ? null : this.confirmadas().find(i => i.jugador1Id === id || i.jugador2Id === id) ?? null;
@@ -204,11 +213,43 @@ export class TorneoDetalleComponent implements OnInit {
       next: () => {
         this.procesando.set(false);
         this.inscripcionForm.reset();
-        this.mostrarExito('Pareja inscripta exitosamente');
+        this.mostrarExito('Invitación enviada: la pareja queda inscripta cuando tu compañero/a la acepte.');
         this.cargarTodo();
       },
       error: (err) => {
         this.mostrarError(err.error?.message || 'Error al inscribir la pareja');
+        this.procesando.set(false);
+      }
+    });
+  }
+
+  aceptarInvitacion(inscripcionId: number) {
+    this.procesando.set(true);
+    this.torneoService.aceptarInvitacion(this.torneoId, inscripcionId).subscribe({
+      next: () => {
+        this.procesando.set(false);
+        this.mostrarExito('¡Listo! Quedaron inscriptos.');
+        this.cargarTodo();
+      },
+      error: (err) => {
+        this.mostrarError(err.error?.message || 'No se pudo aceptar la invitación');
+        this.procesando.set(false);
+        this.cargarInscripciones();
+      }
+    });
+  }
+
+  rechazarInvitacion(inscripcionId: number) {
+    if (!confirm('¿Rechazar la invitación? Le avisamos a quien te invitó.')) return;
+    this.procesando.set(true);
+    this.torneoService.rechazarInvitacion(this.torneoId, inscripcionId).subscribe({
+      next: () => {
+        this.procesando.set(false);
+        this.mostrarExito('Invitación rechazada');
+        this.cargarInscripciones();
+      },
+      error: (err) => {
+        this.mostrarError(err.error?.message || 'No se pudo rechazar la invitación');
         this.procesando.set(false);
       }
     });

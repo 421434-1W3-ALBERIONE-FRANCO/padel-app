@@ -1,0 +1,36 @@
+# Infra para desarrollo local: Postgres y Redis publicados SOLO en 127.0.0.1 (no quedan abiertos a la red).
+#   docker compose -f docker-compose.dev.yml up -d
+#   cd backend && mvn spring-boot:run -Dspring-boot.run.profiles=dev
+# Las credenciales son las de desarrollo que espera application-dev.yml; nunca usar este archivo en un servidor.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: padeldb
+      POSTGRES_USER: padel
+      POSTGRES_PASSWORD: padel1234
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      # Mismo volumen que usaba el docker-compose.yml anterior: se conservan los datos de desarrollo.
+      - padel_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U padel -d padeldb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  padel_postgres_data:

@@ -2,14 +2,12 @@ package com.padel;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
-import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 
 import java.util.TimeZone;
 
 @SpringBootApplication
-@EnableJpaAuditing
-@EnableScheduling
+@ConfigurationPropertiesScan
 public class PadelApplication {
 
     // Zona horaria del club. El contenedor de Render corre en UTC: sin esto "hoy", los

@@ -1,30 +1,34 @@
+# Stack completo para un servidor (perfil prod). Los secretos salen de .env (copiar .env.example): si falta
+# uno obligatorio, compose no arranca. Solo se publica el frontend (nginx), que sirve la SPA y hace de proxy
+# a la API y al WebSocket; Postgres, Redis y el backend quedan dentro de la red de Docker.
+# Para desarrollo local usar docker-compose.dev.yml (solo Postgres y Redis).
+name: padelapp
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: padel-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: padeldb
-      POSTGRES_USER: padel
-      POSTGRES_PASSWORD: padel1234
-    ports:
-      - "5433:5432"
+      POSTGRES_DB: ${POSTGRES_DB:-padeldb}
+      POSTGRES_USER: ${POSTGRES_USER:-padel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definí POSTGRES_PASSWORD en .env}
     volumes:
-      - padel_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U padel -d padeldb"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    container_name: padel-redis
     restart: unless-stopped
-    ports:
-      - "6379:6379"
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?Definí REDIS_PASSWORD en .env}", "--appendonly", "yes"]
+    environment:
+      # redis-cli toma la clave de acá para el healthcheck.
+      REDISCLI_AUTH: ${REDIS_PASSWORD}
     volumes:
-      - padel_redis_data:/data
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -34,7 +38,6 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: padel-backend
     restart: unless-stopped
     depends_on:
       postgres:
@@ -42,36 +45,64 @@ services:
       redis:
         condition: service_healthy
     environment:
-      SPRING_PROFILES_ACTIVE: prod
-      DB_URL: jdbc:postgresql://postgres:5432/padeldb
-      DB_USERNAME: padel
-      DB_PASSWORD: padel1234
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-padeldb}
+      DB_USERNAME: ${POSTGRES_USER:-padel}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
       REDIS_HOST: redis
       REDIS_PORT: 6379
-      # Sobreescribir con secretos reales en el entorno de deploy.
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-prod-use-a-long-random-secret-1234567890}
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Definí JWT_SECRET en .env (al menos 32 caracteres aleatorios)}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-14400000}
-      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-TEST-0000000000000000-000000-0000000000000000000000000000000-000000000}
+      FRONTEND_URL: ${FRONTEND_URL:?Definí FRONTEND_URL en .env (URL pública del sitio)}
+      CORS_ALLOWED_ORIGINS: ${FRONTEND_URL}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:?Definí MP_ACCESS_TOKEN en .env}
       MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
+      MP_WEBHOOK_TOLERANCIA_SEGUNDOS: ${MP_WEBHOOK_TOLERANCIA_SEGUNDOS:-0}
+      MP_POINT_DEVICE_ID: ${MP_POINT_DEVICE_ID:-}
       MAIL_HOST: ${MAIL_HOST:-}
       MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@padelapp.com}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8081}
-    ports:
-      - "8080:8080"
+      AUTH_VERIFICACION_EMAIL: ${AUTH_VERIFICACION_EMAIL:-true}
+      TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+      TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+      TWILIO_WHATSAPP_FROM: ${TWILIO_WHATSAPP_FROM:-whatsapp:+14155238886}
+      CONTROL_HORARIO_REDES: ${CONTROL_HORARIO_REDES:-}
+      APP_TIMEZONE: ${APP_TIMEZONE:-America/Argentina/Buenos_Aires}
+    # Sin "ports": solo lo alcanza nginx. Las métricas (/actuator/prometheus) quedan en el 8081 interno.
+    expose:
+      - "8080"
 
   frontend:
     build:
       context: ./frontend
-    container_name: padel-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
-      - "8081:80"
+      # En producción poner delante un proxy con TLS (Caddy, Traefik) y publicar solo en 127.0.0.1.
+      - "${HTTP_PORT:-8081}:8080"
+
+  # Backup diario de la base en ./backups (formato de pg_dump -Fc, se restaura con pg_restore; ver README).
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${POSTGRES_DB:-padeldb}
+      PGUSER: ${POSTGRES_USER:-padel}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
+    volumes:
+      - ./deploy/backup/pg-backup.sh:/usr/local/bin/pg-backup.sh:ro
+      - ./backups:/backups
+    entrypoint: ["sh", "/usr/local/bin/pg-backup.sh"]
 
 volumes:
-  padel_postgres_data:
-  padel_redis_data:
+  postgres_data:
+  redis_data:

@@ -42,7 +42,7 @@ class SeguridadYErroresIntegrationTest {
 
     private void registrar(String email) throws Exception {
         CrearUsuarioRequest registro = new CrearUsuarioRequest(
-                "Test", "User", email, null, "password123", RolUsuario.JUGADOR);
+                "Test", "User", email, null, "ClaveSegura-2026");
         mockMvc.perform(post("/api/v1/auth/registro")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(registro)))
@@ -52,7 +52,7 @@ class SeguridadYErroresIntegrationTest {
     private String login(String email) throws Exception {
         String json = mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "ClaveSegura-2026"))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return objectMapper.readValue(json, LoginResponse.class).token();
@@ -104,7 +104,7 @@ class SeguridadYErroresIntegrationTest {
 
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "password123"))))
+                        .content(objectMapper.writeValueAsString(new LoginRequest(email, "ClaveSegura-2026"))))
                 .andExpect(status().isUnauthorized());
     }
 

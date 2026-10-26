@@ -13,7 +13,6 @@ import { ToastService } from '../../../core/services/toast.service';
 
 @Component({
   selector: 'app-tablon-solicitudes',
-  standalone: true,
   imports: [CommonModule, RouterLink, ReactiveFormsModule, FormsModule],
   templateUrl: './tablon-solicitudes.component.html'
 })
@@ -22,24 +21,24 @@ export class TablonSolicitudesComponent implements OnInit {
   private toast = inject(ToastService);
   private canchaAdminService = inject(CanchaAdminService);
   private authService = inject(AuthService);
-  private fb = inject(FormBuilder);
-  currentUser = this.authService.currentUser;
+  private fb = inject(FormBuilder);
+  currentUser = this.authService.currentUser;
   categorias: CategoriaJugador[] = ['PRIMERA', 'SEGUNDA', 'TERCERA', 'CUARTA', 'QUINTA', 'SEXTA', 'SEPTIMA', 'OCTAVA'];
-  canchas = signal<CanchaResponse[]>([]);
+  canchas = signal<CanchaResponse[]>([]);
   solicitudes = signal<SolicitudPartidoResponse[]>([]);
   vista = signal<'tablon' | 'mis-solicitudes' | 'mis-postulaciones'>('tablon');
   cargando = signal<boolean>(true);
-  procesando = signal<boolean>(false);
+  procesando = signal<boolean>(false);
   mostrarFormulario = signal<boolean>(false);
-  expandidoId = signal<number | null>(null);
+  expandidoId = signal<number | null>(null);
   // La fecha propuesta debe ser futura (no puede ser anterior a este mismo momento)
   // y el año no puede irse de un rango razonable (evita typos como "20260").
   fechaMin = nowIsoDateTimeLocal();
-  fechaMax = maxIsoDateTimeLocal();
+  fechaMax = maxIsoDateTimeLocal();
   filtroForm: FormGroup = this.fb.group({
     tipoSolicitud: [''],
     categoria: ['']
-  });
+  });
   solicitudForm: FormGroup = this.fb.group({
     tipoSolicitud: ['BUSCA_PAREJA' as TipoSolicitud, Validators.required],
     categoria: ['CUARTA', Validators.required],
@@ -47,18 +46,18 @@ export class TablonSolicitudesComponent implements OnInit {
     fechaHoraPropuesta: ['', [Validators.required, rangoDeFechaValidator(this.fechaMin, this.fechaMax)]],
     canchaId: [''],
     descripcion: ['', Validators.maxLength(500)]
-  });
-  postulacionMensaje: Record<number, string> = {};
+  });
+  postulacionMensaje: Record<number, string> = {};
   ngOnInit() {
     this.canchaAdminService.getCanchas().subscribe({ next: (data) => this.canchas.set(data) });
     this.cargarSolicitudes();
-  }
+  }
   cambiarVista(vista: 'tablon' | 'mis-solicitudes' | 'mis-postulaciones') {
     this.vista.set(vista);
     this.cargarSolicitudes();
-  }
+  }
   cargarSolicitudes() {
-    this.cargando.set(true);
+    this.cargando.set(true);
     if (this.vista() === 'mis-solicitudes') {
       this.solicitudService.misSolicitudes().subscribe(this.observadorLista());
       return;
@@ -66,13 +65,13 @@ export class TablonSolicitudesComponent implements OnInit {
     if (this.vista() === 'mis-postulaciones') {
       this.solicitudService.misPostulaciones().subscribe(this.observadorLista());
       return;
-    }
+    }
     const { tipoSolicitud, categoria } = this.filtroForm.value;
     this.solicitudService.buscar({
       tipoSolicitud: tipoSolicitud || undefined,
       categoria: categoria || undefined
     }).subscribe(this.observadorLista());
-  }
+  }
   private observadorLista() {
     return {
       next: (data: SolicitudPartidoResponse[]) => {
@@ -84,22 +83,22 @@ export class TablonSolicitudesComponent implements OnInit {
         this.cargando.set(false);
       }
     };
-  }
+  }
   aplicarFiltros() {
     this.cargarSolicitudes();
-  }
+  }
   toggleFormulario() {
     this.mostrarFormulario.set(!this.mostrarFormulario());
-  }
+  }
   toggleExpandido(id: number) {
     this.expandidoId.set(this.expandidoId() === id ? null : id);
-  }
+  }
   private mostrarError(msg: string) {
-    this.toast.error(msg);
-  }
+    this.toast.error(msg);
+  }
   private mostrarExito(msg: string) {
-    this.toast.success(msg);
-  }
+    this.toast.success(msg);
+  }
   crearSolicitud() {
     if (this.solicitudForm.invalid) {
       this.solicitudForm.markAllAsTouched();
@@ -124,7 +123,7 @@ export class TablonSolicitudesComponent implements OnInit {
         this.procesando.set(false);
       }
     });
-  }
+  }
   cancelarSolicitud(id: number) {
     if (!confirm('¿Seguro que querés cancelar esta solicitud?')) return;
     this.procesando.set(true);
@@ -139,7 +138,7 @@ export class TablonSolicitudesComponent implements OnInit {
         this.procesando.set(false);
       }
     });
-  }
+  }
   postularse(id: number) {
     this.procesando.set(true);
     this.solicitudService.postularse(id, { mensaje: this.postulacionMensaje[id] || null }).subscribe({
@@ -154,7 +153,7 @@ export class TablonSolicitudesComponent implements OnInit {
         this.procesando.set(false);
       }
     });
-  }
+  }
   aceptarPostulacion(solicitudId: number, postulacionId: number) {
     this.procesando.set(true);
     this.solicitudService.aceptarPostulacion(solicitudId, postulacionId).subscribe({
@@ -168,7 +167,7 @@ export class TablonSolicitudesComponent implements OnInit {
         this.procesando.set(false);
       }
     });
-  }
+  }
   rechazarPostulacion(solicitudId: number, postulacionId: number) {
     this.procesando.set(true);
     this.solicitudService.rechazarPostulacion(solicitudId, postulacionId).subscribe({
@@ -182,14 +181,15 @@ export class TablonSolicitudesComponent implements OnInit {
         this.procesando.set(false);
       }
     });
-  }
+  }
   esCreador(solicitud: SolicitudPartidoResponse): boolean {
-    return solicitud.creadorEmail === this.currentUser()?.email;
-  }
+    return solicitud.creadorId === this.currentUser()?.id;
+  }
+  // Un jugador que no es el creador solo recibe su propia postulación (si la tiene).
   yaMePostule(solicitud: SolicitudPartidoResponse): boolean {
-    const email = this.currentUser()?.email;
-    return solicitud.postulaciones.some(p => p.jugadorEmail === email);
-  }
+    const id = this.currentUser()?.id;
+    return solicitud.postulaciones.some(p => p.jugadorId === id);
+  }
   clasePostulacion(estado: string): string {
     switch (estado) {
       case 'ACEPTADA':
@@ -201,11 +201,11 @@ export class TablonSolicitudesComponent implements OnInit {
       default:
         return 'bg-slate-800 text-slate-400';
     }
-  }
+  }
   invalido(campo: string): boolean {
     const control = this.solicitudForm.get(campo);
     return !!control && control.invalid && (control.touched || control.dirty);
-  }
+  }
   claseEstadoSolicitud(estado: string): string {
     switch (estado) {
       case 'ABIERTA':

@@ -9,10 +9,12 @@ import { ReservaResponse } from '../../../shared/models/reserva.model';
 import { MetodoMostrador } from '../../../shared/models/pago.model';
 import { CobroMostradorComponent } from '../../../shared/components/cobro-mostrador/cobro-mostrador.component';
 import { formatearPesos } from '../../../shared/utils/moneda.util';
+import { map } from 'rxjs';
+
+const MAX_RECIENTES = 50;
 
 @Component({
   selector: 'app-mis-reservas',
-  standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, CobroMostradorComponent],
   templateUrl: './mis-reservas.component.html',
   styleUrls: ['./mis-reservas.component.css']
@@ -108,8 +110,9 @@ export class MisReservasComponent implements OnInit {
   cargarReservas() {
     this.cargando.set(true);
 
+    // Staff: las más recientes del club (la búsqueda completa, con filtros y páginas, está en Reservas globales).
     const request$ = (this.esPersonal() && this.verTodas())
-      ? this.reservaService.getAllReservas()
+      ? this.reservaService.buscarReservas({ size: MAX_RECIENTES }).pipe(map(pagina => pagina.content))
       : this.reservaService.getMisReservas();
 
     request$.subscribe({

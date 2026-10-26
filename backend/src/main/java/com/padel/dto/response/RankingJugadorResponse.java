@@ -6,7 +6,6 @@ public record RankingJugadorResponse(
     Long id,
     Long jugadorId,
     String jugadorNombre,
-    String jugadorEmail,
     CategoriaJugador categoria,
     Integer puntos,
     Integer partidosJugados,

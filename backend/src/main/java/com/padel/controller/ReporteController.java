@@ -1,6 +1,7 @@
 package com.padel.controller;
 
 import com.padel.dto.response.CajaDiariaResponse;
+import com.padel.dto.response.MetricasReservasResponse;
 import com.padel.service.ReporteService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -34,5 +35,15 @@ public class ReporteController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         CajaDiariaResponse response = reporteService.obtenerCajaDiaria(fecha);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/metricas-reservas")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Métricas de reservas del período", description = "Totales por estado, ingresos de turnos confirmados y reservas por día " +
+            "entre 'desde' y 'hasta' (yyyy-MM-dd, máximo 92 días). Para el panel de administración.")
+    public ResponseEntity<MetricasReservasResponse> metricasReservas(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return ResponseEntity.ok(reporteService.metricasReservas(desde, hasta));
     }
 }

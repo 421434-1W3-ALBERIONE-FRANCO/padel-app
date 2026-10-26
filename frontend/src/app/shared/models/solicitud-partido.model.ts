@@ -15,6 +15,12 @@ export interface SolicitudPartidoRequest {
   descripcion: string | null;
 }
 
+/** Contacto de otro jugador: solo llega cuando ya hay acuerdo (postulación aceptada). */
+export interface ContactoResponse {
+  email: string;
+  telefono: string | null;
+}
+
 export interface PostulacionSolicitudRequest {
   mensaje: string | null;
 }
@@ -24,7 +30,8 @@ export interface PostulacionSolicitudResponse {
   solicitudId: number;
   jugadorId: number;
   jugadorNombre: string;
-  jugadorEmail: string;
+  /** Solo para el creador de la solicitud, cuando la postulación está aceptada. */
+  contacto: ContactoResponse | null;
   mensaje: string | null;
   estado: EstadoPostulacion;
   createdAt: string;
@@ -34,7 +41,8 @@ export interface SolicitudPartidoResponse {
   id: number;
   creadorId: number;
   creadorNombre: string;
-  creadorEmail: string;
+  /** Solo para los postulantes aceptados (y el propio creador). */
+  creadorContacto: ContactoResponse | null;
   tipoSolicitud: TipoSolicitud;
   categoria: CategoriaJugador;
   cantidadJugadoresFaltantes: number;
@@ -44,5 +52,7 @@ export interface SolicitudPartidoResponse {
   descripcion: string | null;
   estado: EstadoSolicitud;
   createdAt: string;
+  /** El creador ve todas las postulaciones; cualquier otro jugador, solo la suya. */
   postulaciones: PostulacionSolicitudResponse[];
+  cantidadPostulaciones: number;
 }

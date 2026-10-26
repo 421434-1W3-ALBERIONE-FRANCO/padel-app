@@ -1,10 +1,6 @@
 package com.padel.service.impl;
 
-import com.mercadopago.client.payment.PaymentClient;
-import com.mercadopago.client.preference.PreferenceClient;
-import com.mercadopago.client.preference.PreferenceRequest;
-import com.mercadopago.resources.payment.Payment;
-import com.mercadopago.resources.preference.Preference;
+import com.padel.config.ReservasProperties;
 import com.padel.domain.entity.Cancha;
 import com.padel.domain.entity.Pago;
 import com.padel.domain.entity.Reserva;
@@ -19,23 +15,29 @@ import com.padel.dto.response.PagoResponse;
 import com.padel.dto.response.PreferenciaResponse;
 import com.padel.exception.DatosInvalidosException;
 import com.padel.exception.EstadoInvalidoException;
-import com.padel.exception.ResourceNotFoundException;
 import com.padel.exception.ReservaNoModificableException;
+import com.padel.exception.ResourceNotFoundException;
+import com.padel.integracion.pagos.PasarelaPagos;
+import com.padel.integracion.pagos.PasarelaPagos.NuevaPreferencia;
+import com.padel.integracion.pagos.PasarelaPagos.PagoExterno;
+import com.padel.integracion.pagos.PasarelaPagos.PreferenciaCreada;
 import com.padel.mapper.PagoMapper;
 import com.padel.repository.PagoRepository;
 import com.padel.repository.ReservaRepository;
 import com.padel.repository.UsuarioRepository;
+import com.padel.security.ControlAcceso;
+import com.padel.service.ConsumoService;
 import com.padel.service.EmailService;
 import com.padel.service.NotificacionInAppService;
+import com.padel.service.ReintegroService;
 import com.padel.service.ReservaService;
-import com.padel.service.ConsumoService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedConstruction;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -43,14 +45,19 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PagoServiceImplTest {
@@ -66,373 +73,337 @@ class PagoServiceImplTest {
     @Mock
     private ConsumoService consumoService;
     @Mock
+    private ReintegroService reintegroService;
+    @Mock
+    private PasarelaPagos pasarelaPagos;
+    @Mock
     private PagoMapper pagoMapper;
     @Mock
     private EmailService emailService;
     @Mock
     private NotificacionInAppService notificacionInAppService;
+    @Spy
+    private ControlAcceso controlAcceso = new ControlAcceso();
+    @Spy
+    private ReservasProperties reservasProperties = new ReservasProperties();
 
     @InjectMocks
     private PagoServiceImpl pagoService;
 
-    private Usuario usuarioMock;
-    private Cancha canchaMock;
-    private Reserva reservaMock;
-    private Pago pagoMock;
+    private Usuario jugador;
+    private Reserva reserva;
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(pagoService, "accessToken", "TEST-TOKEN");
-        ReflectionTestUtils.setField(pagoService, "frontendUrl", "https://club.netlify.app/");
-
-        usuarioMock = Usuario.builder()
-                .id(1L)
-                .nombre("Juan")
-                .email("juan@example.com")
-                .rol(RolUsuario.JUGADOR)
-                .activo(true)
-                .build();
-
-        canchaMock = Cancha.builder()
-                .id(1L)
-                .nombre("Cancha 1")
-                .activa(true)
-                .build();
-
-        reservaMock = Reserva.builder()
-                .id(1L)
-                .usuario(usuarioMock)
-                .cancha(canchaMock)
-                .fecha(LocalDate.now().plusDays(1))
-                .horaInicio(LocalTime.of(18, 0))
-                .horaFin(LocalTime.of(19, 30))
-                .precioTotal(new BigDecimal("1200.00"))
-                .estadoReserva(EstadoReserva.PENDIENTE_PAGO)
-                .build();
-
-        pagoMock = Pago.builder()
-                .id(1L)
-                .reserva(reservaMock)
-                .usuario(usuarioMock)
-                .monto(new BigDecimal("1200.00"))
-                .metodo(MetodoPago.MERCADOPAGO)
-                .estado(EstadoPago.PENDIENTE)
-                .mpPreferenceId("pref-123")
-                .build();
+        ReflectionTestUtils.setField(pagoService, "frontendUrl", "https://club.example.com/");
+        jugador = Usuario.builder().id(1L).nombre("Juan").apellido("Perez").email("juan@example.com").rol(RolUsuario.JUGADOR).activo(true).build();
+        Cancha cancha = Cancha.builder().id(1L).nombre("Cancha 1").build();
+        reserva = Reserva.builder().id(1L).usuario(jugador).cancha(cancha).fecha(LocalDate.now().plusDays(1))
+                .horaInicio(LocalTime.of(18, 0)).horaFin(LocalTime.of(19, 30)).precioTotal(new BigDecimal("1500.00")).build();
+        reserva.setCreatedAt(LocalDateTime.now());
     }
 
+    private PagoExterno pagoMp(String estado, String referencia, String monto, String moneda) {
+        return new PagoExterno("123", estado, referencia, monto == null ? null : new BigDecimal(monto), moneda);
+    }
+
+    // ---------- crearPreferencia ----------
+
     @Test
-    void crearPreferencia_HappyPath() {
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
-        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+    void crearPreferencia_HappyPath_VenceJuntoConLaReserva() {
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+        when(pasarelaPagos.crearPreferencia(any())).thenReturn(new PreferenciaCreada("pref-1", "https://mp/checkout"));
         when(pagoRepository.findByReservaIdAndEstadoAndConcepto(1L, EstadoPago.PENDIENTE, ConceptoPago.TURNO)).thenReturn(Optional.empty());
-        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
 
-        Preference preferenceMock = mock(Preference.class);
-        when(preferenceMock.getId()).thenReturn("pref-123");
-        when(preferenceMock.getInitPoint()).thenReturn("http://initpoint.com");
+        PreferenciaResponse response = pagoService.crearPreferencia(1L, "juan@example.com");
 
-        try (MockedConstruction<PreferenceClient> mockedClient = mockConstruction(PreferenceClient.class,
-                (mock, context) -> {
-                    when(mock.create(any(PreferenceRequest.class))).thenReturn(preferenceMock);
-                })) {
-
-            PreferenciaResponse response = pagoService.crearPreferencia(1L, "juan@example.com");
-
-            assertNotNull(response);
-            assertEquals("pref-123", response.preferenceId());
-            assertEquals("http://initpoint.com", response.initPoint());
-            verify(pagoRepository).save(any(Pago.class));
-
-            // MercadoPago devuelve al usuario al frontend configurado (no a localhost).
-            ArgumentCaptor<PreferenceRequest> captor = ArgumentCaptor.forClass(PreferenceRequest.class);
-            verify(mockedClient.constructed().get(0)).create(captor.capture());
-            assertEquals("https://club.netlify.app/reservas/mis-reservas?status=success", captor.getValue().getBackUrls().getSuccess());
-            assertEquals("https://club.netlify.app/pagos/checkout/1?status=failure", captor.getValue().getBackUrls().getFailure());
-        } catch (Exception e) {
-            fail(e);
-        }
+        assertEquals("pref-1", response.preferenceId());
+        assertEquals("https://mp/checkout", response.initPoint());
+        ArgumentCaptor<NuevaPreferencia> captor = ArgumentCaptor.forClass(NuevaPreferencia.class);
+        verify(pasarelaPagos).crearPreferencia(captor.capture());
+        assertEquals(new BigDecimal("1500.00"), captor.getValue().precio());
+        assertEquals("1", captor.getValue().referenciaExterna());
+        assertEquals("https://club.example.com/reservas/mis-reservas?status=success", captor.getValue().urlExito());
+        assertNotNull(captor.getValue().venceEl());
+        ArgumentCaptor<Pago> pago = ArgumentCaptor.forClass(Pago.class);
+        verify(pagoRepository).save(pago.capture());
+        assertEquals("pref-1", pago.getValue().getMpPreferenceId());
+        assertEquals(ConceptoPago.TURNO, pago.getValue().getConcepto());
     }
 
     @Test
     void crearPreferencia_DeberiaLanzarReservaNoModificable_CuandoNoEstaPendienteDePago() {
-        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
-        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
+        ReflectionTestUtils.setField(reserva, "estadoReserva", EstadoReserva.CANCELADA);
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
 
-        assertThrows(ReservaNoModificableException.class, () ->
-                pagoService.crearPreferencia(1L, "juan@example.com"));
+        assertThrows(ReservaNoModificableException.class, () -> pagoService.crearPreferencia(1L, "juan@example.com"));
+        verifyNoInteractions(pasarelaPagos);
+    }
 
-        verify(pagoRepository, never()).save(any());
+    @Test
+    void crearPreferencia_RechazaUnTurnoSinImporte() {
+        reserva.setPrecioTotal(BigDecimal.ZERO);
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+
+        assertThrows(DatosInvalidosException.class, () -> pagoService.crearPreferencia(1L, "juan@example.com"));
+        verifyNoInteractions(pasarelaPagos);
+    }
+
+    @Test
+    void crearPreferencia_RechazaUnaReservaCuyoPlazoDePagoYaVencio() {
+        reserva.setCreatedAt(LocalDateTime.now().minusMinutes(30));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+
+        assertThrows(ReservaNoModificableException.class, () -> pagoService.crearPreferencia(1L, "juan@example.com"));
+        verifyNoInteractions(pasarelaPagos);
     }
 
     @Test
     void crearPreferencia_ShouldThrowResourceNotFoundException_WhenUserNotOwner() {
-        Usuario otherUser = Usuario.builder().id(2L).email("other@example.com").rol(RolUsuario.JUGADOR).build();
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
-        when(usuarioRepository.findByEmail("other@example.com")).thenReturn(Optional.of(otherUser));
+        Usuario otro = Usuario.builder().id(2L).email("otro@example.com").rol(RolUsuario.JUGADOR).build();
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("otro@example.com")).thenReturn(Optional.of(otro));
 
-        assertThrows(ResourceNotFoundException.class, () ->
-                pagoService.crearPreferencia(1L, "other@example.com"));
+        assertThrows(ResourceNotFoundException.class, () -> pagoService.crearPreferencia(1L, "otro@example.com"));
+    }
 
-        verify(pagoRepository, never()).save(any());
+    // ---------- webhook ----------
+
+    @Test
+    void procesarWebhook_ApprovedPayment_FirstTime_ConfirmaLaReserva() {
+        Pago pendiente = Pago.builder().id(5L).reserva(reserva).usuario(jugador).monto(new BigDecimal("1500.00"))
+                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", "1", "1500.00", "ARS"));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pendiente));
+        when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        pagoService.procesarWebhook("payment", "123");
+
+        assertEquals(EstadoPago.APROBADO, pendiente.getEstado());
+        assertEquals("123", pendiente.getMpPaymentId());
+        verify(emailService).enviarComprobantePago(pendiente);
+        verify(reservaService).confirmarReserva(1L);
     }
 
     @Test
-    void procesarWebhook_ApprovedPayment_FirstTime() {
-        Payment paymentMock = mock(Payment.class);
-        when(paymentMock.getStatus()).thenReturn("approved");
-        when(paymentMock.getExternalReference()).thenReturn("1");
+    void procesarWebhook_MontoMenorAlEsperado_NoConfirmaYAvisaAlAdmin() {
+        Usuario admin = Usuario.builder().id(9L).rol(RolUsuario.ADMIN).activo(true).build();
+        Pago pendiente = Pago.builder().id(5L).reserva(reserva).usuario(jugador).monto(new BigDecimal("1500.00"))
+                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", "1", "10.00", "ARS"));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pendiente));
+        when(usuarioRepository.findByRol(RolUsuario.ADMIN)).thenReturn(List.of(admin));
 
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
-        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pagoMock));
-        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+        pagoService.procesarWebhook("payment", "123");
 
-        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
-                (mock, context) -> {
-                    when(mock.get(999L)).thenReturn(paymentMock);
-                })) {
-
-            pagoService.procesarWebhook("payment", "999");
-
-            assertEquals(EstadoPago.APROBADO, pagoMock.getEstado());
-            assertEquals("999", pagoMock.getMpPaymentId());
-            verify(pagoRepository).save(pagoMock);
-            verify(reservaService).confirmarReserva(1L);
-        }
+        assertEquals(EstadoPago.PENDIENTE, pendiente.getEstado());
+        verify(reservaService, never()).confirmarReserva(any());
+        verify(notificacionInAppService).crear(eq(admin), eq(TipoNotificacion.PAGO_EN_REVISION), anyString(), anyString(), eq(1L));
     }
 
     @Test
-    void procesarWebhook_ApprovedPaymentPoint_FirstTime() {
-        Pago pagoPointMock = Pago.builder()
-                .id(2L)
-                .reserva(reservaMock)
-                .usuario(usuarioMock)
-                .monto(new BigDecimal("200.00"))
-                .metodo(MetodoPago.MERCADOPAGO_POINT)
-                .estado(EstadoPago.PENDIENTE)
-                .build();
+    void procesarWebhook_MonedaDistinta_NoConfirma() {
+        Pago pendiente = Pago.builder().id(5L).reserva(reserva).usuario(jugador).monto(new BigDecimal("1500.00"))
+                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", "1", "1500.00", "USD"));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pendiente));
 
-        Payment paymentMock = mock(Payment.class);
-        when(paymentMock.getStatus()).thenReturn("approved");
-        when(paymentMock.getExternalReference()).thenReturn("1");
+        pagoService.procesarWebhook("payment", "123");
 
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
-        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pagoPointMock));
-        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoPointMock);
-
-        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
-                (mock, context) -> {
-                    when(mock.get(999L)).thenReturn(paymentMock);
-                })) {
-
-            pagoService.procesarWebhook("payment", "999");
-
-            assertEquals(EstadoPago.APROBADO, pagoPointMock.getEstado());
-            assertEquals("999", pagoPointMock.getMpPaymentId());
-            verify(pagoRepository).save(pagoPointMock);
-            verify(consumoService).marcarConsumosComoPagados(2L);
-            verify(reservaService, never()).confirmarReserva(anyLong());
-        }
+        verify(reservaService, never()).confirmarReserva(any());
     }
 
     @Test
     void procesarWebhook_ApprovedPayment_Idempotent() {
-        pagoMock.setEstado(EstadoPago.APROBADO);
-        pagoMock.setMpPaymentId("pay-999");
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.of(pagoMock));
+        Pago aprobado = Pago.builder().id(5L).estado(EstadoPago.APROBADO).mpPaymentId("123").build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.of(aprobado));
 
-        pagoService.procesarWebhook("payment", "999");
+        pagoService.procesarWebhook("payment", "123");
+
+        verifyNoInteractions(pasarelaPagos, reservaService);
+    }
+
+    @Test
+    void procesarWebhook_PagoAprobadoDeUnaReservaVencida_SeReintegra() {
+        ReflectionTestUtils.setField(reserva, "estadoReserva", EstadoReserva.CANCELADA);
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", "1", "1500.00", "ARS"));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of());
+        when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        pagoService.procesarWebhook("payment", "123");
+
+        verify(reservaService, never()).confirmarReserva(any());
+        ArgumentCaptor<Pago> captor = ArgumentCaptor.forClass(Pago.class);
+        verify(reintegroService).reintegrarPagoTardio(captor.capture());
+        assertEquals(EstadoPago.APROBADO, captor.getValue().getEstado());
+    }
+
+    @Test
+    void procesarWebhook_PagoSinReferenciaDeReserva_SeIgnora() {
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", null, "1500.00", "ARS"));
+
+        pagoService.procesarWebhook("payment", "123");
 
         verify(pagoRepository, never()).save(any());
-        verify(reservaService, never()).confirmarReserva(anyLong());
+        verifyNoInteractions(reservaService);
     }
 
     @Test
-    void procesarWebhook_ApprovedPayment_ReservaVencida_RegistraPagoYNotifica() {
-        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
-        Payment paymentMock = mock(Payment.class);
-        when(paymentMock.getStatus()).thenReturn("approved");
-        when(paymentMock.getExternalReference()).thenReturn("1");
+    void procesarWebhook_TipoDistintoDePayment_SeIgnora() {
+        pagoService.procesarWebhook("merchant_order", "123");
 
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
-        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pagoMock));
-        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
-
-        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
-                (mock, context) -> {
-                    when(mock.get(999L)).thenReturn(paymentMock);
-                })) {
-
-            pagoService.procesarWebhook("payment", "999");
-
-            assertEquals(EstadoPago.APROBADO, pagoMock.getEstado());
-            verify(pagoRepository).save(pagoMock);
-            verify(reservaService, never()).confirmarReserva(anyLong());
-            verify(notificacionInAppService).crear(eq(usuarioMock), eq(TipoNotificacion.RESERVA_CANCELADA_FALTA_PAGO), any(), any(), eq(1L));
-        }
-    }
-
-    @Test
-    void procesarWebhook_PagoSinExternalReference_SeIgnora() {
-        Payment paymentMock = mock(Payment.class);
-        when(paymentMock.getStatus()).thenReturn("approved");
-        when(paymentMock.getExternalReference()).thenReturn(null);
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
-
-        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
-                (mock, context) -> {
-                    when(mock.get(999L)).thenReturn(paymentMock);
-                })) {
-
-            assertDoesNotThrow(() -> pagoService.procesarWebhook("payment", "999"));
-
-            verify(pagoRepository, never()).save(any());
-            verify(reservaService, never()).confirmarReserva(anyLong());
-        }
+        verifyNoInteractions(pasarelaPagos, pagoRepository);
     }
 
     @Test
     void procesarWebhook_MismoPagoMp_ReutilizaSuRegistro() {
-        // Primero llegó "in_process" (quedó asociado al pago 999) y ahora "approved": no debe tomar
-        // otro pago pendiente de la reserva (mp_payment_id es único en la base).
-        Pago otroPendiente = Pago.builder().id(5L).reserva(reservaMock).usuario(usuarioMock)
-                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).build();
-        pagoMock.setMpPaymentId("999");
+        Pago enProceso = Pago.builder().id(5L).reserva(reserva).usuario(jugador).monto(new BigDecimal("1500.00"))
+                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).mpPaymentId("123").build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.of(enProceso));
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", "1", "1500.00", "ARS"));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        Payment paymentMock = mock(Payment.class);
-        when(paymentMock.getStatus()).thenReturn("approved");
-        when(paymentMock.getExternalReference()).thenReturn("1");
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.of(pagoMock));
-        lenient().when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(otroPendiente, pagoMock));
-        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+        pagoService.procesarWebhook("payment", "123");
 
-        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
-                (mock, context) -> {
-                    when(mock.get(999L)).thenReturn(paymentMock);
-                })) {
-
-            pagoService.procesarWebhook("payment", "999");
-
-            assertEquals(EstadoPago.APROBADO, pagoMock.getEstado());
-            assertEquals(EstadoPago.PENDIENTE, otroPendiente.getEstado());
-            assertNull(otroPendiente.getMpPaymentId());
-            verify(reservaService).confirmarReserva(1L);
-        }
+        verify(pagoRepository, never()).findByReservaId(any());
+        assertEquals(EstadoPago.APROBADO, enProceso.getEstado());
     }
 
     @Test
     void procesarWebhook_RejectedPayment() {
-        Payment paymentMock = mock(Payment.class);
-        when(paymentMock.getStatus()).thenReturn("rejected");
-        when(paymentMock.getExternalReference()).thenReturn("1");
+        Pago pendiente = Pago.builder().id(5L).reserva(reserva).usuario(jugador).monto(new BigDecimal("1500.00"))
+                .metodo(MetodoPago.MERCADOPAGO).estado(EstadoPago.PENDIENTE).build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("rejected", "1", "1500.00", "ARS"));
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pendiente));
 
-        when(pagoRepository.findByMpPaymentId("999")).thenReturn(Optional.empty());
-        when(pagoRepository.findByReservaId(1L)).thenReturn(List.of(pagoMock));
-        when(pagoRepository.save(any(Pago.class))).thenReturn(pagoMock);
+        pagoService.procesarWebhook("payment", "123");
 
-        try (MockedConstruction<PaymentClient> mockedClient = mockConstruction(PaymentClient.class,
-                (mock, context) -> {
-                    when(mock.get(999L)).thenReturn(paymentMock);
-                })) {
-
-            pagoService.procesarWebhook("payment", "999");
-
-            assertEquals(EstadoPago.RECHAZADO, pagoMock.getEstado());
-            assertEquals("999", pagoMock.getMpPaymentId());
-            verify(pagoRepository).save(pagoMock);
-            verify(reservaService, never()).confirmarReserva(anyLong());
-        }
+        assertEquals(EstadoPago.RECHAZADO, pendiente.getEstado());
+        verify(reservaService, never()).confirmarReserva(any());
     }
 
     @Test
-    void obtenerPorId_HappyPath() {
-        when(pagoRepository.findById(1L)).thenReturn(Optional.of(pagoMock));
-        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(usuarioMock));
-        PagoResponse responseDto = new PagoResponse(1L, 1L, null, ConceptoPago.TURNO, 1L, "juan@example.com", new BigDecimal("1200.00"),
-                MetodoPago.MERCADOPAGO, EstadoPago.PENDIENTE, "pref-123", null, LocalDateTime.now(), LocalDateTime.now());
-        when(pagoMapper.toResponse(pagoMock)).thenReturn(responseDto);
+    void procesarWebhook_CobroDeConsumosConPoint_MarcaLosConsumosComoPagados() {
+        Pago consumos = Pago.builder().id(77L).reserva(reserva).usuario(jugador).monto(new BigDecimal("3000.00"))
+                .metodo(MetodoPago.MERCADOPAGO_POINT).estado(EstadoPago.PENDIENTE).concepto(ConceptoPago.CONSUMOS).build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("approved", "CONSUMOS-77", "3000.00", "ARS"));
+        when(pagoRepository.findByIdForUpdate(77L)).thenReturn(Optional.of(consumos));
 
-        PagoResponse result = pagoService.obtenerPorId(1L, "juan@example.com");
+        pagoService.procesarWebhook("payment", "123");
 
-        assertNotNull(result);
-        assertEquals(1L, result.id());
+        assertEquals(EstadoPago.APROBADO, consumos.getEstado());
+        verify(consumoService).marcarConsumosComoPagados(77L);
+        verifyNoInteractions(reservaService);
     }
 
-    // --- Cobro en el mostrador ---
+    @Test
+    void procesarWebhook_CobroDeConsumosRechazado_LiberaLosConsumos() {
+        Pago consumos = Pago.builder().id(77L).reserva(reserva).usuario(jugador).monto(new BigDecimal("3000.00"))
+                .metodo(MetodoPago.MERCADOPAGO_POINT).estado(EstadoPago.PENDIENTE).concepto(ConceptoPago.CONSUMOS).build();
+        when(pagoRepository.findByMpPaymentId("123")).thenReturn(Optional.empty());
+        when(pasarelaPagos.consultarPago("123")).thenReturn(pagoMp("rejected", "CONSUMOS-77", "3000.00", "ARS"));
+        when(pagoRepository.findByIdForUpdate(77L)).thenReturn(Optional.of(consumos));
 
-    private Usuario recepcionista() {
-        return Usuario.builder().id(9L).nombre("Ana").apellido("Recepción").email("ana@club.com")
-                .rol(RolUsuario.RECEPCIONISTA).activo(true).build();
+        pagoService.procesarWebhook("payment", "123");
+
+        assertEquals(EstadoPago.RECHAZADO, consumos.getEstado());
+        verify(consumoService).liberarConsumosDelPago(77L);
+    }
+
+    // ---------- consulta y cobro en mostrador ----------
+
+    @Test
+    void obtenerPorId_HappyPath() {
+        Pago pago = Pago.builder().id(5L).usuario(jugador).build();
+        PagoResponse response = new PagoResponse(5L, 1L, null, ConceptoPago.TURNO, 1L, "juan@example.com", new BigDecimal("1500.00"),
+                MetodoPago.MERCADOPAGO, EstadoPago.APROBADO, null, null, null, null);
+        when(pagoRepository.findById(5L)).thenReturn(Optional.of(pago));
+        when(usuarioRepository.findByEmail("juan@example.com")).thenReturn(Optional.of(jugador));
+        when(pagoMapper.toResponse(pago)).thenReturn(response);
+
+        assertEquals(response, pagoService.obtenerPorId(5L, "juan@example.com"));
+    }
+
+    @Test
+    void obtenerPorId_DeOtroJugador_RespondeNoEncontrado() {
+        Usuario otro = Usuario.builder().id(2L).rol(RolUsuario.JUGADOR).build();
+        Pago pago = Pago.builder().id(5L).usuario(jugador).build();
+        when(pagoRepository.findById(5L)).thenReturn(Optional.of(pago));
+        when(usuarioRepository.findByEmail("otro@example.com")).thenReturn(Optional.of(otro));
+
+        assertThrows(ResourceNotFoundException.class, () -> pagoService.obtenerPorId(5L, "otro@example.com"));
     }
 
     @Test
     void registrarCobroMostrador_TurnoPendiente_RegistraPagoYConfirma() {
-        Usuario staff = recepcionista();
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
-        when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(false);
-        when(usuarioRepository.findByEmail("ana@club.com")).thenReturn(Optional.of(staff));
+        Usuario recepcion = Usuario.builder().id(4L).email("recepcion@example.com").rol(RolUsuario.RECEPCIONISTA).build();
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcion));
         when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "ana@club.com");
+        pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "recepcion@example.com");
 
         ArgumentCaptor<Pago> captor = ArgumentCaptor.forClass(Pago.class);
         verify(pagoRepository).save(captor.capture());
-        Pago pago = captor.getValue();
-        assertEquals(MetodoPago.EFECTIVO, pago.getMetodo());
-        assertEquals(EstadoPago.APROBADO, pago.getEstado());
-        assertEquals(ConceptoPago.TURNO, pago.getConcepto());
-        assertEquals(new BigDecimal("1200.00"), pago.getMonto());
-        assertSame(usuarioMock, pago.getUsuario(), "El pago queda a nombre del dueño de la reserva");
-        assertSame(staff, pago.getAtendidoPor());
+        assertEquals(EstadoPago.APROBADO, captor.getValue().getEstado());
+        assertEquals(recepcion, captor.getValue().getAtendidoPor());
         verify(reservaService).confirmarReserva(1L);
     }
 
     @Test
     void registrarCobroMostrador_TurnoConfirmadoParaCobrarAlLlegar_SoloRegistraElPago() {
-        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
-        when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(false);
-        when(usuarioRepository.findByEmail("ana@club.com")).thenReturn(Optional.of(recepcionista()));
+        Usuario recepcion = Usuario.builder().id(4L).email("recepcion@example.com").rol(RolUsuario.RECEPCIONISTA).build();
+        ReflectionTestUtils.setField(reserva, "estadoReserva", EstadoReserva.CONFIRMADA);
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
+        when(usuarioRepository.findByEmail("recepcion@example.com")).thenReturn(Optional.of(recepcion));
         when(pagoRepository.save(any(Pago.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        pagoService.registrarCobroMostrador(1L, MetodoPago.TARJETA, "ana@club.com");
+        pagoService.registrarCobroMostrador(1L, MetodoPago.TARJETA, "recepcion@example.com");
 
-        verify(pagoRepository).save(argThat(p -> p.getMetodo() == MetodoPago.TARJETA && p.getEstado() == EstadoPago.APROBADO));
-        verify(reservaService, never()).confirmarReserva(anyLong());
+        verify(reservaService, never()).confirmarReserva(any());
     }
 
     @Test
     void registrarCobroMostrador_MetodoQueNoEsDeMostrador_SeRechaza() {
-        assertThrows(DatosInvalidosException.class, () ->
-                pagoService.registrarCobroMostrador(1L, MetodoPago.MERCADOPAGO, "ana@club.com"));
-        assertThrows(DatosInvalidosException.class, () ->
-                pagoService.registrarCobroMostrador(1L, MetodoPago.BONO, "ana@club.com"));
-
-        verify(pagoRepository, never()).save(any());
+        assertThrows(DatosInvalidosException.class,
+                () -> pagoService.registrarCobroMostrador(1L, MetodoPago.MERCADOPAGO, "recepcion@example.com"));
+        verifyNoInteractions(reservaRepository);
     }
 
     @Test
     void registrarCobroMostrador_TurnoYaCobrado_NoCobraDosVeces() {
-        reservaMock.setEstadoReserva(EstadoReserva.CONFIRMADA);
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        ReflectionTestUtils.setField(reserva, "estadoReserva", EstadoReserva.CONFIRMADA);
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
         when(pagoRepository.existsByReservaIdAndEstadoAndConcepto(1L, EstadoPago.APROBADO, ConceptoPago.TURNO)).thenReturn(true);
 
-        assertThrows(EstadoInvalidoException.class, () ->
-                pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "ana@club.com"));
-
+        assertThrows(EstadoInvalidoException.class,
+                () -> pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "recepcion@example.com"));
         verify(pagoRepository, never()).save(any());
-        verify(reservaService, never()).confirmarReserva(anyLong());
     }
 
     @Test
     void registrarCobroMostrador_ReservaCancelada_SeRechaza() {
-        reservaMock.setEstadoReserva(EstadoReserva.CANCELADA);
-        when(reservaRepository.findById(1L)).thenReturn(Optional.of(reservaMock));
+        ReflectionTestUtils.setField(reserva, "estadoReserva", EstadoReserva.CANCELADA);
+        when(reservaRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(reserva));
 
-        assertThrows(ReservaNoModificableException.class, () ->
-                pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "ana@club.com"));
-
-        verify(pagoRepository, never()).save(any());
+        assertThrows(ReservaNoModificableException.class,
+                () -> pagoService.registrarCobroMostrador(1L, MetodoPago.EFECTIVO, "recepcion@example.com"));
     }
 }

@@ -1,6 +1,5 @@
-# Perfil de produccion. TODOS los valores sensibles se inyectan por variable de
-# entorno; no hay defaults locales. Pensado para correr en contenedor (docker-compose
-# o plataforma de deploy) contra Postgres y Redis externos.
+# Perfil de producción. TODOS los valores sensibles se inyectan por variable de entorno y no tienen default:
+# si falta alguno la aplicación no arranca (mejor eso que arrancar con un valor inseguro).
 spring:
   datasource:
     url: ${DB_URL}
@@ -10,23 +9,33 @@ spring:
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: validate # Flyway es la unica fuente del esquema
+      ddl-auto: validate # Flyway es la única fuente del esquema
     show-sql: false
-    open-in-view: false
   flyway:
     enabled: true
     baseline-on-migrate: false
     out-of-order: false
-    # Solo el esquema. El seed de prueba (db/dev, V29) NO se aplica en produccion.
+    # Solo el esquema. El seed de prueba (db/dev, V29) NO se aplica en producción.
     locations: classpath:db/migration
   data:
     redis:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
 
 server:
   port: ${SERVER_PORT:8080}
-  forward-headers-strategy: framework # respeta X-Forwarded-* detras de un proxy/nginx
+  # "native": Tomcat solo confía en X-Forwarded-For si el pedido viene de una red interna (el proxy).
+  # Con "framework" cualquier cliente podía falsear su IP y saltearse los límites por IP.
+  forward-headers-strategy: native
+  tomcat:
+    max-swallow-size: 1MB
+    max-http-form-post-size: 1MB
+
+management:
+  server:
+    # Health y métricas en un puerto aparte, solo accesible dentro de la red de Docker (no se publica).
+    port: ${MANAGEMENT_PORT:8081}
 
 logging:
   level:
@@ -34,3 +43,7 @@ logging:
     org.springframework.security: WARN
     org.springframework.web: WARN
     org.hibernate.SQL: WARN
+
+mercadopago:
+  webhook:
+    exigir-firma: true
