@@ -10,6 +10,7 @@ import { CanchaResponse } from '../../../shared/models/cancha.model';
 import { SolicitudPartidoResponse, TipoSolicitud } from '../../../shared/models/solicitud-partido.model';
 import { maxIsoDateTimeLocal, nowIsoDateTimeLocal, rangoDeFechaValidator } from '../../../shared/utils/date.util';
 import { ToastService } from '../../../core/services/toast.service';
+import { urlWhatsapp } from '../../../shared/utils/whatsapp.util';
 
 @Component({
   selector: 'app-tablon-solicitudes',
@@ -189,6 +190,16 @@ export class TablonSolicitudesComponent implements OnInit {
   yaMePostule(solicitud: SolicitudPartidoResponse): boolean {
     const id = this.currentUser()?.id;
     return solicitud.postulaciones.some(p => p.jugadorId === id);
+  }
+  // Aceptado en una solicitud que no se canceló: es jugador del partido y ve el contacto del resto.
+  meAceptaron(solicitud: SolicitudPartidoResponse): boolean {
+    const id = this.currentUser()?.id;
+    return solicitud.estado !== 'CANCELADA' && solicitud.postulaciones.some(p => p.jugadorId === id && p.estado === 'ACEPTADA');
+  }
+  whatsapp(solicitud: SolicitudPartidoResponse, nombre: string, telefono: string | null): string | null {
+    const [fecha, hora] = solicitud.fechaHoraPropuesta.split('T');
+    const [, mes, dia] = fecha.split('-');
+    return urlWhatsapp(telefono, `¡Hola ${nombre.split(' ')[0]}! Te escribo por el partido del ${dia}/${mes} a las ${hora.substring(0, 5)} que armamos en el tablón de PadelApp.`);
   }
   clasePostulacion(estado: string): string {
     switch (estado) {

@@ -16,6 +16,7 @@ import {
   etiquetaPosicion
 } from '../../../shared/models/match.model';
 import { TarjetaJugadorComponent } from '../tarjeta-jugador/tarjeta-jugador.component';
+import { urlWhatsapp } from '../../../shared/utils/whatsapp.util';
 
 type EstadoPerfil = 'cargando' | 'sin-perfil' | 'oculto' | 'listo' | 'error';
 type Vista = 'descubrir' | 'matches';
@@ -294,11 +295,6 @@ export class MatchComponent implements OnInit {
   }
 
   linkWhatsapp(pareja: MatchParejaResponse): string | null {
-    const digitos = (pareja.telefono ?? '').replace(/\D/g, '');
-    if (!digitos) return null;
-    // Los teléfonos se cargan sin código de país: se asume Argentina (+54).
-    const numero = digitos.startsWith('54') ? digitos : `54${digitos}`;
-    const texto = encodeURIComponent(`¡Hola ${pareja.nombre.split(' ')[0]}! Hicimos match en PadelApp. ¿Armamos un partido?`);
-    return `https://wa.me/${numero}?text=${texto}`;
+    return urlWhatsapp(pareja.telefono, `¡Hola ${pareja.nombre.split(' ')[0]}! Hicimos match en PadelApp. ¿Armamos un partido?`);
   }
 }

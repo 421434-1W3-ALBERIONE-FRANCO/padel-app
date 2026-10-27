@@ -83,7 +83,7 @@ public class SolicitudPartidoController {
     }
 
     @PutMapping("/{id}/postulaciones/{postulacionId}/aceptar")
-    @Operation(summary = "Aceptar una postulación", description = "El creador de la solicitud acepta a un jugador postulado.")
+    @Operation(summary = "Aceptar una postulación", description = "El creador de la solicitud acepta a un jugador postulado. Desde ahí, el creador y los aceptados se ven el contacto entre sí para coordinar el partido, mientras la solicitud no se cancele.")
     public ResponseEntity<SolicitudPartidoResponse> aceptarPostulacion(
             @PathVariable Long id,
             @PathVariable Long postulacionId,
