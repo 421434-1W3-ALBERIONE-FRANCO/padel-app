@@ -9,7 +9,8 @@ public record PostulacionSolicitudResponse(
     Long solicitudId,
     Long jugadorId,
     String jugadorNombre,
-    // Solo cuando la ve el creador de la solicitud y la postulación está aceptada.
+    // Si la postulación está aceptada, para los otros jugadores del partido (el creador y los demás aceptados)
+    // mientras la solicitud no se cancele.
     ContactoResponse contacto,
     String mensaje,
     EstadoPostulacion estado,

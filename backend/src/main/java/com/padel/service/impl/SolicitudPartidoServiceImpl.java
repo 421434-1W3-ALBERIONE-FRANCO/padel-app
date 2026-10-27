@@ -215,9 +215,10 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
     }
 
     /**
-     * Arma las respuestas según quién mira: el creador ve todas las postulaciones (y el contacto de los
-     * aceptados); un postulante ve solo la suya (y el contacto del creador si lo aceptaron); el resto, ninguna.
-     * Las postulaciones de todas las solicitudes se traen en una sola consulta.
+     * Arma las respuestas según quién mira. Los jugadores del partido (el creador y los aceptados) se ven el
+     * contacto entre sí para coordinarlo: el creador ve todas las postulaciones; un aceptado, la suya y las de los
+     * otros aceptados; cualquier otro postulante, solo la suya; el resto, ninguna. Una solicitud cancelada ya no
+     * muestra contactos. Las postulaciones de todas las solicitudes se traen en una sola consulta.
      */
     private List<SolicitudPartidoResponse> armarRespuestas(List<SolicitudPartido> solicitudes, Usuario viewer) {
         if (solicitudes.isEmpty()) {
@@ -229,18 +230,24 @@ public class SolicitudPartidoServiceImpl implements SolicitudPartidoService {
 
         return solicitudes.stream().map(solicitud -> {
             List<PostulacionSolicitud> todas = porSolicitud.getOrDefault(solicitud.getId(), List.of());
-            boolean esCreador = solicitud.getCreador().getId().equals(viewer.getId());
-            boolean aceptado = todas.stream().anyMatch(p -> p.getJugador().getId().equals(viewer.getId())
-                    && p.getEstado() == EstadoPostulacion.ACEPTADA);
+            Long viewerId = viewer.getId();
+            boolean esCreador = solicitud.getCreador().getId().equals(viewerId);
+            boolean aceptado = todas.stream().anyMatch(p -> esDe(p, viewerId) && p.getEstado() == EstadoPostulacion.ACEPTADA);
+            boolean delPartido = (esCreador || aceptado) && solicitud.getEstado() != EstadoSolicitud.CANCELADA;
 
             List<PostulacionSolicitudResponse> visibles = todas.stream()
-                    .filter(p -> esCreador || p.getJugador().getId().equals(viewer.getId()))
+                    .filter(p -> esCreador || esDe(p, viewerId) || (delPartido && p.getEstado() == EstadoPostulacion.ACEPTADA))
                     .map(p -> postulacionSolicitudMapper.toResponse(p,
-                            esCreador && p.getEstado() == EstadoPostulacion.ACEPTADA ? contacto(p.getJugador()) : null))
+                            delPartido && p.getEstado() == EstadoPostulacion.ACEPTADA && !esDe(p, viewerId)
+                                    ? contacto(p.getJugador()) : null))
                     .toList();
-            ContactoResponse contactoCreador = esCreador || aceptado ? contacto(solicitud.getCreador()) : null;
+            ContactoResponse contactoCreador = delPartido ? contacto(solicitud.getCreador()) : null;
             return solicitudPartidoMapper.toResponse(solicitud, contactoCreador, visibles, todas.size());
         }).toList();
+    }
+
+    private static boolean esDe(PostulacionSolicitud postulacion, Long usuarioId) {
+        return postulacion.getJugador().getId().equals(usuarioId);
     }
 
     private static ContactoResponse contacto(Usuario usuario) {
