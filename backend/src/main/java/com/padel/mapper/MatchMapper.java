@@ -10,6 +10,7 @@ import com.padel.dto.response.MatchParejaResponse;
 import com.padel.dto.response.PerfilJugadorResponse;
 import org.springframework.stereotype.Component;
 
+import java.time.ZoneId;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -28,7 +29,8 @@ public class MatchMapper {
                 perfil.getPosicion(),
                 perfil.getBio(),
                 perfil.isVisibleEnMatch(),
-                toBloques(perfil.getDisponibilidad())
+                toBloques(perfil.getDisponibilidad()),
+                fotoVersion(perfil)
         );
     }
 
@@ -45,7 +47,8 @@ public class MatchMapper {
                 puntosRanking,
                 afinidad,
                 toBloques(perfil.getDisponibilidad()),
-                toBloques(coincidencias)
+                toBloques(coincidencias),
+                fotoVersion(perfil)
         );
     }
 
@@ -62,7 +65,8 @@ public class MatchMapper {
                 companero.getEmail(),
                 companero.getTelefono(),
                 toBloques(coincidencias),
-                match.getCreatedAt()
+                match.getCreatedAt(),
+                fotoVersion(perfilCompanero)
         );
     }
 
@@ -71,6 +75,12 @@ public class MatchMapper {
                 .sorted(ORDEN_SEMANAL)
                 .map(b -> new BloqueDisponibleResponse(b.getDiaSemana(), b.getBloque()))
                 .toList();
+    }
+
+    /** Milisegundos de la última carga de la foto: el front los usa para no mostrar una foto vieja de caché. */
+    public static Long fotoVersion(PerfilJugador perfil) {
+        if (perfil == null || perfil.getFotoActualizadaEn() == null) return null;
+        return perfil.getFotoActualizadaEn().atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
     private String nombreAbreviado(Usuario usuario) {

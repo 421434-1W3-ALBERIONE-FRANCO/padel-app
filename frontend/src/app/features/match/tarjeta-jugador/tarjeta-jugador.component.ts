@@ -6,17 +6,17 @@ import {
   etiquetaPosicion
 } from '../../../shared/models/match.model';
 import { DisponibilidadGridComponent } from '../disponibilidad-grid/disponibilidad-grid.component';
+import { AvatarJugadorComponent } from '../../../shared/components/avatar-jugador/avatar-jugador.component';
 
 /** Contenido de una carta del mazo: identidad, afinidad, nivel y horarios en común. */
 @Component({
   selector: 'app-tarjeta-jugador',
-  imports: [CommonModule, DisponibilidadGridComponent],
+  imports: [CommonModule, DisponibilidadGridComponent, AvatarJugadorComponent],
   template: `
     <div class="flex items-start gap-4">
-      <div class="shrink-0 w-16 h-16 rounded-full p-[2px] bg-gradient-to-br from-primary-400 to-accent-500">
-        <div class="w-full h-full rounded-full bg-surface-1 flex items-center justify-center text-xl font-extrabold font-display text-slate-100">
-          {{ candidato().iniciales }}
-        </div>
+      <div class="shrink-0 w-20 h-20 rounded-full p-[2px] bg-gradient-to-br from-primary-400 to-accent-500">
+        <app-avatar-jugador [usuarioId]="candidato().usuarioId" [fotoVersion]="candidato().fotoVersion"
+                            [iniciales]="candidato().iniciales" claseTexto="text-2xl" [alt]="'Foto de ' + candidato().nombre" />
       </div>
       <div class="min-w-0 flex-1">
         <h3 class="text-xl font-bold text-slate-100 font-display truncate">{{ candidato().nombre }}</h3>

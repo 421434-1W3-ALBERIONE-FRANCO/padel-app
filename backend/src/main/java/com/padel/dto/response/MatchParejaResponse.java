@@ -17,5 +17,7 @@ public record MatchParejaResponse(
     String email,
     String telefono,
     List<BloqueDisponibleResponse> coincidencias,
-    LocalDateTime createdAt
+    LocalDateTime createdAt,
+    /** Versión de la foto de perfil del compañero; null si no tiene foto. */
+    Long fotoVersion
 ) {}

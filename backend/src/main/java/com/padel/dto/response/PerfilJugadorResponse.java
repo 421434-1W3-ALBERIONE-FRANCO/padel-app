@@ -12,5 +12,7 @@ public record PerfilJugadorResponse(
     PosicionJuego posicion,
     String bio,
     boolean visibleEnMatch,
-    List<BloqueDisponibleResponse> disponibilidad
+    List<BloqueDisponibleResponse> disponibilidad,
+    /** Versión de la foto de perfil (cambia con cada carga); null si no tiene foto. */
+    Long fotoVersion
 ) {}

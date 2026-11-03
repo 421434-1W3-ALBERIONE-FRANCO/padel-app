@@ -29,6 +29,23 @@ export class MatchService {
     return this.http.put<PerfilJugadorResponse>(`${this.API_URL}/jugadores/me/perfil`, request);
   }
 
+  /** Sube la foto de perfil ya recortada (JPEG) como cuerpo binario; vuelve el perfil con la nueva versión. */
+  subirFoto(foto: Blob): Observable<PerfilJugadorResponse> {
+    return this.http.put<PerfilJugadorResponse>(`${this.API_URL}/jugadores/me/perfil/foto`, foto, {
+      headers: { 'Content-Type': foto.type || 'image/jpeg' }
+    });
+  }
+
+  eliminarFoto(): Observable<PerfilJugadorResponse> {
+    return this.http.delete<PerfilJugadorResponse>(`${this.API_URL}/jugadores/me/perfil/foto`);
+  }
+
+  /** La foto de un jugador como Blob: va con el token, por eso no alcanza con un <img src>. */
+  obtenerFoto(usuarioId: number, version: number): Observable<Blob> {
+    const params = new HttpParams().set('v', version);
+    return this.http.get(`${this.API_URL}/jugadores/${usuarioId}/foto`, { params, responseType: 'blob' });
+  }
+
   obtenerCandidatos(limite = 20): Observable<CandidatoMatchResponse[]> {
     const params = new HttpParams().set('limite', limite);
     return this.http.get<CandidatoMatchResponse[]>(`${this.API_URL}/match/candidatos`, { params });

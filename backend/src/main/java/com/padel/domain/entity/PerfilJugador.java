@@ -5,6 +5,7 @@ import com.padel.domain.enums.PosicionJuego;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -40,6 +41,10 @@ public class PerfilJugador extends BaseEntity {
     @Builder.Default
     @Column(name = "visible_en_match", nullable = false)
     private boolean visibleEnMatch = true;
+
+    // Cuándo se cargó la foto de perfil (null si no tiene). Los bytes están en fotos_perfil.
+    @Column(name = "foto_actualizada_en")
+    private LocalDateTime fotoActualizadaEn;
 
     @Builder.Default
     @ElementCollection

@@ -27,6 +27,8 @@ export interface PerfilJugadorResponse {
   bio?: string | null;
   visibleEnMatch: boolean;
   disponibilidad: BloqueDisponible[];
+  /** Versión de la foto de perfil (cambia con cada carga); no viene si no tiene foto. */
+  fotoVersion?: number | null;
 }
 
 export interface CandidatoMatchResponse {
@@ -40,6 +42,7 @@ export interface CandidatoMatchResponse {
   afinidad: number;
   disponibilidad: BloqueDisponible[];
   coincidencias: BloqueDisponible[];
+  fotoVersion?: number | null;
 }
 
 export interface MatchParejaResponse {
@@ -53,6 +56,7 @@ export interface MatchParejaResponse {
   telefono?: string | null;
   coincidencias: BloqueDisponible[];
   createdAt?: string;
+  fotoVersion?: number | null;
 }
 
 export interface SwipeRequest {

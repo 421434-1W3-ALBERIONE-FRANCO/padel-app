@@ -16,6 +16,7 @@ import {
   etiquetaPosicion
 } from '../../../shared/models/match.model';
 import { TarjetaJugadorComponent } from '../tarjeta-jugador/tarjeta-jugador.component';
+import { AvatarJugadorComponent } from '../../../shared/components/avatar-jugador/avatar-jugador.component';
 import { urlWhatsapp } from '../../../shared/utils/whatsapp.util';
 
 type EstadoPerfil = 'cargando' | 'sin-perfil' | 'oculto' | 'listo' | 'error';
@@ -27,7 +28,7 @@ const DURACION_SALIDA_MS = 280;
 
 @Component({
   selector: 'app-match',
-  imports: [CommonModule, RouterLink, TarjetaJugadorComponent],
+  imports: [CommonModule, RouterLink, TarjetaJugadorComponent, AvatarJugadorComponent],
   templateUrl: './match.component.html'
 })
 export class MatchComponent implements OnInit {

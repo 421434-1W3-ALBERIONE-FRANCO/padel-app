@@ -19,5 +19,7 @@ public record CandidatoMatchResponse(
     int puntosRanking,
     int afinidad,
     List<BloqueDisponibleResponse> disponibilidad,
-    List<BloqueDisponibleResponse> coincidencias
+    List<BloqueDisponibleResponse> coincidencias,
+    /** Versión de la foto de perfil; null si no tiene foto. */
+    Long fotoVersion
 ) {}
